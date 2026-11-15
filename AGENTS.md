@@ -25,3 +25,11 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+# Project docs
+
+- `docs/OVERVIEW.md` says what we are building.
+- `docs/ARCHITECTURE.md` sets package boundaries and rules. Read it before adding a package, adding a dependency, or touching `sim`, `data`, `editor`, or `render`.
+- `docs/ROADMAP.md` orders the work and names the current milestone.
+- `docs/ADRs.md` records decisions. Changing an architecture rule needs an entry there.
+- Run the `architecture-guardian` agent (`.agents/agents/architecture-guardian.md`) on changes that cross package boundaries.
