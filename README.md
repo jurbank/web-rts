@@ -1,28 +1,35 @@
-# Vite+ Monorepo Starter
+# web-rts
 
-A starter for creating a Vite+ monorepo.
+A browser RTS with a scenario editor. Players build maps and game modes, playtest them, and play them on desktop or phone.
+
+Start with the docs:
+
+- [docs/OVERVIEW.md](docs/OVERVIEW.md) says what we are building.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) sets package boundaries and rules.
+- [docs/ROADMAP.md](docs/ROADMAP.md) orders the work and names the current milestone.
+- [docs/ADRs.md](docs/ADRs.md) records decisions.
+
+## Packages
+
+- `packages/data`: scenario and content schemas.
+- `packages/sim`: the headless, deterministic simulation.
+- `apps/website`: the app. Still the starter page.
 
 ## Development
 
-- Check everything is ready:
+The repo uses [Vite+](https://viteplus.dev/guide/). Install it, then:
 
 ```bash
-vp run ready
+vp install
 ```
-
-- Run the tests:
 
 ```bash
-vp run -r test
+vp check
 ```
-
-- Build the monorepo:
 
 ```bash
-vp run -r build
+vp test
 ```
-
-- Run the development server:
 
 ```bash
 vp run dev

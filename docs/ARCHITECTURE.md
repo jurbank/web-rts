@@ -1,6 +1,6 @@
 # Architecture
 
-None of this is built yet. The repo is still the Vite+ monorepo starter (`apps/website`, `packages/utils`). This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
+Little of this is built yet. `packages/data` and `packages/sim` are scaffolds and `apps/website` is still the Vite+ starter. This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
 
 Rule ids (D1, S3, ...) are stable. The architecture-guardian agent cites them. A removed rule leaves a gap. To change a rule, add an entry to [ADRs.md](ADRs.md) and edit this file in the same change.
 
@@ -17,13 +17,13 @@ editor  render -> sim
         data
 ```
 
-| Package           | Owns                                                                                              | May import              |
-| ----------------- | ------------------------------------------------------------------------------------------------- | ----------------------- |
-| `packages/data`   | Zod schemas and types for content definitions and scenarios, format version, migrations, validation | nothing in the workspace |
-| `packages/sim`    | Headless game rules. World state, commands, fixed-step tick, AI, triggers, snapshots, state hash  | `data`                  |
-| `packages/editor` | Headless authoring. The scenario document, edit operations, undo/redo history                     | `data`                  |
-| `packages/render` | Drawing the battlefield from snapshots. Camera, picking, effects, overlays                        | `data`, `sim` (types and snapshot readers only) |
-| `apps/website`    | React game and editor UI, input mapping, persistence, the game loop, the edit and playtest wiring | everything              |
+| Package           | Owns                                                                                                | May import                                      |
+| ----------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `packages/data`   | Zod schemas and types for content definitions and scenarios, format version, migrations, validation | nothing in the workspace                        |
+| `packages/sim`    | Headless game rules. World state, commands, fixed-step tick, AI, triggers, snapshots, state hash    | `data`                                          |
+| `packages/editor` | Headless authoring. The scenario document, edit operations, undo/redo history                       | `data`                                          |
+| `packages/render` | Drawing the battlefield from snapshots. Camera, picking, effects, overlays                          | `data`, `sim` (types and snapshot readers only) |
+| `apps/website`    | React game and editor UI, input mapping, persistence, the game loop, the edit and playtest wiring   | everything                                      |
 
 Five packages is the starting point, not a target. Split one only when a second consumer needs half of it.
 
@@ -59,6 +59,7 @@ Entity storage starts as plain tables keyed by entity id with systems as functio
 - **C4.** Zod schemas are the source of truth. TypeScript types are inferred from them, not written beside them.
 - **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs in a sandbox with a step budget and goes through S2 like everything else.
 - **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game.
+- **C7.** Scenario data states speeds and durations in seconds, never in ticks. `sim` converts using its tick constant, so the tick rate can change without rewriting content.
 
 ## Editor
 
@@ -122,6 +123,3 @@ Performance budgets are not set yet. They get set against a real phone, since th
 Each of these needs an ADR before the code that depends on it.
 
 1. Multiplayer model, lockstep or authoritative server.
-2. Number representation in `sim`. Restricted floats under S4, or fixed point.
-3. Tick rate.
-4. Whether `apps/website` and `packages/utils` get renamed or removed once real packages exist.
