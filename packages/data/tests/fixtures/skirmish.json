@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "map": { "width": 64, "height": 48 },
+  "players": [{ "id": "red" }, { "id": "blue" }],
+  "unitDefinitions": [
+    { "id": "scout", "speed": 6 },
+    { "id": "tank", "speed": 2.5 }
+  ],
+  "placements": [
+    { "definitionId": "scout", "playerId": "red", "x": 4, "y": 4 },
+    { "definitionId": "tank", "playerId": "blue", "x": 60, "y": 44 }
+  ]
+}

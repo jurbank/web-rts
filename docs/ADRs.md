@@ -19,3 +19,7 @@ The simulation is the priority and the first view of it is deliberately minimal.
 ## 2026-11-14 Remove `packages/utils`, keep `apps/website`
 
 `packages/utils` was the starter placeholder and nothing imported it. It is deleted. `apps/website` keeps its name, which the architecture document already uses, and its starter content is replaced when milestone 3 builds the app.
+
+## 2026-11-14 S4 allows the exactly specified Math functions
+
+S4 named only `+ - * /` and `Math.sqrt`. The sim math module needs `Math.floor` for range reduction and `Math.abs`. ECMAScript specifies `floor`, `ceil`, `trunc`, `round`, `abs`, `sign`, `min`, and `max` exactly, so they cannot differ between engines. S4 now lists them. The transcendental functions stay banned.

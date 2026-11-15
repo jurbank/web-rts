@@ -42,7 +42,7 @@ The simulation is a function of its inputs. Given the same scenario, seed, and c
 - **S1.** State changes only inside `step`. One call advances one tick of fixed length. The tick rate is one constant in `sim`.
 - **S2.** Commands are the only input. A command is plain serializable data with a player id and a target tick. The UI, the AI, and later the network all submit commands to the same queue. AI gets no private way to mutate state.
 - **S3.** No ambient inputs. `sim` never reads `Math.random`, `Date.now`, `performance.now`, timers, or locale. Randomness comes from a seeded generator stored in world state.
-- **S4.** Math is reproducible across JS engines. Use `+ - * /` and `Math.sqrt`, which IEEE 754 fixes exactly. `Math.sin`, `cos`, `atan2`, `pow`, `exp`, and `log` may differ between engines, so `sim` calls its own math module for those.
+- **S4.** Math is reproducible across JS engines. Use `+ - * /` and `Math.sqrt`, which IEEE 754 fixes exactly, and `Math.floor`, `ceil`, `trunc`, `round`, `abs`, `sign`, `min`, and `max`, which the language specifies exactly. `Math.sin`, `cos`, `atan2`, `pow`, `exp`, and `log` may differ between engines, so `sim` calls its own math module for those.
 - **S5.** Iteration order is defined. Systems run in a fixed order and visit entities in id order. Nothing depends on `Map` or `Set` order unless insertion order is itself deterministic.
 - **S6.** `step` is synchronous. No promises, no `await`, no I/O.
 - **S7.** World state is plain data. It serializes to JSON and back without loss, and `sim` can hash it. No class instances holding closures, no references to DOM or renderer objects.
