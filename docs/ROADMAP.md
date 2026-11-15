@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 3, not started. Milestones 1 and 2 are done.
+Current: milestone 3. Milestones 1 and 2 are done. Milestone 3 is built and checked on desktop. The iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -26,7 +26,7 @@ Done when a fixture scenario with a scripted command stream produces the same ha
 
 ## 3. A view of the simulation
 
-- `packages/render`: Three.js, orthographic top-down camera, flat plane, placeholder boxes, interpolation between snapshots, raycast picking, and the 2D debug overlay.
+- `packages/render`: Three.js, tilted perspective camera, flat plane, placeholder boxes, interpolation between snapshots, raycast picking, and the 2D debug overlay.
 - App: the game loop, pan and zoom, select, box select, and move orders, by mouse and by touch (U1, U2).
 - Set performance budgets from measurements on a real phone and record them below.
 

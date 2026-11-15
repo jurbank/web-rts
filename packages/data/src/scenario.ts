@@ -7,11 +7,15 @@ const idSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]*$/);
 
 export const unitDefinitionSchema = z.object({
   id: idSchema,
+  /** Ground units per second. */
   speed: z.number().positive(),
+  /** Footprint radius in ground units. */
+  radius: z.number().positive(),
 });
 
 export const playerSchema = z.object({
   id: idSchema,
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
 });
 
 export const placementSchema = z.object({

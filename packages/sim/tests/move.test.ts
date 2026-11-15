@@ -1,6 +1,6 @@
 import { loadScenario } from "data";
 import { expect, test } from "vite-plus/test";
-import { createWorld, step, TICK_RATE, type World } from "../src/index.ts";
+import { createWorld, step, takeSnapshot, TICK_RATE, type World } from "../src/index.ts";
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
 
 function world(): World {
@@ -42,3 +42,17 @@ test("a target outside the map is clamped to its edge", () => {
   advance(w, 60);
   expect(w.units[0]).toMatchObject({ x: 0, y: 4, target: null });
 });
+
+test("a snapshot is unaffected by later steps", () => {
+  const w = world();
+  step(w, [{ type: "move", playerId: "red", tick: 0, unitIds: [1], x: 20, y: 4 }]);
+  const snapshot = takeSnapshot(w);
+  const copy = structuredCopy(snapshot);
+  advance(w, 30);
+  expect(snapshot).toEqual(copy);
+  expect(takeSnapshot(w).units[0].x).toBeGreaterThan(snapshot.units[0].x);
+});
+
+function structuredCopy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}

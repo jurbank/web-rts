@@ -1,60 +1,98 @@
 import "./style.css";
-import heroImg from "./assets/hero.png";
-import typescriptLogo from "./assets/typescript.svg";
-import viteLogo from "./assets/vite.svg";
-import { setupCounter } from "./counter.ts";
+import { loadScenario } from "data";
+import { createRenderer, type ScreenPoint } from "render";
+import { createWorld } from "sim";
+import { attachInput } from "./input.ts";
+import { createGameLoop } from "./loop.ts";
+import skirmish from "./scenarios/skirmish.json";
 
-document.querySelector<HTMLDivElement>("#app")!.innerHTML = `
-<section id="center">
-  <div class="hero">
-    <img src="${heroImg}" class="base" width="170" height="179">
-    <img src="${typescriptLogo}" class="framework" alt="TypeScript logo"/>
-    <img src="${viteLogo}" class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/main.ts</code> and save to test <code>HMR</code></p>
-  </div>
-  <button id="counter" type="button" class="counter"></button>
-</section>
+function element<T extends HTMLElement>(id: string): T {
+  return document.getElementById(id) as T;
+}
 
-<div class="ticks"></div>
+const battlefield = element<HTMLDivElement>("battlefield");
+const box = element<HTMLDivElement>("box");
+const deselectButton = element<HTMLButtonElement>("deselect");
+const debugButton = element<HTMLButtonElement>("toggle-debug");
 
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#documentation-icon"></use></svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank">
-          <img class="logo" src="${viteLogo}" alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://www.typescriptlang.org" target="_blank">
-          <img class="button-icon" src="${typescriptLogo}" alt="">
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true"><use href="/icons.svg#social-icon"></use></svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li><a href="https://github.com/vitejs/vite" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#github-icon"></use></svg>GitHub</a></li>
-      <li><a href="https://chat.vite.dev/" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#discord-icon"></use></svg>Discord</a></li>
-      <li><a href="https://x.com/vite_js" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#x-icon"></use></svg>X.com</a></li>
-      <li><a href="https://bsky.app/profile/vite.dev" target="_blank"><svg class="button-icon" role="presentation" aria-hidden="true"><use href="/icons.svg#bluesky-icon"></use></svg>Bluesky</a></li>
-    </ul>
-  </div>
-</section>
+const scenario = loadScenario(skirmish);
+/** Until scenarios say who is human, the first player is. */
+const localPlayerId = scenario.players[0].id;
+const loop = createGameLoop(createWorld(scenario, 1));
+const renderer = createRenderer(element("scene"), element("debug"), scenario);
 
-<div class="ticks"></div>
-<section id="spacer"></section>
-`;
+let selectedIds: number[] = [];
+let debug = false;
 
-setupCounter(document.querySelector<HTMLButtonElement>("#counter")!);
+function select(ids: number[]): void {
+  const owned = new Set(
+    loop.current.units.filter((unit) => unit.playerId === localPlayerId).map((unit) => unit.id),
+  );
+  selectedIds = ids.filter((id) => owned.has(id));
+  deselectButton.hidden = selectedIds.length === 0;
+}
+
+function order(at: ScreenPoint): void {
+  const ground = renderer.pickGround(at);
+  if (ground === null || selectedIds.length === 0) return;
+  loop.submit({
+    type: "move",
+    playerId: localPlayerId,
+    tick: loop.tick,
+    unitIds: selectedIds,
+    x: ground.x,
+    y: ground.y,
+  });
+}
+
+attachInput(battlefield, {
+  tap(at, slop) {
+    const id = renderer.pickUnit(at, slop);
+    const unit = loop.current.units.find((candidate) => candidate.id === id);
+    const selectable = unit?.playerId === localPlayerId && !selectedIds.includes(unit.id);
+    if (selectable) select([unit.id]);
+    else order(at);
+  },
+  order,
+  boxPreview(a, b) {
+    box.hidden = a === null || b === null;
+    if (a === null || b === null) return;
+    box.style.left = `${Math.min(a.x, b.x)}px`;
+    box.style.top = `${Math.min(a.y, b.y)}px`;
+    box.style.width = `${Math.abs(a.x - b.x)}px`;
+    box.style.height = `${Math.abs(a.y - b.y)}px`;
+  },
+  boxSelect(a, b) {
+    select(renderer.unitsInRect(a, b));
+  },
+  pan: (from, to) => renderer.pan(from, to),
+  zoom: (factor, at) => renderer.zoom(factor, at),
+  cancel() {
+    select([]);
+  },
+});
+
+deselectButton.addEventListener("click", () => select([]));
+debugButton.addEventListener("click", () => {
+  debug = !debug;
+  debugButton.setAttribute("aria-pressed", String(debug));
+});
+
+function resize(): void {
+  renderer.resize(
+    battlefield.clientWidth,
+    battlefield.clientHeight,
+    Math.min(window.devicePixelRatio, 2),
+  );
+}
+new ResizeObserver(resize).observe(battlefield);
+resize();
+
+let lastTime = performance.now();
+function frame(time: number): void {
+  const alpha = loop.advance((time - lastTime) / 1000);
+  lastTime = time;
+  renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);

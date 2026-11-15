@@ -23,3 +23,11 @@ The simulation is the priority and the first view of it is deliberately minimal.
 ## 2026-11-14 S4 allows the exactly specified Math functions
 
 S4 named only `+ - * /` and `Math.sqrt`. The sim math module needs `Math.floor` for range reduction and `Math.abs`. ECMAScript specifies `floor`, `ceil`, `trunc`, `round`, `abs`, `sign`, `min`, and `max` exactly, so they cannot differ between engines. S4 now lists them. The transcendental functions stay banned.
+
+## 2026-11-15 Tilted perspective camera from the start
+
+Replaces the orthographic top-down camera in the Three.js entry above. A perspective camera pitched about 55 degrees costs the same code, and pan, zoom, ground picking, and box select are written once against the projection the game will ship with. Positions stay ground-plane coordinates (S9), so `sim` is unaffected.
+
+## 2026-11-15 Snapshots are copies
+
+`takeSnapshot` in `sim` returns a new plain object with readonly types (S8). `step` mutates the world in place and interpolation needs the previous tick, so a view over the live world would not work. The copy holds only what consumers draw. Revisit if profiles show the copy cost.

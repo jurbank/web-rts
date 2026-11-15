@@ -101,7 +101,12 @@ function enqueue(queue: Command[], command: Command): void {
   while (index > 0 && queue[index - 1].tick > command.tick) {
     index -= 1;
   }
-  queue.splice(index, 0, { ...command, unitIds: [...command.unitIds] });
+  queue.splice(index, 0, {
+    ...command,
+    x: command.x + 0,
+    y: command.y + 0,
+    unitIds: command.unitIds.map((id) => id + 0),
+  });
 }
 
 function applyCommand(world: World, command: Command): void {

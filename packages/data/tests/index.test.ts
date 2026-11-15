@@ -32,7 +32,7 @@ test("rejects placements that reference unknown ids", () => {
 
 test("rejects duplicate ids and placements outside the map", () => {
   const scenario = fixture();
-  scenario.players.push({ id: "red" });
+  scenario.players.push({ id: "red", color: "#000000" });
   scenario.placements[0].x = 65;
   expect(issues(scenario)).toEqual(['Duplicate id "red"', "Placement is outside the map"]);
 });

@@ -60,4 +60,7 @@ test("negative zero never enters world state", () => {
   const world = createWorld(loadScenario(skirmish), 7);
   step(world, [{ type: "move", playerId: "red", tick: 0, unitIds: [1], x: -0, y: 4 }]);
   expect(Object.is(world.units[0].target?.x, 0)).toBe(true);
+  step(world, [{ type: "move", playerId: "red", tick: 99, unitIds: [-0], x: -0, y: -0 }]);
+  const queued = world.pendingCommands[0];
+  expect([queued.x, queued.y, queued.unitIds[0]].every((value) => Object.is(value, 0))).toBe(true);
 });

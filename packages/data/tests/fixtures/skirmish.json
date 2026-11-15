@@ -1,10 +1,13 @@
 {
   "formatVersion": 1,
   "map": { "width": 64, "height": 48 },
-  "players": [{ "id": "red" }, { "id": "blue" }],
+  "players": [
+    { "id": "red", "color": "#e5484d" },
+    { "id": "blue", "color": "#3e63dd" }
+  ],
   "unitDefinitions": [
-    { "id": "scout", "speed": 6 },
-    { "id": "tank", "speed": 2.5 }
+    { "id": "scout", "speed": 6, "radius": 0.6 },
+    { "id": "tank", "speed": 2.5, "radius": 1 }
   ],
   "placements": [
     { "definitionId": "scout", "playerId": "red", "x": 4, "y": 4 },

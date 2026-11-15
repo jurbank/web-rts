@@ -3,11 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>website</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>web-rts</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="battlefield">
+      <canvas id="scene"></canvas>
+      <canvas id="debug"></canvas>
+      <div id="box" hidden></div>
+    </div>
+    <div id="hud">
+      <button id="deselect" type="button" hidden>Deselect</button>
+      <button id="toggle-debug" type="button" aria-pressed="false">Debug</button>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

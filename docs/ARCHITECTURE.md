@@ -1,6 +1,6 @@
 # Architecture
 
-Little of this is built yet. `packages/data` and `packages/sim` are scaffolds and `apps/website` is still the Vite+ starter. This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
+`data`, `sim`, `render`, and the app exist in their first form. `editor` is not built yet. This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
 
 Rule ids (D1, S3, ...) are stable. The architecture-guardian agent cites them. A removed rule leaves a gap. To change a rule, add an entry to [ADRs.md](ADRs.md) and edit this file in the same change.
 
@@ -77,7 +77,7 @@ The editor viewport starts by building a tick-zero world from the document and h
 - **R3.** The engine stays inside `render`. Three.js types do not appear in the package's exports, and no game state lives on Three.js objects or their `userData`.
 - **R4.** Picking returns entity ids and ground positions. The app turns those into commands.
 
-The renderer is Three.js from the start. The first version is a top-down orthographic camera over a flat plane with placeholder boxes, so `sim` gets a picture early and the camera, raycast picking, and interpolation carry forward. Debug drawing (labels, paths, navigation grids) goes on a transparent 2D canvas layered above it.
+The renderer is Three.js from the start. The first version is a tilted perspective camera over a flat plane with placeholder boxes, so `sim` gets a picture early and the camera, raycast picking, and interpolation carry forward. Debug drawing (labels, paths, navigation grids) goes on a transparent 2D canvas layered above it.
 
 ## UI and input
 
@@ -123,3 +123,4 @@ Performance budgets are not set yet. They get set against a real phone, since th
 Each of these needs an ADR before the code that depends on it.
 
 1. Multiplayer model, lockstep or authoritative server.
+2. Save games. Whether a saved world carries a version and is validated on load, or is disposable across format versions.

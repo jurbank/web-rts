@@ -1,4 +1,5 @@
 export { atan2, cos, PI, sin } from "./math.ts";
+export { takeSnapshot, type Snapshot, type UnitSnapshot } from "./snapshot.ts";
 export {
   createWorld,
   hashWorld,
