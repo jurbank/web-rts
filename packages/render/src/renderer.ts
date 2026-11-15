@@ -30,32 +30,41 @@ export interface Renderer {
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the state `alpha` of the way from `previous` to `current`. */
   draw(previous: Snapshot, current: Snapshot, alpha: number, overlay: Overlay): void;
-  /** The unit under a screen point, or the nearest one within `slop` pixels. */
-  pickUnit(screen: ScreenPoint, slop: number): number | null;
+  /** The entity under a screen point, or the nearest one within `slop` pixels. */
+  pickEntity(screen: ScreenPoint, slop: number): number | null;
   pickGround(screen: ScreenPoint): Point | null;
-  unitsInRect(a: ScreenPoint, b: ScreenPoint): number[];
+  entitiesInRect(a: ScreenPoint, b: ScreenPoint): number[];
+  /** Centers the view on a ground point. */
+  focus(point: Point): void;
   pan(from: ScreenPoint, to: ScreenPoint): void;
   zoom(factor: number, at: ScreenPoint): void;
   dispose(): void;
 }
 
-interface DrawnUnit extends Point {
+interface DrawnEntity extends Point {
   id: number;
+  /** Health from 0 to 1, or null when it has none. */
+  health: number | null;
+  selected: boolean;
   target: Readonly<Point> | null;
 }
 
-interface UnitView {
+interface EntityView {
   body: Mesh;
   ring: Mesh;
+  height: number;
   frame: number;
 }
 
 const GRID_SPACING = 4;
-const BODY_HEIGHT = 0.8;
+const UNIT_HEIGHT = 0.8;
+const STRUCTURE_HEIGHT = 1.6;
+const NEUTRAL_COLOR = "#8a8f98";
+const BAR_WIDTH = 30;
 
 export function createRenderer(
   canvas: HTMLCanvasElement,
-  debugCanvas: HTMLCanvasElement,
+  overlayCanvas: HTMLCanvasElement,
   scenario: Scenario,
 ): Renderer {
   const { map } = scenario;
@@ -84,32 +93,50 @@ export function createRenderer(
   const ringGeometry = new RingGeometry(1.25, 1.45, 32);
   ringGeometry.rotateX(-Math.PI / 2);
   const ringMaterial = new MeshBasicMaterial({ color: "#ffffff" });
-  const playerMaterials = new Map(
-    scenario.players.map((player) => [player.id, new MeshLambertMaterial({ color: player.color })]),
+  const definitions = new Map(
+    scenario.definitions.map((definition) => [definition.id, definition]),
   );
-  const radii = new Map(
-    scenario.unitDefinitions.map((definition) => [definition.id, definition.radius]),
-  );
+  const playerColors = new Map(scenario.players.map((player) => [player.id, player.color]));
+  const materials = new Map<string, MeshLambertMaterial>();
 
-  const views = new Map<number, UnitView>();
+  function materialFor(color: string): MeshLambertMaterial {
+    let material = materials.get(color);
+    if (material === undefined) {
+      material = new MeshLambertMaterial({ color });
+      materials.set(color, material);
+    }
+    return material;
+  }
+
+  const views = new Map<number, EntityView>();
   const idsByBody = new Map<Object3D, number>();
-  let drawn: DrawnUnit[] = [];
+  let drawn: DrawnEntity[] = [];
   let frame = 0;
   let width = 1;
   let height = 1;
   let pixelRatio = 1;
-  const debug = debugCanvas.getContext("2d")!;
+  const context = overlayCanvas.getContext("2d")!;
 
-  function viewFor(id: number, definitionId: string, playerId: string): UnitView {
+  function viewFor(id: number, definitionId: string, playerId: string | null): EntityView {
     let view = views.get(id);
     if (view === undefined) {
-      const radius = radii.get(definitionId) ?? 0.5;
-      const body = new Mesh(boxGeometry, playerMaterials.get(playerId));
-      body.scale.set(radius * 2, BODY_HEIGHT, radius * 2);
+      const definition = definitions.get(definitionId);
+      const radius = definition?.radius ?? 0.5;
+      const color =
+        definition?.color ??
+        (playerId === null ? undefined : playerColors.get(playerId)) ??
+        NEUTRAL_COLOR;
+      const body = new Mesh(boxGeometry, materialFor(color));
+      body.scale.set(radius * 2, 1, radius * 2);
       const ring = new Mesh(ringGeometry, ringMaterial);
       ring.scale.setScalar(radius);
       scene.add(body, ring);
-      view = { body, ring, frame };
+      view = {
+        body,
+        ring,
+        height: definition?.speed === undefined ? STRUCTURE_HEIGHT : UNIT_HEIGHT,
+        frame,
+      };
       views.set(id, view);
       idsByBody.set(body, id);
     }
@@ -125,24 +152,36 @@ export function createRenderer(
     }
   }
 
-  function drawDebug(): void {
-    debug.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-    debug.font = "12px ui-monospace, monospace";
-    debug.fillStyle = "#ffffff";
-    debug.strokeStyle = "#ffd60a";
-    for (const unit of drawn) {
-      const at = rig.project(unit);
-      debug.fillText(
-        `#${unit.id} ${unit.x.toFixed(1)}, ${unit.y.toFixed(1)}`,
+  function drawOverlay(debug: boolean): void {
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    context.font = "12px ui-monospace, monospace";
+    context.strokeStyle = "#ffd60a";
+    for (const entity of drawn) {
+      const at = rig.project(entity);
+      if (entity.health !== null && (entity.selected || entity.health < 1)) {
+        const left = at.x - BAR_WIDTH / 2;
+        const top = at.y - 26;
+        context.fillStyle = "#11151a";
+        context.fillRect(left - 1, top - 1, BAR_WIDTH + 2, 6);
+        context.fillStyle =
+          entity.health > 0.5 ? "#46a758" : entity.health > 0.25 ? "#ffc53d" : "#e5484d";
+        context.fillRect(left, top, BAR_WIDTH * Math.max(0, entity.health), 4);
+      }
+      if (!debug) continue;
+      context.fillStyle = "#ffffff";
+      context.fillText(
+        `#${entity.id} ${entity.x.toFixed(1)}, ${entity.y.toFixed(1)}`,
         at.x + 10,
         at.y - 10,
       );
-      if (unit.target !== null) {
-        const to = rig.project(unit.target);
-        debug.beginPath();
-        debug.moveTo(at.x, at.y);
-        debug.lineTo(to.x, to.y);
-        debug.stroke();
+      if (entity.target !== null) {
+        const to = rig.project(entity.target);
+        context.beginPath();
+        context.moveTo(at.x, at.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
       }
     }
   }
@@ -154,8 +193,8 @@ export function createRenderer(
       pixelRatio = newPixelRatio;
       gl.setPixelRatio(pixelRatio);
       gl.setSize(width, height, false);
-      debugCanvas.width = Math.round(width * pixelRatio);
-      debugCanvas.height = Math.round(height * pixelRatio);
+      overlayCanvas.width = Math.round(width * pixelRatio);
+      overlayCanvas.height = Math.round(height * pixelRatio);
       rig.resize(width, height);
     },
 
@@ -163,58 +202,68 @@ export function createRenderer(
       frame += 1;
       drawn = [];
       let p = 0;
-      for (const unit of current.units) {
-        while (p < previous.units.length && previous.units[p].id < unit.id) p += 1;
-        const from = previous.units[p]?.id === unit.id ? previous.units[p] : unit;
-        const x = from.x + (unit.x - from.x) * alpha;
-        const y = from.y + (unit.y - from.y) * alpha;
-        const view = viewFor(unit.id, unit.definitionId, unit.playerId);
+      for (const entity of current.entities) {
+        while (p < previous.entities.length && previous.entities[p].id < entity.id) p += 1;
+        const from = previous.entities[p]?.id === entity.id ? previous.entities[p] : entity;
+        const x = from.x + (entity.x - from.x) * alpha;
+        const y = from.y + (entity.y - from.y) * alpha;
+        const view = viewFor(entity.id, entity.definitionId, entity.playerId);
+        const selected = overlay.selectedIds.includes(entity.id);
+        const bodyHeight = view.height * Math.max(0.15, entity.built);
         view.frame = frame;
-        view.body.position.set(x, BODY_HEIGHT / 2, y);
+        view.body.scale.y = bodyHeight;
+        view.body.position.set(x, bodyHeight / 2, y);
         view.ring.position.set(x, 0.02, y);
-        view.ring.visible = overlay.selectedIds.includes(unit.id);
-        drawn.push({ id: unit.id, x, y, target: unit.target });
+        view.ring.visible = selected;
+        const maxHealth = definitions.get(entity.definitionId)?.maxHealth;
+        drawn.push({
+          id: entity.id,
+          x,
+          y,
+          health:
+            entity.health === null || maxHealth === undefined ? null : entity.health / maxHealth,
+          selected,
+          target: entity.target,
+        });
       }
       removeStaleViews();
       gl.render(scene, rig.camera);
-
-      debug.setTransform(1, 0, 0, 1, 0, 0);
-      debug.clearRect(0, 0, debugCanvas.width, debugCanvas.height);
-      if (overlay.debug) drawDebug();
+      drawOverlay(overlay.debug);
     },
 
-    pickUnit(screen, slop) {
+    pickEntity(screen, slop) {
       const bodies = [...views.values()].map((view) => view.body);
       const hit = rig.aim(screen).intersectObjects(bodies, false)[0];
       if (hit !== undefined) return idsByBody.get(hit.object) ?? null;
       let best: number | null = null;
       let bestDistance = slop;
-      for (const unit of drawn) {
-        const at = rig.project(unit);
+      for (const entity of drawn) {
+        const at = rig.project(entity);
         const distance = Math.hypot(at.x - screen.x, at.y - screen.y);
         if (distance <= bestDistance) {
-          best = unit.id;
+          best = entity.id;
           bestDistance = distance;
         }
       }
       return best;
     },
 
-    pickGround: rig.groundAt,
+    pickGround: (screen) => rig.groundAt(screen),
 
-    unitsInRect(a, b) {
+    entitiesInRect(a, b) {
       const left = Math.min(a.x, b.x);
       const right = Math.max(a.x, b.x);
       const top = Math.min(a.y, b.y);
       const bottom = Math.max(a.y, b.y);
       return drawn
-        .filter((unit) => {
-          const at = rig.project(unit);
+        .filter((entity) => {
+          const at = rig.project(entity);
           return at.x >= left && at.x <= right && at.y >= top && at.y <= bottom;
         })
-        .map((unit) => unit.id);
+        .map((entity) => entity.id);
     },
 
+    focus: (point) => rig.focus(point),
     pan: (from, to) => rig.pan(from, to),
     zoom: (factor, at) => rig.zoom(factor, at),
 
@@ -222,12 +271,7 @@ export function createRenderer(
       for (const geometry of [groundGeometry, gridGeometry, boxGeometry, ringGeometry]) {
         geometry.dispose();
       }
-      for (const material of [
-        groundMaterial,
-        gridMaterial,
-        ringMaterial,
-        ...playerMaterials.values(),
-      ]) {
+      for (const material of [groundMaterial, gridMaterial, ringMaterial, ...materials.values()]) {
         material.dispose();
       }
       gl.dispose();

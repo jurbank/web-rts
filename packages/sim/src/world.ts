@@ -1,4 +1,5 @@
-import type { Scenario, UnitDefinition } from "data";
+import type { Definition, Player, Scenario, Victory } from "data";
+import type { Command } from "./commands.ts";
 import { hashState } from "./hash.ts";
 import { seedRandom } from "./rng.ts";
 
@@ -11,67 +12,188 @@ export interface Point {
   y: number;
 }
 
-export interface Unit extends Point {
+export type Order =
+  | { type: "move"; x: number; y: number }
+  | { type: "attack"; targetId: number }
+  | { type: "gather"; nodeId: number; returning: boolean; progress: number }
+  | { type: "build"; buildingId: number };
+
+export interface QueueItem {
+  definitionId: string;
+  /** Ticks left. */
+  remaining: number;
+}
+
+export interface Entity extends Point {
   id: number;
   definitionId: string;
-  playerId: string;
-  target: Point | null;
+  /** Null for neutral entities. */
+  playerId: string | null;
+  /** Null when it cannot be damaged. */
+  health: number | null;
+  order: Order | null;
+  /** Waypoints still to visit. */
+  path: Point[];
+  /** Where `path` was computed to lead, or null when there is no path. */
+  pathGoal: Point | null;
+  /** Ticks until the weapon can fire. */
+  cooldown: number;
+  /** Resources a gatherer holds. */
+  carrying: number;
+  /** Resources left in a resource node. */
+  amount: number;
+  /** Ticks of construction left. Zero when complete. */
+  buildRemaining: number;
+  queue: QueueItem[];
 }
 
-export interface MoveCommand extends Point {
-  type: "move";
-  playerId: string;
-  /** The tick the command takes effect. A tick already past means now. */
-  tick: number;
-  unitIds: number[];
+export interface PlayerState {
+  id: string;
+  controller: Player["controller"];
+  resources: number;
+  defeated: boolean;
+  ai: NonNullable<Player["ai"]> | null;
 }
-
-export type Command = MoveCommand;
 
 /** Plain data. Survives JSON without loss (S7). */
 export interface World {
   tick: number;
   rngState: number;
   map: { width: number; height: number };
-  unitDefinitions: Record<string, UnitDefinition>;
+  definitions: Record<string, Definition>;
+  victory: Victory;
+  players: PlayerState[];
   /** In id order. */
-  units: Unit[];
+  entities: Entity[];
+  nextEntityId: number;
   /** In tick order, then arrival order. */
   pendingCommands: Command[];
+  /** Set once the game is decided. A null winner is a draw. */
+  outcome: { winnerId: string | null } | null;
 }
 
 export function createWorld(scenario: Scenario, seed: number): World {
-  const unitDefinitions: Record<string, UnitDefinition> = {};
-  for (const definition of scenario.unitDefinitions) {
-    unitDefinitions[definition.id] = { ...definition };
+  const definitions: Record<string, Definition> = {};
+  for (const definition of scenario.definitions) {
+    definitions[definition.id] = copy(definition);
   }
-  return {
+  const world: World = {
     tick: 0,
     rngState: seedRandom(seed),
     map: { ...scenario.map },
-    unitDefinitions,
-    units: scenario.placements.map((placement, index) => ({
-      id: index + 1,
-      definitionId: placement.definitionId,
-      playerId: placement.playerId,
-      x: placement.x + 0,
-      y: placement.y + 0,
-      target: null,
+    definitions,
+    victory: copy(scenario.victory),
+    players: scenario.players.map((player) => ({
+      id: player.id,
+      controller: player.controller,
+      resources: player.resources,
+      defeated: false,
+      ai: player.ai === undefined ? null : { ...player.ai },
     })),
+    entities: [],
+    nextEntityId: 1,
     pendingCommands: [],
+    outcome: null,
   };
+  for (const placement of scenario.placements) {
+    spawn(world, placement.definitionId, placement.playerId, placement.x, placement.y);
+  }
+  return world;
 }
 
-/** Advances the world one tick. The only place world state changes (S1). */
-export function step(world: World, commands: readonly Command[] = []): void {
-  for (const command of commands) {
-    if (isValid(command)) enqueue(world.pendingCommands, command);
+function copy<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
+
+export function spawn(
+  world: World,
+  definitionId: string,
+  playerId: string | null,
+  x: number,
+  y: number,
+): Entity {
+  const definition = world.definitions[definitionId];
+  const entity: Entity = {
+    id: world.nextEntityId,
+    definitionId,
+    playerId,
+    x: x + 0,
+    y: y + 0,
+    health: definition.maxHealth ?? null,
+    order: null,
+    path: [],
+    pathGoal: null,
+    cooldown: 0,
+    carrying: 0,
+    amount: definition.resource?.amount ?? 0,
+    buildRemaining: 0,
+    queue: [],
+  };
+  world.nextEntityId += 1;
+  world.entities.push(entity);
+  return entity;
+}
+
+/** Entities are in id order, so this is a binary search. */
+export function findEntity(world: World, id: number): Entity | undefined {
+  let low = 0;
+  let high = world.entities.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    const entity = world.entities[middle];
+    if (entity.id === id) return entity;
+    if (entity.id < id) low = middle + 1;
+    else high = middle - 1;
   }
-  while (world.pendingCommands.length > 0 && world.pendingCommands[0].tick <= world.tick) {
-    applyCommand(world, world.pendingCommands.shift()!);
+  return undefined;
+}
+
+export function definitionOf(world: World, entity: Entity): Definition {
+  return world.definitions[entity.definitionId];
+}
+
+export function findPlayer(world: World, id: string): PlayerState | undefined {
+  return world.players.find((player) => player.id === id);
+}
+
+/** Converts a duration from scenario data to whole ticks (C7). */
+export function toTicks(seconds: number): number {
+  return Math.max(1, Math.round(seconds * TICK_RATE));
+}
+
+export function distance(a: Point, b: Point): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/** Whether a footprint fits on the map clear of everything that does not move. */
+export function canPlace(world: World, definition: Definition, x: number, y: number): boolean {
+  const { radius } = definition;
+  // Leave a corridor the widest unit can path through.
+  let widest = 0;
+  for (const id of Object.keys(world.definitions).sort()) {
+    const other = world.definitions[id];
+    if (other.speed !== undefined) widest = Math.max(widest, other.radius);
   }
-  moveUnits(world);
-  world.tick += 1;
+  const gap = (widest + NAV_CLEARANCE) * 2;
+  if (x < radius || y < radius || x > world.map.width - radius || y > world.map.height - radius) {
+    return false;
+  }
+  for (const other of world.entities) {
+    const otherDefinition = definitionOf(world, other);
+    if (otherDefinition.speed !== undefined) continue;
+    if (distance(other, { x, y }) < otherDefinition.radius + radius + gap) return false;
+  }
+  return true;
+}
+
+/** Extra room routes keep around obstacles, since they pass between cell centers. */
+export const NAV_CLEARANCE = 0.5;
+
+/** A definition by an id that came from outside, such as a command. */
+export function findDefinition(world: World, id: string): Definition | undefined {
+  return Object.hasOwn(world.definitions, id) ? world.definitions[id] : undefined;
 }
 
 export function hashWorld(world: World): string {
@@ -84,64 +206,4 @@ export function saveWorld(world: World): string {
 
 export function loadWorld(saved: string): World {
   return JSON.parse(saved) as World;
-}
-
-/** Non-finite numbers do not survive JSON, so they never enter world state (S7). */
-function isValid(command: Command): boolean {
-  return (
-    Number.isInteger(command.tick) &&
-    Number.isFinite(command.x) &&
-    Number.isFinite(command.y) &&
-    command.unitIds.every(Number.isInteger)
-  );
-}
-
-function enqueue(queue: Command[], command: Command): void {
-  let index = queue.length;
-  while (index > 0 && queue[index - 1].tick > command.tick) {
-    index -= 1;
-  }
-  queue.splice(index, 0, {
-    ...command,
-    x: command.x + 0,
-    y: command.y + 0,
-    unitIds: command.unitIds.map((id) => id + 0),
-  });
-}
-
-function applyCommand(world: World, command: Command): void {
-  const target = {
-    x: clamp(command.x, 0, world.map.width),
-    y: clamp(command.y, 0, world.map.height),
-  };
-  for (const unit of world.units) {
-    if (unit.playerId === command.playerId && command.unitIds.includes(unit.id)) {
-      unit.target = { ...target };
-    }
-  }
-}
-
-function moveUnits(world: World): void {
-  for (const unit of world.units) {
-    if (unit.target === null) continue;
-    const dx = unit.target.x - unit.x;
-    const dy = unit.target.y - unit.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const reach = world.unitDefinitions[unit.definitionId].speed * TICK_SECONDS;
-    if (distance <= reach) {
-      unit.x = unit.target.x;
-      unit.y = unit.target.y;
-      unit.target = null;
-    } else {
-      unit.x += (dx / distance) * reach;
-      unit.y += (dy / distance) * reach;
-    }
-  }
-}
-
-/** Adding zero turns -0 into 0, which JSON would otherwise do on save. */
-function clamp(value: number, low: number, high: number): number {
-  if (value < low) return low;
-  if (value > high) return high;
-  return value + 0;
 }

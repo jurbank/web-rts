@@ -42,20 +42,20 @@ The simulation is a function of its inputs. Given the same scenario, seed, and c
 - **S1.** State changes only inside `step`. One call advances one tick of fixed length. The tick rate is one constant in `sim`.
 - **S2.** Commands are the only input. A command is plain serializable data with a player id and a target tick. The UI, the AI, and later the network all submit commands to the same queue. AI gets no private way to mutate state.
 - **S3.** No ambient inputs. `sim` never reads `Math.random`, `Date.now`, `performance.now`, timers, or locale. Randomness comes from a seeded generator stored in world state.
-- **S4.** Math is reproducible across JS engines. Use `+ - * /` and `Math.sqrt`, which IEEE 754 fixes exactly, and `Math.floor`, `ceil`, `trunc`, `round`, `abs`, `sign`, `min`, and `max`, which the language specifies exactly. `Math.sin`, `cos`, `atan2`, `pow`, `exp`, and `log` may differ between engines, so `sim` calls its own math module for those.
+- **S4.** Math is reproducible across JS engines. Use `+ - * /` and `Math.sqrt`, which IEEE 754 fixes exactly, and `Math.floor`, `ceil`, `trunc`, `round`, `abs`, `sign`, `min`, and `max`, which the language specifies exactly. `%` and the integer bit operators are exact too. `Math.sin`, `cos`, `atan2`, `pow`, `exp`, and `log` may differ between engines, so `sim` calls its own math module for those.
 - **S5.** Iteration order is defined. Systems run in a fixed order and visit entities in id order. Nothing depends on `Map` or `Set` order unless insertion order is itself deterministic.
 - **S6.** `step` is synchronous. No promises, no `await`, no I/O.
 - **S7.** World state is plain data. It serializes to JSON and back without loss, and `sim` can hash it. No class instances holding closures, no references to DOM or renderer objects.
 - **S8.** Output is read only. `sim` exposes snapshots and a per-tick event list (unit died, building finished). Consumers never write to either.
 - **S9.** Positions are a ground-plane coordinate plus height from terrain. Tilting the camera or adding real terrain must not change `sim`.
 
-Entity storage starts as plain tables keyed by entity id with systems as functions. Pick an ECS library only if profiling shows the need.
+Entity storage is one plain table in id order with systems as functions. Navigation is A* on a grid built from everything that does not move. Pick an ECS library only if profiling shows the need.
 
 ## Data
 
 - **C1.** One scenario format. The editor saves it, the game loads it, and no second format exists for either.
 - **C2.** Definitions and instances are separate. A definition describes a kind of unit, building, weapon, or ability. A placement references a definition by id and may carry overrides. Scenarios can add or override definitions.
-- **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file.
+- **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file. Until milestone 5 lets users save scenarios the format is not frozen, and fields change without a version bump or a migration.
 - **C4.** Zod schemas are the source of truth. TypeScript types are inferred from them, not written beside them.
 - **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs in a sandbox with a step budget and goes through S2 like everything else.
 - **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game.

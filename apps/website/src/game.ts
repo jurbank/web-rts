@@ -1,0 +1,216 @@
+import type { Scenario } from "data";
+import { createRenderer, type ScreenPoint } from "render";
+import { createWorld, type Command, type EntitySnapshot } from "sim";
+import { buildHudView, type HudView } from "./hud.ts";
+import { attachInput } from "./input.ts";
+import { createGameLoop } from "./loop.ts";
+
+export interface GameElements {
+  battlefield: HTMLElement;
+  scene: HTMLCanvasElement;
+  overlay: HTMLCanvasElement;
+  box: HTMLElement;
+}
+
+/** What the HUD can ask of a running game. */
+export interface Game {
+  produce(definitionId: string): void;
+  /** The next tap on the ground places this building. */
+  beginPlacement(definitionId: string): void;
+  cancelPlacement(): void;
+  deselect(): void;
+  setDebug(debug: boolean): void;
+  dispose(): void;
+}
+
+type OrderFields<T> = T extends Command ? Omit<T, "playerId" | "tick"> : never;
+
+export function createGame(
+  scenario: Scenario,
+  elements: GameElements,
+  onView: (view: HudView) => void,
+): Game {
+  /** Until scenarios say which seat is ours, the first human player is. */
+  const localPlayerId = (
+    scenario.players.find((player) => player.controller === "human") ?? scenario.players[0]
+  ).id;
+  const definitions = new Map(
+    scenario.definitions.map((definition) => [definition.id, definition]),
+  );
+  const loop = createGameLoop(createWorld(scenario, 1));
+  const renderer = createRenderer(elements.scene, elements.overlay, scenario);
+
+  const home = loop.current.entities.find((entity) => entity.playerId === localPlayerId);
+  if (home !== undefined) renderer.focus(home);
+
+  let selectedIds: number[] = [];
+  let placingId: string | null = null;
+  let notice: string | null = null;
+  let debug = false;
+  let lastView = "";
+
+  const definitionOf = (entity: EntitySnapshot) => definitions.get(entity.definitionId)!;
+  const isOwn = (entity: EntitySnapshot) => entity.playerId === localPlayerId;
+  const selected = () => loop.current.entities.filter((entity) => selectedIds.includes(entity.id));
+
+  function submit(order: OrderFields<Command>): void {
+    loop.submit({ ...order, playerId: localPlayerId, tick: loop.tick } as Command);
+    notice = null;
+  }
+
+  function select(ids: number[]): void {
+    selectedIds = ids;
+    placingId = null;
+    notice = null;
+  }
+
+  function place(at: ScreenPoint): void {
+    const definition = definitions.get(placingId!)!;
+    const ground = renderer.pickGround(at);
+    if (ground === null || !loop.canPlace(definition, ground.x, ground.y)) {
+      notice = `${definition.name} does not fit there`;
+      return;
+    }
+    submit({ type: "build", unitIds: selectedIds, definitionId: definition.id, ...ground });
+    placingId = null;
+  }
+
+  /** Works out what a press on the battlefield means for the current selection. */
+  function act(at: ScreenPoint, slop: number, maySelect: boolean): void {
+    if (placingId !== null) {
+      place(at);
+      return;
+    }
+    const id = renderer.pickEntity(at, slop);
+    const entity = loop.current.entities.find((candidate) => candidate.id === id);
+    const units = selected().filter(
+      (unit) => isOwn(unit) && definitionOf(unit).speed !== undefined,
+    );
+    const unitIds = units.map((unit) => unit.id);
+
+    if (entity !== undefined && isOwn(entity)) {
+      const canAssist =
+        entity.built < 1 &&
+        units.some((unit) => definitionOf(unit).builds.includes(entity.definitionId));
+      if (canAssist) {
+        submit({ type: "assist", unitIds, buildingId: entity.id });
+        return;
+      }
+      if (maySelect && !selectedIds.includes(entity.id)) {
+        select([entity.id]);
+        return;
+      }
+    }
+    if (unitIds.length === 0) return;
+    if (
+      entity !== undefined &&
+      !isOwn(entity) &&
+      entity.playerId !== null &&
+      entity.health !== null
+    ) {
+      submit({ type: "attack", unitIds, targetId: entity.id });
+    } else if (entity !== undefined && definitionOf(entity).resource !== undefined) {
+      submit({ type: "gather", unitIds, nodeId: entity.id });
+    } else {
+      const ground = renderer.pickGround(at);
+      if (ground !== null) submit({ type: "move", unitIds, ...ground });
+    }
+  }
+
+  const detachInput = attachInput(elements.battlefield, {
+    tap: (at, slop) => act(at, slop, true),
+    order: (at) => act(at, 0, false),
+    boxPreview(a, b) {
+      elements.box.hidden = a === null || b === null;
+      if (a === null || b === null) return;
+      elements.box.style.left = `${Math.min(a.x, b.x)}px`;
+      elements.box.style.top = `${Math.min(a.y, b.y)}px`;
+      elements.box.style.width = `${Math.abs(a.x - b.x)}px`;
+      elements.box.style.height = `${Math.abs(a.y - b.y)}px`;
+    },
+    boxSelect(a, b) {
+      const inside = renderer.entitiesInRect(a, b);
+      select(
+        loop.current.entities
+          .filter(
+            (entity) =>
+              inside.includes(entity.id) &&
+              isOwn(entity) &&
+              definitionOf(entity).speed !== undefined,
+          )
+          .map((entity) => entity.id),
+      );
+    },
+    pan: (from, to) => renderer.pan(from, to),
+    zoom: (factor, at) => renderer.zoom(factor, at),
+    cancel() {
+      if (placingId !== null) placingId = null;
+      else select([]);
+    },
+  });
+
+  function resize(): void {
+    const { clientWidth, clientHeight } = elements.battlefield;
+    renderer.resize(clientWidth, clientHeight, Math.min(window.devicePixelRatio, 2));
+  }
+  const observer = new ResizeObserver(resize);
+  observer.observe(elements.battlefield);
+  resize();
+
+  function publishView(): void {
+    const alive = new Set(loop.current.entities.map((entity) => entity.id));
+    if (selectedIds.some((id) => !alive.has(id))) {
+      selectedIds = selectedIds.filter((id) => alive.has(id));
+    }
+    const view = buildHudView({
+      scenario,
+      snapshot: loop.current,
+      localPlayerId,
+      selectedIds,
+      placingId,
+      notice,
+    });
+    const serialized = JSON.stringify(view);
+    if (serialized !== lastView) {
+      lastView = serialized;
+      onView(view);
+    }
+  }
+
+  let lastTime = performance.now();
+  let frameId = requestAnimationFrame(function frame(time) {
+    const alpha = loop.advance((time - lastTime) / 1000);
+    lastTime = time;
+    publishView();
+    renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug });
+    frameId = requestAnimationFrame(frame);
+  });
+
+  return {
+    produce(definitionId) {
+      const [building] = selected();
+      if (building !== undefined)
+        submit({ type: "produce", buildingId: building.id, definitionId });
+    },
+    beginPlacement(definitionId) {
+      placingId = definitionId;
+      notice = null;
+    },
+    cancelPlacement() {
+      placingId = null;
+      notice = null;
+    },
+    deselect() {
+      select([]);
+    },
+    setDebug(value) {
+      debug = value;
+    },
+    dispose() {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+      detachInput();
+      renderer.dispose();
+    },
+  };
+}

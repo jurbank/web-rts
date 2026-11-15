@@ -14,7 +14,7 @@ Start with the docs:
 - `packages/data`: scenario and content schemas.
 - `packages/sim`: the headless, deterministic simulation.
 - `packages/render`: draws snapshots with Three.js. Camera and picking.
-- `apps/website`: the app. The game loop, input, and wiring.
+- `apps/website`: the app. The game loop, input, the React HUD, and wiring.
 
 ## Development
 

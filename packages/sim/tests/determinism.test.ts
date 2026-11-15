@@ -1,19 +1,45 @@
-import { loadScenario } from "data";
 import { expect, test } from "vite-plus/test";
-import { createWorld, hashWorld, loadWorld, saveWorld, step, type Command } from "../src/index.ts";
-import skirmish from "./fixtures/skirmish.json" with { type: "json" };
+import { hashWorld, loadWorld, saveWorld, step, type Command } from "../src/index.ts";
+import { entity, ids, skirmishWorld } from "./helpers.ts";
 
-const TICKS = 600;
+const TICKS = 4000;
+const [worker, second, third] = ids.redWorkers;
 
+/** A human player's game against the ai: gather, build, train, and send soldiers out. */
 const script: Command[] = [
-  { type: "move", playerId: "red", tick: 0, unitIds: [1], x: 50, y: 30 },
-  { type: "move", playerId: "blue", tick: 15, unitIds: [2], x: 10.5, y: 7.25 },
-  { type: "move", playerId: "red", tick: 120, unitIds: [1], x: 3, y: 40 },
-  { type: "move", playerId: "blue", tick: 300, unitIds: [2], x: 33.3, y: 0.1 },
+  { type: "gather", playerId: "red", tick: 0, unitIds: [second, third], nodeId: ids.redOre },
+  {
+    type: "build",
+    playerId: "red",
+    tick: 5,
+    unitIds: [worker],
+    definitionId: "barracks",
+    x: 18,
+    y: 24,
+  },
+  { type: "produce", playerId: "red", tick: 40, buildingId: ids.redHq, definitionId: "worker" },
+  { type: "gather", playerId: "red", tick: 500, unitIds: [worker], nodeId: 6 },
+  { type: "produce", playerId: "red", tick: 900, buildingId: ids.next, definitionId: "soldier" },
+  { type: "produce", playerId: "red", tick: 1500, buildingId: ids.next, definitionId: "soldier" },
+  {
+    type: "move",
+    playerId: "red",
+    tick: 2500,
+    unitIds: [20, 21, 22, 23, 24, 25, 26],
+    x: 40.5,
+    y: 7.25,
+  },
+  {
+    type: "attack",
+    playerId: "red",
+    tick: 3200,
+    unitIds: [20, 21, 22, 23, 24, 25, 26],
+    targetId: ids.blueHq,
+  },
 ];
 
-function run(seed: number, saveAt?: number): string {
-  let world = createWorld(loadScenario(skirmish), seed);
+function play(saveAt?: number): string {
+  let world = skirmishWorld({ ai: true });
   for (let tick = 0; tick < TICKS; tick++) {
     if (tick === saveAt) {
       world = loadWorld(saveWorld(world));
@@ -24,43 +50,55 @@ function run(seed: number, saveAt?: number): string {
 }
 
 test("the same scenario, seed, and commands produce the same hash", () => {
-  expect(run(7)).toBe(run(7));
+  expect(play()).toBe(play());
 });
 
 test("a save and load partway through does not change the hash", () => {
-  expect(run(7, 60)).toBe(run(7));
-  expect(run(7, 200)).toBe(run(7));
+  const expected = play();
+  for (const saveAt of [3, 700, 2600, 3500]) {
+    expect(play(saveAt)).toBe(expected);
+  }
 });
 
-test("the hash depends on the seed and on the commands", () => {
-  expect(run(8)).not.toBe(run(7));
-  const world = createWorld(loadScenario(skirmish), 7);
+test("the hash depends on the commands", () => {
+  const world = skirmishWorld({ ai: true });
   for (let tick = 0; tick < TICKS; tick++) step(world);
-  expect(hashWorld(world)).not.toBe(run(7));
+  expect(hashWorld(world)).not.toBe(play());
 });
 
 test("malformed commands are dropped and cannot make a save diverge", () => {
-  const move: Omit<Command, "tick"> = { type: "move", playerId: "red", unitIds: [1], x: 20, y: 20 };
-  const malformed: Command[] = [
+  const move = { type: "move", playerId: "red", unitIds: [worker], x: 20, y: 20 } as const;
+  const malformed = [
     { ...move, tick: Number.NaN },
     { ...move, tick: Number.POSITIVE_INFINITY },
     { ...move, tick: 1.5 },
     { ...move, tick: 0, x: Number.NaN },
     { ...move, tick: 0, y: Number.NEGATIVE_INFINITY },
     { ...move, tick: 0, unitIds: [Number.NaN] },
-  ];
-  const world = createWorld(loadScenario(skirmish), 7);
+    { ...move, tick: 0, type: "teleport" },
+    { ...move, tick: 0, playerId: 7 },
+    { type: "produce", playerId: "red", tick: 0, buildingId: "hq", definitionId: "worker" },
+  ] as unknown as Command[];
+  const world = skirmishWorld();
   step(world, malformed);
   expect(world.pendingCommands).toEqual([]);
-  expect(world.units[0]).toMatchObject({ x: 4, y: 4, target: null });
+  expect(entity(world, worker)).toMatchObject({ x: 12, y: 22, order: null });
   expect(hashWorld(loadWorld(saveWorld(world)))).toBe(hashWorld(world));
 });
 
-test("negative zero never enters world state", () => {
-  const world = createWorld(loadScenario(skirmish), 7);
-  step(world, [{ type: "move", playerId: "red", tick: 0, unitIds: [1], x: -0, y: 4 }]);
-  expect(Object.is(world.units[0].target?.x, 0)).toBe(true);
-  step(world, [{ type: "move", playerId: "red", tick: 99, unitIds: [-0], x: -0, y: -0 }]);
-  const queued = world.pendingCommands[0];
+test("queued commands keep only known fields and never hold negative zero", () => {
+  const world = skirmishWorld();
+  const command = {
+    type: "move",
+    playerId: "red",
+    tick: 99,
+    unitIds: [-0],
+    x: -0,
+    y: -0,
+    extra: () => 1,
+  };
+  step(world, [command as unknown as Command]);
+  const queued = world.pendingCommands[0] as Extract<Command, { type: "move" }>;
+  expect(Object.keys(queued).sort()).toEqual(["playerId", "tick", "type", "unitIds", "x", "y"]);
   expect([queued.x, queued.y, queued.unitIds[0]].every((value) => Object.is(value, 0))).toBe(true);
 });

@@ -31,3 +31,23 @@ Replaces the orthographic top-down camera in the Three.js entry above. A perspec
 ## 2026-11-15 Snapshots are copies
 
 `takeSnapshot` in `sim` returns a new plain object with readonly types (S8). `step` mutates the world in place and interpolation needs the previous tick, so a view over the live world would not work. The copy holds only what consumers draw. Revisit if profiles show the copy cost.
+
+## 2026-11-15 One entity table, capabilities from data
+
+`sim` keeps units, buildings, resource nodes, and obstacles in one table. A definition says what an entity can do through optional fields: `speed`, `weapon`, `gatherer`, `resource`, `produces`, `builds`. Anything without `speed` blocks movement. Separate tables per kind were considered and would need a new table for every new kind a scenario invents (C6).
+
+## 2026-11-15 The ai runs inside step
+
+Each ai player thinks every 30 ticks inside `step` and its commands enter the same queue as a human's (S2). It reads the world and never writes it. Running it in the app was considered. That would put its decisions outside the save, the hash, and a replay.
+
+## 2026-11-15 Grid navigation, no unit collision yet
+
+Paths come from A* on a grid of unit cells built from everything that does not move, then straightened. Units do not push each other apart. A group move spreads its targets so units do not stack. Unit avoidance waits until battles are large enough to need it.
+
+## 2026-11-15 The scenario format is not frozen
+
+`FORMAT_VERSION` stays 1 and fields change without migrations while the only scenarios are fixtures in this repo. The format freezes when milestone 5 lets users save scenarios. From then on every schema change bumps the version and ships a migration with a fixture (C3).
+
+## 2026-11-15 S4 allows `%` and integer bit operators
+
+The grid navigation and the entity lookup use `%`, `>>`, and `>>>`. The language specifies them exactly, so they are safe for determinism. S4 now lists them.

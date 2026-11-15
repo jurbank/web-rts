@@ -1,16 +1,31 @@
+export type {
+  AssistCommand,
+  AttackCommand,
+  BuildCommand,
+  Command,
+  GatherCommand,
+  MoveCommand,
+  ProduceCommand,
+} from "./commands.ts";
 export { atan2, cos, PI, sin } from "./math.ts";
-export { takeSnapshot, type Snapshot, type UnitSnapshot } from "./snapshot.ts";
 export {
+  takeSnapshot,
+  type EntitySnapshot,
+  type PlayerSnapshot,
+  type Snapshot,
+} from "./snapshot.ts";
+export { step } from "./step.ts";
+export type { SimEvent } from "./systems.ts";
+export {
+  canPlace,
   createWorld,
   hashWorld,
   loadWorld,
   saveWorld,
-  step,
   TICK_RATE,
   TICK_SECONDS,
-  type Command,
-  type MoveCommand,
+  type Entity,
+  type Order,
   type Point,
-  type Unit,
   type World,
 } from "./world.ts";

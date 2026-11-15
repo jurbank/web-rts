@@ -1,58 +1,65 @@
-import { loadScenario } from "data";
 import { expect, test } from "vite-plus/test";
-import { createWorld, step, takeSnapshot, TICK_RATE, type World } from "../src/index.ts";
-import skirmish from "./fixtures/skirmish.json" with { type: "json" };
+import { takeSnapshot, TICK_RATE } from "../src/index.ts";
+import { entity, ids, run, skirmishWorld } from "./helpers.ts";
 
-function world(): World {
-  return createWorld(loadScenario(skirmish), 1);
-}
+const [worker, second, third] = ids.redWorkers;
 
-function advance(target: World, ticks: number): void {
-  for (let i = 0; i < ticks; i++) step(target);
-}
-
-test("a unit travels to its target at its definition's speed and stops there", () => {
-  const w = world();
-  const scout = w.units[0];
-  step(w, [{ type: "move", playerId: "red", tick: 0, unitIds: [scout.id], x: 34, y: 44 }]);
-  advance(w, TICK_RATE - 1);
-  expect(Math.hypot(scout.x - 4, scout.y - 4)).toBeCloseTo(6, 9);
-  advance(w, 8 * TICK_RATE);
-  expect(scout).toMatchObject({ x: 34, y: 44, target: null });
+test("a unit travels at its definition's speed and stops at its target", () => {
+  const world = skirmishWorld();
+  run(world, TICK_RATE, [
+    { type: "move", playerId: "red", tick: 0, unitIds: [worker], x: 24, y: 6 },
+  ]);
+  const unit = entity(world, worker);
+  expect(Math.hypot(unit.x - 12, unit.y - 22)).toBeCloseTo(4, 6);
+  run(world, 5 * TICK_RATE);
+  expect(unit).toMatchObject({ x: 24, y: 6, order: null, path: [] });
 });
 
 test("a command waits for its tick", () => {
-  const w = world();
-  step(w, [{ type: "move", playerId: "red", tick: 10, unitIds: [1], x: 20, y: 4 }]);
-  advance(w, 9);
-  expect(w.units[0].x).toBe(4);
-  advance(w, 1);
-  expect(w.units[0].x).toBeGreaterThan(4);
+  const world = skirmishWorld();
+  run(world, 10, [{ type: "move", playerId: "red", tick: 10, unitIds: [worker], x: 24, y: 22 }]);
+  expect(entity(world, worker).x).toBe(12);
+  run(world, 1);
+  expect(entity(world, worker).x).toBeGreaterThan(12);
 });
 
-test("a player cannot move another player's unit", () => {
-  const w = world();
-  step(w, [{ type: "move", playerId: "red", tick: 0, unitIds: [2], x: 0, y: 0 }]);
-  expect(w.units[1]).toMatchObject({ x: 60, y: 44, target: null });
+test("a player cannot command another player's unit", () => {
+  const world = skirmishWorld();
+  run(world, 30, [
+    { type: "move", playerId: "red", tick: 0, unitIds: ids.blueWorkers, x: 40, y: 40 },
+  ]);
+  expect(entity(world, ids.blueWorkers[0])).toMatchObject({ x: 52, y: 22, order: null });
+});
+
+test("a group spreads out around the target instead of stacking", () => {
+  const world = skirmishWorld();
+  run(world, 10 * TICK_RATE, [
+    { type: "move", playerId: "red", tick: 0, unitIds: ids.redWorkers, x: 24, y: 8 },
+  ]);
+  const units = [worker, second, third].map((id) => entity(world, id));
+  expect(units.every((unit) => unit.order === null)).toBe(true);
+  for (const a of units) {
+    for (const b of units) {
+      if (a !== b) expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThanOrEqual(1);
+    }
+    expect(Math.hypot(a.x - 24, a.y - 8)).toBeLessThan(2);
+  }
 });
 
 test("a target outside the map is clamped to its edge", () => {
-  const w = world();
-  step(w, [{ type: "move", playerId: "red", tick: 0, unitIds: [1], x: -100, y: 4 }]);
-  advance(w, 60);
-  expect(w.units[0]).toMatchObject({ x: 0, y: 4, target: null });
+  const world = skirmishWorld();
+  run(world, 10 * TICK_RATE, [
+    { type: "move", playerId: "red", tick: 0, unitIds: [worker], x: 12, y: -100 },
+  ]);
+  expect(entity(world, worker)).toMatchObject({ x: 12, y: 0, order: null });
 });
 
 test("a snapshot is unaffected by later steps", () => {
-  const w = world();
-  step(w, [{ type: "move", playerId: "red", tick: 0, unitIds: [1], x: 20, y: 4 }]);
-  const snapshot = takeSnapshot(w);
-  const copy = structuredCopy(snapshot);
-  advance(w, 30);
+  const world = skirmishWorld();
+  run(world, 1, [{ type: "move", playerId: "red", tick: 0, unitIds: [worker], x: 24, y: 22 }]);
+  const snapshot = takeSnapshot(world);
+  const copy = JSON.parse(JSON.stringify(snapshot));
+  run(world, 30);
   expect(snapshot).toEqual(copy);
-  expect(takeSnapshot(w).units[0].x).toBeGreaterThan(snapshot.units[0].x);
+  expect(takeSnapshot(world).entities[1].x).toBeGreaterThan(snapshot.entities[1].x);
 });
-
-function structuredCopy<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value));
-}

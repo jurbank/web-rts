@@ -55,3 +55,11 @@ test("the camera target stays on the map", () => {
   expect(center.x).toBeCloseTo(64, 6);
   expect(center.y).toBeCloseTo(48, 6);
 });
+
+test("focus centers the view on a ground point", () => {
+  const camera = rig();
+  camera.focus({ x: 8, y: 30 });
+  const center = camera.groundAt({ x: 400, y: 300 })!;
+  expect(center.x).toBeCloseTo(8, 6);
+  expect(center.y).toBeCloseTo(30, 6);
+});

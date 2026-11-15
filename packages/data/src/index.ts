@@ -1,12 +1,14 @@
 export { loadScenario, migrateScenario } from "./load.ts";
 export {
+  definitionSchema,
   FORMAT_VERSION,
   placementSchema,
   playerSchema,
   scenarioSchema,
-  unitDefinitionSchema,
+  victorySchema,
+  type Definition,
   type Placement,
   type Player,
   type Scenario,
-  type UnitDefinition,
+  type Victory,
 } from "./scenario.ts";

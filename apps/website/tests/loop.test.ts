@@ -25,15 +25,15 @@ test("a long stall is capped", () => {
 
 test("a submitted command runs on the next step", () => {
   const game = loop();
-  const unit = game.current.units[0];
+  const unit = game.current.entities[1];
   game.submit({
     type: "move",
-    playerId: unit.playerId,
+    playerId: "red",
     tick: game.tick,
     unitIds: [unit.id],
     x: 30,
     y: unit.y,
   });
   game.advance(1 / TICK_RATE);
-  expect(game.current.units[0].x).toBeGreaterThan(unit.x);
+  expect(game.current.entities[1].x).toBeGreaterThan(unit.x);
 });

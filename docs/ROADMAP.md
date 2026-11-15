@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 3. Milestones 1 and 2 are done. Milestone 3 is built and checked on desktop. The iPhone check and the performance budgets remain.
+Current: milestone 5, not started. Milestones 1, 2, and 4 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -41,7 +41,7 @@ Each rule lands in `sim` with headless tests first, then gets its placeholder vi
 - Resources and gathering.
 - Construction and unit production.
 - A simple opposing AI that submits commands like a player (S2).
-- Victory and defeat from scenario data, restart, and the essential HUD.
+- Victory and defeat from scenario data, restart, and the essential HUD. The HUD brings React, Zustand, and Tailwind into the app.
 
 Done when a fixture scenario plays from start to a win or a loss against the AI, with no unit stats or rules hardcoded in `sim` (C6).
 

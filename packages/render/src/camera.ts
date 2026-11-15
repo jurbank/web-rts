@@ -78,6 +78,13 @@ export function createCameraRig(map: { width: number; height: number }) {
       return { x: ((scratch.x + 1) / 2) * width, y: ((1 - scratch.y) / 2) * height };
     },
 
+    /** Centers the view on a ground point. */
+    focus(point: Point): void {
+      target.x = point.x;
+      target.z = point.y;
+      update();
+    },
+
     /** Moves the camera so the ground under `from` ends up under `to`. */
     pan(from: ScreenPoint, to: ScreenPoint): void {
       const a = groundAt(from);
