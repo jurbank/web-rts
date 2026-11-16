@@ -52,7 +52,12 @@ test("rejects duplicate ids and placements outside the map", () => {
   const scenario = fixture();
   scenario.definitions.push({ id: "rock", name: "Rock", radius: 1 });
   scenario.placements[0].x = 65;
-  expect(issues(scenario)).toEqual(['Duplicate id "rock"', "Placement is outside the map"]);
+  scenario.players[0].start = { x: 8, y: 49 };
+  expect(issues(scenario)).toEqual([
+    'Duplicate id "rock"',
+    "Start point is outside the map",
+    "Placement is outside the map",
+  ]);
 });
 
 test("rejects ids that do not start with a letter", () => {

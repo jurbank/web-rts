@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 5, not started. Milestones 1, 2, and 4 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 6, not started. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 

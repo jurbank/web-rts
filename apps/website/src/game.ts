@@ -2,7 +2,7 @@ import type { Scenario } from "data";
 import { createRenderer, type ScreenPoint } from "render";
 import { createWorld, type Command, type EntitySnapshot } from "sim";
 import { buildHudView, type HudView } from "./hud.ts";
-import { attachInput } from "./input.ts";
+import { attachInput, showBox } from "./input.ts";
 import { createGameLoop } from "./loop.ts";
 
 export interface GameElements {
@@ -31,16 +31,17 @@ export function createGame(
   onView: (view: HudView) => void,
 ): Game {
   /** Until scenarios say which seat is ours, the first human player is. */
-  const localPlayerId = (
-    scenario.players.find((player) => player.controller === "human") ?? scenario.players[0]
-  ).id;
+  const localPlayer =
+    scenario.players.find((player) => player.controller === "human") ?? scenario.players[0];
+  const localPlayerId = localPlayer.id;
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
   const loop = createGameLoop(createWorld(scenario, 1));
   const renderer = createRenderer(elements.scene, elements.overlay, scenario);
 
-  const home = loop.current.entities.find((entity) => entity.playerId === localPlayerId);
+  const home =
+    localPlayer.start ?? loop.current.entities.find((entity) => entity.playerId === localPlayerId);
   if (home !== undefined) renderer.focus(home);
 
   let selectedIds: number[] = [];
@@ -120,14 +121,7 @@ export function createGame(
   const detachInput = attachInput(elements.battlefield, {
     tap: (at, slop) => act(at, slop, true),
     order: (at) => act(at, 0, false),
-    boxPreview(a, b) {
-      elements.box.hidden = a === null || b === null;
-      if (a === null || b === null) return;
-      elements.box.style.left = `${Math.min(a.x, b.x)}px`;
-      elements.box.style.top = `${Math.min(a.y, b.y)}px`;
-      elements.box.style.width = `${Math.abs(a.x - b.x)}px`;
-      elements.box.style.height = `${Math.abs(a.y - b.y)}px`;
-    },
+    boxPreview: (a, b) => showBox(elements.box, a, b),
     boxSelect(a, b) {
       const inside = renderer.entitiesInRect(a, b);
       select(

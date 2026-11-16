@@ -4,7 +4,7 @@ import { useHud } from "./store.ts";
 
 const OUTCOMES = { won: "Victory", lost: "Defeat", draw: "Draw" };
 
-function Button(props: {
+export function Button(props: {
   onClick: () => void;
   disabled?: boolean;
   pressed?: boolean;
@@ -23,7 +23,15 @@ function Button(props: {
   );
 }
 
-export function Hud({ game, onRestart }: { game: RefObject<Game | null>; onRestart: () => void }) {
+export function Hud({
+  game,
+  onRestart,
+  onExit,
+}: {
+  game: RefObject<Game | null>;
+  onRestart: () => void;
+  onExit: () => void;
+}) {
   const view = useHud((state) => state.view);
   const debug = useHud((state) => state.debug);
 
@@ -85,6 +93,7 @@ export function Hud({ game, onRestart }: { game: RefObject<Game | null>; onResta
           <Button pressed={debug} onClick={() => useHud.setState({ debug: !debug })}>
             Debug
           </Button>
+          <Button onClick={onExit}>Editor</Button>
         </div>
       </div>
     </div>

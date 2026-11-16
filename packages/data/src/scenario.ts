@@ -50,6 +50,8 @@ export const playerSchema = z
     color: colorSchema,
     controller: z.enum(["human", "ai"]),
     resources: z.number().nonnegative().default(0),
+    /** Where this player's view begins. Defaults to something they own. */
+    start: z.object({ x: z.number(), y: z.number() }).optional(),
     ai: z
       .object({
         /** Gatherers to keep before spending on anything else. */
@@ -98,6 +100,20 @@ export const scenarioSchema = z
       }
     };
 
+    const requireInside = (point: { x: number; y: number }, what: string, path: PropertyKey[]) => {
+      const inside =
+        point.x >= 0 &&
+        point.x <= scenario.map.width &&
+        point.y >= 0 &&
+        point.y <= scenario.map.height;
+      if (!inside) ctx.addIssue({ code: "custom", message: `${what} is outside the map`, path });
+    };
+
+    scenario.players.forEach((player, index) => {
+      if (player.start !== undefined) {
+        requireInside(player.start, "Start point", ["players", index, "start"]);
+      }
+    });
     scenario.definitions.forEach((definition, index) => {
       definition.produces.forEach((id, i) =>
         requireDefinition(id, ["definitions", index, "produces", i]),
@@ -121,14 +137,7 @@ export const scenarioSchema = z
         });
       }
       requireDefinition(placement.definitionId, [...path, "definitionId"]);
-      const inside =
-        placement.x >= 0 &&
-        placement.x <= scenario.map.width &&
-        placement.y >= 0 &&
-        placement.y <= scenario.map.height;
-      if (!inside) {
-        ctx.addIssue({ code: "custom", message: "Placement is outside the map", path });
-      }
+      requireInside(placement, "Placement", path);
     });
   });
 

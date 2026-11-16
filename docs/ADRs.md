@@ -67,3 +67,23 @@ Four fixture scenarios check that `sim` holds mechanisms and not one game: stand
 ## 2026-11-15 Terrain comes from an external editor
 
 Terrain meshes are made in a separate terrain editor and imported. This project's editor does not sculpt or paint terrain. A scenario references the terrain asset and carries the grids `sim` needs, such as pathing, and heights if gameplay ever depends on them. `sim` never reads the mesh (D3, S9), and `render` draws it. The import format and how the pathing grid is derived from the mesh are open (C8).
+
+## 2026-11-15 The scenario format is frozen at version 1
+
+The editor saves scenarios to the user's browser, so the format freezes as the earlier entry said it would. Version 1 is the schema as of this date, including the optional player `start` point added for the editor. Every later schema change bumps `FORMAT_VERSION` and ships a migration with a fixture (C3).
+
+## 2026-11-15 The editor document is an immutable scenario
+
+The document is a `Scenario` value and every operation returns a new one plus its inverse (E1, E2). History is two stacks of inverses. Immutability makes a drag preview and a dirty check a reference comparison and lets React read the document without copying it. Placements have no ids, so operations address them by index and a batch that removes several goes highest first. Stable placement ids were considered and wait until something outside the editor needs to refer to a placement, such as a trigger.
+
+## 2026-11-15 A start point is where a player's view begins
+
+A player may carry a `start` point. The game centers that player's camera there and falls back to something they own. It spawns nothing. Scenarios place every starting unit explicitly, so a start point that created a base would be a second way to say the same thing.
+
+## 2026-11-15 The app holds the one document, and opening replaces it
+
+`editor` is stateless, so something has to hold the current `History`. The app's session does, as a single reference React subscribes to. It is not a Zustand store and nothing copies it. U4 now says so. Opening a saved scenario and creating a new map replace the document and reset the history. They are not operations (E2), because there is no earlier document to undo back to. Map size has no operation yet, so resizing means starting a new map.
+
+## 2026-11-15 A new world has one entity per placement, in order
+
+The editor viewport draws a tick-zero world and maps each entity back to its placement by position. `createWorld` therefore guarantees one entity per placement in placement order, and a `sim` test holds it. When triggers spawn entities at tick zero or the editor needs to name a placement elsewhere, placements get stable ids and this goes away.

@@ -9,6 +9,11 @@ export interface Intents {
   /** The box being dragged, or null when the drag ends. */
   boxPreview(a: ScreenPoint | null, b: ScreenPoint | null): void;
   boxSelect(a: ScreenPoint, b: ScreenPoint): void;
+  /** A drag is starting at `at`. Returning true takes it, so it does not draw a box. */
+  dragStart?(at: ScreenPoint): boolean;
+  dragMove?(at: ScreenPoint): void;
+  /** `at` is null when the drag was abandoned. */
+  dragEnd?(at: ScreenPoint | null): void;
   pan(from: ScreenPoint, to: ScreenPoint): void;
   zoom(factor: number, at: ScreenPoint): void;
   cancel(): void;
@@ -26,6 +31,7 @@ type Gesture =
       timer: number;
     }
   | { kind: "box"; pointerId: number; start: ScreenPoint }
+  | { kind: "drag"; pointerId: number }
   | { kind: "pan"; pointerId: number; last: ScreenPoint; moved: boolean; orderOnRelease: boolean }
   | { kind: "pinch"; center: ScreenPoint; spread: number };
 
@@ -37,7 +43,8 @@ const LONG_PRESS_MS = 350;
 /**
  * Mouse: left click taps, left drag boxes, right or middle drag pans, right
  * click orders, wheel zooms. Touch: tap taps, drag pans, hold then drag
- * boxes, pinch zooms and pans. Every intent is reachable by touch (U2).
+ * boxes, pinch zooms and pans. A drag that would box is offered to `dragStart`
+ * first. Every intent is reachable by touch (U2).
  */
 export function attachInput(element: HTMLElement, intents: Intents): () => void {
   const pointers = new Map<number, ScreenPoint>();
@@ -51,6 +58,7 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
   function reset(): void {
     if (gesture.kind === "press") clearTimeout(gesture.timer);
     if (gesture.kind === "box") intents.boxPreview(null, null);
+    if (gesture.kind === "drag") intents.dragEnd?.(null);
     gesture = { kind: "idle" };
   }
 
@@ -110,18 +118,18 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
       const { start, touch, held } = gesture;
       if (Math.hypot(at.x - start.x, at.y - start.y) < DRAG_THRESHOLD) return;
       clearTimeout(gesture.timer);
-      gesture =
-        touch && !held
-          ? {
-              kind: "pan",
-              pointerId: event.pointerId,
-              last: start,
-              moved: true,
-              orderOnRelease: false,
-            }
-          : { kind: "box", pointerId: event.pointerId, start };
+      const { pointerId } = event;
+      if (touch && !held) {
+        gesture = { kind: "pan", pointerId, last: start, moved: true, orderOnRelease: false };
+      } else if (intents.dragStart?.(start) === true) {
+        gesture = { kind: "drag", pointerId };
+      } else {
+        gesture = { kind: "box", pointerId, start };
+      }
     }
-    if (gesture.kind === "box") {
+    if (gesture.kind === "drag") {
+      intents.dragMove?.(at);
+    } else if (gesture.kind === "box") {
       intents.boxPreview(gesture.start, at);
     } else if (gesture.kind === "pan") {
       if (Math.hypot(at.x - gesture.last.x, at.y - gesture.last.y) >= 1) gesture.moved = true;
@@ -140,13 +148,18 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
       return;
     }
     if (ended.kind === "idle" || ended.pointerId !== event.pointerId) return;
+    if (ended.kind === "drag" && !cancelled) {
+      gesture = { kind: "idle" };
+      intents.dragEnd?.(at);
+      return;
+    }
     reset();
     if (cancelled) return;
     if (ended.kind === "press") {
       intents.tap(at, ended.touch ? TOUCH_SLOP : MOUSE_SLOP);
     } else if (ended.kind === "box") {
       intents.boxSelect(ended.start, at);
-    } else if (ended.orderOnRelease && !ended.moved) {
+    } else if (ended.kind === "pan" && ended.orderOnRelease && !ended.moved) {
       intents.order(at);
     }
   }
@@ -182,4 +195,14 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
     element.removeEventListener("contextmenu", onContextMenu);
     window.removeEventListener("keydown", onKeyDown);
   };
+}
+
+/** Stretches the selection box element between two points, or hides it. */
+export function showBox(element: HTMLElement, a: ScreenPoint | null, b: ScreenPoint | null): void {
+  element.hidden = a === null || b === null;
+  if (a === null || b === null) return;
+  element.style.left = `${Math.min(a.x, b.x)}px`;
+  element.style.top = `${Math.min(a.y, b.y)}px`;
+  element.style.width = `${Math.abs(a.x - b.x)}px`;
+  element.style.height = `${Math.abs(a.y - b.y)}px`;
 }

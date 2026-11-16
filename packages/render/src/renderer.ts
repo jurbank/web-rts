@@ -20,10 +20,17 @@ import {
 } from "three";
 import { createCameraRig, type ScreenPoint } from "./camera.ts";
 
+/** A labelled spot on the ground, such as a start point. */
+export interface Marker extends Readonly<Point> {
+  readonly color: string;
+  readonly label: string;
+}
+
 /** What the app wants drawn on top of the snapshot. */
 export interface Overlay {
   selectedIds: readonly number[];
   debug: boolean;
+  markers?: readonly Marker[];
 }
 
 export interface Renderer {
@@ -50,6 +57,8 @@ interface DrawnEntity extends Point {
 }
 
 interface EntityView {
+  definitionId: string;
+  playerId: string | null;
   body: Mesh;
   ring: Mesh;
   height: number;
@@ -119,6 +128,11 @@ export function createRenderer(
 
   function viewFor(id: number, definitionId: string, playerId: string | null): EntityView {
     let view = views.get(id);
+    // The editor rebuilds its world on every edit, so an id can come back as something else.
+    if (view !== undefined && (view.definitionId !== definitionId || view.playerId !== playerId)) {
+      removeView(id, view);
+      view = undefined;
+    }
     if (view === undefined) {
       const definition = definitions.get(definitionId);
       const radius = definition?.radius ?? 0.5;
@@ -132,6 +146,8 @@ export function createRenderer(
       ring.scale.setScalar(radius);
       scene.add(body, ring);
       view = {
+        definitionId,
+        playerId,
         body,
         ring,
         height: definition?.speed === undefined ? STRUCTURE_HEIGHT : UNIT_HEIGHT,
@@ -143,20 +159,38 @@ export function createRenderer(
     return view;
   }
 
+  function removeView(id: number, view: EntityView): void {
+    scene.remove(view.body, view.ring);
+    idsByBody.delete(view.body);
+    views.delete(id);
+  }
+
   function removeStaleViews(): void {
     for (const [id, view] of views) {
-      if (view.frame === frame) continue;
-      scene.remove(view.body, view.ring);
-      idsByBody.delete(view.body);
-      views.delete(id);
+      if (view.frame !== frame) removeView(id, view);
     }
   }
 
-  function drawOverlay(debug: boolean): void {
+  function drawOverlay({ debug, markers = [] }: Overlay): void {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.font = "12px ui-monospace, monospace";
+    context.lineWidth = 2;
+    for (const marker of markers) {
+      const at = rig.project(marker);
+      context.strokeStyle = marker.color;
+      context.beginPath();
+      context.arc(at.x, at.y, 9, 0, Math.PI * 2);
+      context.moveTo(at.x - 14, at.y);
+      context.lineTo(at.x + 14, at.y);
+      context.moveTo(at.x, at.y - 14);
+      context.lineTo(at.x, at.y + 14);
+      context.stroke();
+      context.fillStyle = "#ffffff";
+      context.fillText(marker.label, at.x + 14, at.y + 18);
+    }
+    context.lineWidth = 1;
     context.strokeStyle = "#ffd60a";
     for (const entity of drawn) {
       const at = rig.project(entity);
@@ -228,7 +262,7 @@ export function createRenderer(
       }
       removeStaleViews();
       gl.render(scene, rig.camera);
-      drawOverlay(overlay.debug);
+      drawOverlay(overlay);
     },
 
     pickEntity(screen, slop) {
