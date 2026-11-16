@@ -57,9 +57,10 @@ Entity storage is one plain table in id order with systems as functions. Navigat
 - **C2.** Definitions and instances are separate. A definition describes a kind of unit, building, weapon, or ability. A placement references a definition by id and may carry overrides. Scenarios can add or override definitions.
 - **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file. Until milestone 5 lets users save scenarios the format is not frozen, and fields change without a version bump or a migration.
 - **C4.** Zod schemas are the source of truth. TypeScript types are inferred from them, not written beside them.
-- **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs in a sandbox with a step budget and goes through S2 like everything else.
+- **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets inside `step`. Actions may change state in ways no command can, such as spawning units or granting resources, because they are part of the scenario and not input. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs inside `step` in a sandbox with a step budget and changes the world only through trigger actions.
 - **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game.
 - **C7.** Scenario data states speeds and durations in seconds, never in ticks. `sim` converts using its tick constant, so the tick rate can change without rewriting content.
+- **C8.** Terrain is an imported asset made in an external terrain editor. The scenario references it and carries the grids `sim` needs, such as pathing. `sim` never reads the mesh. Only `render` does.
 
 ## Editor
 
@@ -124,3 +125,4 @@ Each of these needs an ADR before the code that depends on it.
 
 1. Multiplayer model, lockstep or authoritative server.
 2. Save games. Whether a saved world carries a version and is validated on load, or is disposable across format versions.
+3. Terrain import. The mesh file format, and how the pathing grid is derived from the mesh (C8).

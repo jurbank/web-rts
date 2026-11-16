@@ -51,3 +51,19 @@ Paths come from A* on a grid of unit cells built from everything that does not m
 ## 2026-11-15 S4 allows `%` and integer bit operators
 
 The grid navigation and the entity lookup use `%`, `>>`, and `>>>`. The language specifies them exactly, so they are safe for determinism. S4 now lists them.
+
+## 2026-11-15 Scenario logic is trigger data that agents write
+
+End users get no scripting language for now. Scenario logic is trigger records validated by Zod (C4, C5). Agents write them today, and a visual trigger editor later reads and writes the same records. Validation errors give an agent exact paths to fix, and the data stays serializable, hashable, and safe without a sandbox. A mechanic triggers cannot express lands as a TypeScript mechanism in `sim` with data fields that turn it on (C6), not as code inside a scenario. A text scripting language was considered. It needs a deterministic interpreter with a step budget inside `step`. Revisit only if triggers plus a small expression language prove too limited.
+
+## 2026-11-15 Trigger actions run inside step
+
+C5 said scripting goes through S2. Trigger actions such as spawning units, granting resources, and setting variables are things no player command can do. They are part of the scenario, not input, so `sim` runs them inside `step` like any other system. Commands stay the only input (S2). C5 now says so.
+
+## 2026-11-15 Genre fixtures test the scenario logic
+
+Four fixture scenarios check that `sim` holds mechanisms and not one game: standard RTS, tower defense, MOBA, and auto chess. Each is data only and plays start to finish in a headless test. A mechanism (waves, regions, modifiers, abilities, phases) is added when a fixture needs it, not before. The order is tower defense, then MOBA, then auto chess, from the smallest addition to the largest.
+
+## 2026-11-15 Terrain comes from an external editor
+
+Terrain meshes are made in a separate terrain editor and imported. This project's editor does not sculpt or paint terrain. A scenario references the terrain asset and carries the grids `sim` needs, such as pathing, and heights if gameplay ever depends on them. `sim` never reads the mesh (D3, S9), and `render` draws it. The import format and how the pathing grid is derived from the mesh are open (C8).
