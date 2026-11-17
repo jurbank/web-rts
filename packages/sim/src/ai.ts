@@ -53,7 +53,8 @@ export function think(world: World, player: PlayerState): Command[] {
   }
   for (const building of own) {
     if (building.buildRemaining > 0 || building.queue.length > 0) continue;
-    const options = definition(building).produces;
+    const options = [...definition(building).produces];
+    for (const offer of building.offers) if (offer !== null) options.push(offer);
     const choice =
       workers < settings.workers
         ? options.find(isGatherer)

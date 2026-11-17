@@ -2,6 +2,7 @@ import { loadScenario } from "data";
 import { createWorld, step, takeSnapshot, type Command } from "sim";
 import { expect, test } from "vite-plus/test";
 import { buildHudView } from "../src/hud.ts";
+import autoChess from "../src/scenarios/auto-chess.json";
 import moba from "../src/scenarios/moba.json";
 import skirmish from "../src/scenarios/skirmish.json";
 import towerDefense from "../src/scenarios/tower-defense.json";
@@ -159,4 +160,49 @@ test("a teammate's win is a win", () => {
   });
   expect(world.outcome).toEqual({ winnerId: "red" });
   expect(hud.outcome).toBe("won");
+});
+
+test("the shop is always on screen, with planning time left, and greys out in combat", () => {
+  const scenario = loadScenario(autoChess);
+  const world = createWorld(scenario, 1);
+  const hud = () =>
+    buildHudView({
+      scenario,
+      snapshot: takeSnapshot(world),
+      localPlayerId: "red",
+      selectedIds: [],
+      placingId: null,
+      targetingId: null,
+      notice: null,
+    });
+  step(world);
+  const offers = world.entities[0].offers;
+  expect(hud().counters).toEqual([
+    { label: "Round", value: 1 },
+    { label: "Red lives", value: 3 },
+    { label: "Blue lives", value: 3 },
+    { label: "Planning", value: 20 },
+  ]);
+  expect(hud().shop).toEqual({
+    buildingId: 1,
+    offers: offers.map((id, slot) => ({
+      slot,
+      definitionId: id,
+      label: scenario.definitions.find((definition) => definition.id === id)!.name,
+      cost: id === "brute" ? 5 : 3,
+      enabled: true,
+    })),
+    abilities: [
+      { id: "reroll", label: "Reroll", seconds: 0, locked: null, cost: 2, enabled: true },
+    ],
+  });
+
+  step(world, [
+    { type: "produce", playerId: "red", tick: 1, buildingId: 1, definitionId: offers[1]! },
+  ]);
+  expect(hud().shop!.offers.map((offer) => offer.slot)).toEqual([0, 2]);
+
+  world.variables.phase = 1;
+  expect(hud().shop!.offers.every((offer) => !offer.enabled)).toBe(true);
+  expect(hud().shop!.abilities[0].enabled).toBe(false);
 });

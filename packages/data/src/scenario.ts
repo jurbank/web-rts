@@ -1,23 +1,26 @@
 import { z } from "zod";
 import {
+  commandRuleSchema,
   idSchema,
   pathSchema,
   regionSchema,
+  statSchema,
   timerSchema,
   triggerSchema,
   TRIGGERING,
   variableSchema,
   waypointSchema,
+  type Condition,
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 4;
+export const FORMAT_VERSION = 5;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
 /** A change to one of an entity's numbers, added to what its definition says. */
 export const modifierSchema = z.object({
-  stat: z.enum(["maxHealth", "speed", "damage"]),
+  stat: statSchema,
   add: z.number(),
 });
 
@@ -26,6 +29,8 @@ export const effectSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("damage"), amount: positive }),
   /** A modifier that wears off after `seconds`, or without them lasts for life and through respawn. */
   z.object({ type: z.literal("modify"), ...modifierSchema.shape, seconds: positive.optional() }),
+  /** Fills the offers of the entity it lands on. */
+  z.object({ type: z.literal("rollOffers") }),
 ]);
 
 export const abilitySchema = z
@@ -99,8 +104,17 @@ export const definitionSchema = z.object({
       perLevel: z.array(modifierSchema).default([]),
     })
     .optional(),
-  /** It comes back where it was first placed this long after dying, keeping its level. */
-  respawn: z.object({ seconds: positive }).optional(),
+  /**
+   * It comes back home this long after dying, keeping its level. Without
+   * `seconds` it waits for a `returnHome` action.
+   */
+  respawn: z.object({ seconds: positive.optional() }).optional(),
+  /** Each roll fills `count` slots with draws from `definitionIds`. A `produce` command may buy one. */
+  offers: z
+    .object({ definitionIds: z.array(idSchema).min(1), count: z.int().positive() })
+    .optional(),
+  /** When one player owns `count` finished ones, they become one `into`. */
+  merge: z.object({ count: z.int().min(2), into: idSchema }).optional(),
   abilities: z.array(abilitySchema).default([]),
 });
 
@@ -151,6 +165,8 @@ export const scenarioSchema = z
     paths: z.array(pathSchema).default([]),
     /** Scenario logic, including how the game is won and lost (C5, C6). */
     triggers: z.array(triggerSchema).default([]),
+    /** Limits on when players may give commands. */
+    commandRules: z.array(commandRuleSchema).default([]),
   })
   .superRefine((scenario, ctx) => {
     const playerIds = uniqueIds(scenario.players, ["players"], ctx);
@@ -188,6 +204,12 @@ export const scenarioSchema = z
           requireDefinition(id, ["definitions", index, "abilities", a, "near", "definitionIds", i]),
         ),
       );
+      definition.offers?.definitionIds.forEach((id, i) =>
+        requireDefinition(id, ["definitions", index, "offers", "definitionIds", i]),
+      );
+      if (definition.merge !== undefined) {
+        requireDefinition(definition.merge.into, ["definitions", index, "merge", "into"]);
+      }
       if (definition.respawn !== undefined && definition.maxHealth === undefined) {
         ctx.addIssue({
           code: "custom",
@@ -237,6 +259,11 @@ export const scenarioSchema = z
     scenario.triggers.forEach((trigger, index) =>
       checkTrigger(trigger, ["triggers", index], refs, ctx),
     );
+    scenario.commandRules.forEach((rule, index) =>
+      rule.conditions.forEach((condition, i) =>
+        checkCondition(condition, ["commandRules", index, "conditions", i], refs, ctx, false),
+      ),
+    );
   });
 
 type Check = (id: string, path: PropertyKey[]) => void;
@@ -260,17 +287,7 @@ function checkTrigger(
 ): void {
   const { event } = trigger;
   const hasTriggering = event.type === "died" || event.type === "entered";
-  const player = (id: string | null | undefined, path: PropertyKey[]) => {
-    if (id === null || id === undefined) return;
-    if (id !== TRIGGERING) refs.player(id, path);
-    else if (!hasTriggering) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Only died and entered events have a triggering entity`,
-        path,
-      });
-    }
-  };
+  const player = playerCheck(refs, ctx, hasTriggering);
   const definitions = (ids: string[] | undefined, path: PropertyKey[]) =>
     ids?.forEach((id, i) => refs.definition(id, [...path, i]));
 
@@ -282,14 +299,9 @@ function checkTrigger(
     definitions(event.definitionIds, [...eventPath, "definitionIds"]);
   }
 
-  trigger.conditions.forEach((condition, index) => {
-    const path = [...at, "conditions", index];
-    if (condition.type === "variable") refs.variable(condition.variable, [...path, "variable"]);
-    if (condition.type === "count") {
-      player(condition.playerId, [...path, "playerId"]);
-      definitions(condition.definitionIds, [...path, "definitionIds"]);
-    }
-  });
+  trigger.conditions.forEach((condition, index) =>
+    checkCondition(condition, [...at, "conditions", index], refs, ctx, hasTriggering),
+  );
 
   trigger.actions.forEach((action, index) => {
     const path = [...at, "actions", index];
@@ -299,7 +311,18 @@ function checkTrigger(
         refs.variable(action.variable, [...path, "variable"]);
         break;
       case "startTimer":
+      case "stopTimer":
         refs.timer(action.timer, [...path, "timer"]);
+        break;
+      case "modify":
+      case "walk":
+      case "setHome":
+      case "returnHome":
+      case "rollOffers":
+        player(action.entity, [...path, "entity"]);
+        player(action.playerId, [...path, "playerId"]);
+        definitions(action.definitionIds, [...path, "definitionIds"]);
+        if (action.type === "walk") refs.path(action.path, [...path, "path"]);
         break;
       case "spawn":
         refs.definition(action.definitionId, [...path, "definitionId"]);
@@ -317,6 +340,35 @@ function checkTrigger(
         break;
     }
   });
+}
+
+/** Checks a player reference, which may be `$triggering` only where there is a triggering entity. */
+function playerCheck(refs: References, ctx: z.RefinementCtx, hasTriggering: boolean) {
+  return (id: string | null | undefined, path: PropertyKey[]) => {
+    if (id === null || id === undefined) return;
+    if (id !== TRIGGERING) refs.player(id, path);
+    else if (!hasTriggering) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Only died and entered events have a triggering entity`,
+        path,
+      });
+    }
+  };
+}
+
+function checkCondition(
+  condition: Condition,
+  path: PropertyKey[],
+  refs: References,
+  ctx: z.RefinementCtx,
+  hasTriggering: boolean,
+): void {
+  if (condition.type === "variable") refs.variable(condition.variable, [...path, "variable"]);
+  if (condition.type === "count") {
+    playerCheck(refs, ctx, hasTriggering)(condition.playerId, [...path, "playerId"]);
+    condition.definitionIds?.forEach((id, i) => refs.definition(id, [...path, "definitionIds", i]));
+  }
 }
 
 function uniqueIds(

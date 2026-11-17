@@ -1,4 +1,6 @@
+import type { CommandType } from "data";
 import { usableAbilities } from "./systems.ts";
+import { refusedCommands } from "./triggers.ts";
 import {
   definitionOf,
   statOf,
@@ -31,6 +33,8 @@ export interface EntitySnapshot {
   /** Where its current route ends. */
   readonly target: Readonly<Point> | null;
   readonly queue: readonly { readonly definitionId: string; readonly progress: number }[];
+  /** What it offers for sale, one per slot. Null for a slot already bought. */
+  readonly offers: readonly (string | null)[];
 }
 
 export interface PlayerSnapshot {
@@ -47,6 +51,10 @@ export interface Snapshot {
   readonly players: readonly PlayerSnapshot[];
   readonly outcome: { readonly winnerId: string | null } | null;
   readonly variables: Readonly<Record<string, number>>;
+  /** Seconds until each timer fires, or null when it is stopped. */
+  readonly timers: Readonly<Record<string, number | null>>;
+  /** Command types a command rule refuses now. */
+  readonly refusedCommands: readonly CommandType[];
 }
 
 /** A copy, so it stays valid after later steps (S8). */
@@ -75,6 +83,7 @@ export function takeSnapshot(world: World): Snapshot {
           definitionId: item.definitionId,
           progress: 1 - item.remaining / toTicks(world.definitions[item.definitionId].buildTime),
         })),
+        offers: [...entity.offers],
       };
     }),
     players: world.players.map((player) => ({
@@ -85,5 +94,12 @@ export function takeSnapshot(world: World): Snapshot {
     })),
     outcome: world.outcome === null ? null : { winnerId: world.outcome.winnerId },
     variables: { ...world.variables },
+    timers: Object.fromEntries(
+      world.timers.map((timer) => [
+        timer.id,
+        timer.remaining === null ? null : timer.remaining * TICK_SECONDS,
+      ]),
+    ),
+    refusedCommands: refusedCommands(world),
   };
 }

@@ -191,6 +191,9 @@ export function renameGuide(
         ? { ...trigger.event, region: swap(trigger.event.region) }
         : trigger.event;
     const actions = trigger.actions.map((action) => {
+      if (action.type === "walk") {
+        return list === "paths" ? { ...action, path: swap(action.path) } : action;
+      }
       if (action.type !== "spawn") return action;
       if (list === "waypoints") return { ...action, at: swap(action.at) };
       if (list === "paths" && action.path !== undefined) {

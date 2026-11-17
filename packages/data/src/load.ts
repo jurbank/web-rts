@@ -27,6 +27,8 @@ const migrations: Record<number, Migration> = {
   2: (document) => ({ ...document, formatVersion: 3 }),
   /** Version 4 adds bounties, ability costs, lasting modifiers, and `near`. Every addition is optional. */
   3: (document) => ({ ...document, formatVersion: 4 }),
+  /** Version 5 adds offers, merging, selections, command rules, and timer labels. Every addition is optional. */
+  4: (document) => ({ ...document, formatVersion: 5 }),
 };
 
 export function migrateScenario(raw: unknown): unknown {

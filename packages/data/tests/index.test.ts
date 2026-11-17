@@ -1,6 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { FORMAT_VERSION, loadScenario, scenarioSchema } from "../src/index.ts";
 import mobaV3 from "./fixtures/moba-v3.json" with { type: "json" };
+import mobaV4 from "./fixtures/moba-v4.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
@@ -98,6 +99,53 @@ test("format 2 loads unchanged", () => {
 test("format 3 loads unchanged", () => {
   const v3 = JSON.parse(JSON.stringify(mobaV3));
   expect(loadScenario(v3)).toEqual(loadScenario({ ...v3, formatVersion: FORMAT_VERSION }));
+});
+
+test("format 4 loads unchanged", () => {
+  const v4 = JSON.parse(JSON.stringify(mobaV4));
+  expect(loadScenario(v4)).toEqual(loadScenario({ ...v4, formatVersion: FORMAT_VERSION }));
+});
+
+test("offers and merging name definitions", () => {
+  const scenario = fixture();
+  scenario.definitions[0].offers = { definitionIds: ["soldier", "dragon"], count: 3 };
+  scenario.definitions[0].merge = { count: 3, into: "wyrm" };
+  expect(issues(scenario)).toEqual(['Unknown definition "dragon"', 'Unknown definition "wyrm"']);
+  scenario.definitions[0].merge = { count: 1, into: "soldier" };
+  expect(issues(scenario)).toHaveLength(2);
+});
+
+test("validates selections, stopTimer, and command rules", () => {
+  const scenario = withLogic();
+  scenario.triggers.push({
+    id: "round",
+    event: { type: "timer", timer: "wave" },
+    actions: [
+      { type: "stopTimer", timer: "wave" },
+      { type: "walk", playerId: "blue", path: "road" },
+      { type: "modify", definitionIds: ["dragon"], stat: "damage", add: 2 },
+      { type: "returnHome", entity: "$triggering" },
+      { type: "setHome" },
+      { type: "rollOffers", playerId: "green" },
+    ],
+  });
+  scenario.commandRules = [
+    {
+      commands: ["produce"],
+      conditions: [{ type: "count", playerId: "$triggering", op: ">", value: 0 }],
+    },
+    { conditions: [{ type: "variable", variable: "gold", op: "==", value: 0 }] },
+  ];
+  expect(issues(scenario).sort()).toEqual([
+    "Only died and entered events have a triggering entity",
+    "Only died and entered events have a triggering entity",
+    'Unknown definition "dragon"',
+    'Unknown path "road"',
+    'Unknown player "green"',
+    'Unknown variable "gold"',
+  ]);
+  scenario.commandRules = [{ commands: ["fly"], conditions: [] }];
+  expect(issues(scenario).length).toBeGreaterThan(0);
 });
 
 test("bounty, ability cost, and near default off, and near names definitions", () => {

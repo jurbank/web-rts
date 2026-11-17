@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 6. Its trigger records, the tower defense and MOBA fixtures, and editing of guides and basic game data are done, and auto chess is next. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 6. Its trigger records, the tower defense, MOBA, and auto chess fixtures, and editing of guides and basic game data are done. The end-of-milestone multiplayer audit is next. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -64,7 +64,7 @@ Triggers as data (C5), written by agents against the schema. The visual trigger 
 - Tower defense: wave spawners, paths, a lives counter, and survive-N-waves victory. Done, as trigger data with no wave mechanism in `sim`.
 - Editor: add, move, rename, and delete waypoints, paths, and regions, and edit the settled definition fields (name, color, size, health, speed, cost, build time, weapon, what it trains and builds). Done. Pulled forward from Later so the genre fixtures can be opened and tuned by hand.
 - MOBA: one hero per player, abilities, stat modifiers, experience and levels, respawn, and lane creeps. Done in format 3. Teams, levels, modifiers, abilities, and respawn are mechanisms in `sim`. Creep waves and victory are trigger data.
-- Auto chess: round phases, commands limited per phase, a shop rolled from the seeded generator, unit merging, count-based synergies, and HUD elements driven by data.
+- Auto chess: round phases, commands limited per phase, a shop rolled from the seeded generator, unit merging, count-based synergies, and HUD elements driven by data. Done in format 5. Offers, merging, selections, and command rules are mechanisms in `sim`. Phases, lives, synergies, and round results are trigger data.
 
 Done when the standard RTS, tower defense, MOBA, and auto chess fixtures each play start to finish in a headless test, with no genre-specific code in `sim` (C6).
 

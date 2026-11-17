@@ -14,9 +14,12 @@ export {
   type Scenario,
 } from "./scenario.ts";
 export {
+  COMMAND_TYPES,
   TRIGGERING,
   triggerSchema,
   type Action,
+  type CommandRule,
+  type CommandType,
   type Condition,
   type Path,
   type Region,

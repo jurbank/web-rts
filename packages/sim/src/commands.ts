@@ -1,4 +1,6 @@
 import { canUseAbility, isEnemy, useAbility } from "./systems.ts";
+import type { CommandType } from "data";
+import { refusedCommands } from "./triggers.ts";
 import {
   canPlace,
   definitionOf,
@@ -56,6 +58,11 @@ export interface ProduceCommand extends CommandBase {
   type: "produce";
   buildingId: number;
   definitionId: string;
+  /**
+   * The offer slot being bought. Refused unless that slot still holds
+   * `definitionId`, so a repeated tap or one made before a reroll buys nothing.
+   */
+  slot?: number;
 }
 
 /** Uses one of a unit's abilities. One that targets an enemy needs `targetId`. */
@@ -75,6 +82,11 @@ export type Command =
   | AssistCommand
   | ProduceCommand;
 
+/** Command rules name command types in scenario data, so `data`'s list must match these exactly. */
+type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+const commandTypesMatch: Exactly<Command["type"], CommandType> = true;
+void commandTypesMatch;
+
 const isId = (value: unknown): value is number => Number.isInteger(value);
 const isIds = (value: unknown): value is number[] => Array.isArray(value) && value.every(isId);
 const isText = (value: unknown): value is string => typeof value === "string";
@@ -88,7 +100,7 @@ const isFinite = (value: unknown): value is number => Number.isFinite(value);
 export function normalizeCommand(input: Command): Command | null {
   const raw = input as unknown as Record<string, unknown>;
   const { playerId, tick, unitIds, x, y, targetId, nodeId, buildingId, definitionId } = raw;
-  const { unitId, abilityId } = raw;
+  const { unitId, abilityId, slot } = raw;
   if (!isText(playerId) || !isId(tick)) return null;
   const base = { playerId, tick: tick + 0 };
   const ids = () => (unitIds as number[]).map((id) => id + 0);
@@ -108,9 +120,18 @@ export function normalizeCommand(input: Command): Command | null {
     case "assist":
       if (!isIds(unitIds) || !isId(buildingId)) return null;
       return { ...base, type: "assist", unitIds: ids(), buildingId: buildingId + 0 };
-    case "produce":
+    case "produce": {
       if (!isId(buildingId) || !isText(definitionId)) return null;
-      return { ...base, type: "produce", buildingId: buildingId + 0, definitionId };
+      if (slot !== undefined && !isId(slot)) return null;
+      const produce: ProduceCommand = {
+        ...base,
+        type: "produce",
+        buildingId: buildingId + 0,
+        definitionId,
+      };
+      if (slot !== undefined) produce.slot = slot + 0;
+      return produce;
+    }
     case "cast": {
       if (!isId(unitId) || !isText(abilityId)) return null;
       if (targetId !== undefined && !isId(targetId)) return null;
@@ -163,6 +184,7 @@ export function applyCommand(world: World, command: Command): void {
   const player = findPlayer(world, command.playerId);
   // A `none` player is moved only by triggers.
   if (player === undefined || player.defeated || player.controller === "none") return;
+  if (world.commandRules.length > 0 && refusedCommands(world).includes(command.type)) return;
 
   switch (command.type) {
     case "move": {
@@ -259,10 +281,15 @@ export function applyCommand(world: World, command: Command): void {
       const definition = findDefinition(world, command.definitionId);
       if (building === undefined || definition === undefined) return;
       if (building.playerId !== player.id || building.buildRemaining > 0) return;
-      if (!definitionOf(world, building).produces.includes(definition.id)) return;
+      const named = command.slot;
+      const trained =
+        named === undefined && definitionOf(world, building).produces.includes(definition.id);
+      const slot = named ?? building.offers.indexOf(definition.id);
+      if (!trained && building.offers[slot] !== definition.id) return;
       const { queueLimit } = definitionOf(world, building);
       if (building.queue.length >= queueLimit || player.resources < definition.cost) return;
       player.resources -= definition.cost;
+      if (!trained) building.offers[slot] = null;
       building.queue.push({
         definitionId: definition.id,
         remaining: toTicks(definition.buildTime),

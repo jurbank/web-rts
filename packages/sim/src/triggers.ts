@@ -1,5 +1,21 @@
-import { TRIGGERING, type Action, type Condition, type Trigger, type TriggerEvent } from "data";
-import { defeatPlayer, endGame, type SimEvent } from "./systems.ts";
+import {
+  COMMAND_TYPES,
+  TRIGGERING,
+  type Action,
+  type CommandType,
+  type Condition,
+  type Trigger,
+  type TriggerEvent,
+} from "data";
+import {
+  addModifier,
+  bringBack,
+  defeatPlayer,
+  endGame,
+  rollOffers,
+  sendHome,
+  type SimEvent,
+} from "./systems.ts";
 import {
   definitionOf,
   entitiesInside,
@@ -113,6 +129,18 @@ function compare(left: number, op: Extract<Condition, { op: unknown }>["op"], ri
   }
 }
 
+/** The command types a command rule refuses now, in the order rules list them. */
+export function refusedCommands(world: World): CommandType[] {
+  const refused: CommandType[] = [];
+  for (const rule of world.commandRules) {
+    if (rule.conditions.every((condition) => holds(world, condition, null))) continue;
+    for (const type of rule.commands ?? COMMAND_TYPES) {
+      if (!refused.includes(type)) refused.push(type);
+    }
+  }
+  return refused;
+}
+
 function holds(world: World, condition: Condition, entity: Triggering | null): boolean {
   switch (condition.type) {
     case "variable":
@@ -130,6 +158,20 @@ function holds(world: World, condition: Condition, entity: Triggering | null): b
       return compare(count, condition.op, condition.value);
     }
   }
+}
+
+/** Whether an entity matches every field of an action's selection. */
+function selects(
+  selection: Extract<Action, { type: "modify" | "walk" | "setHome" | "returnHome" | "rollOffers" }>,
+  entity: Triggering | null,
+): (candidate: Entity) => boolean {
+  const { definitionIds } = selection;
+  const playerId =
+    selection.playerId === undefined ? undefined : resolvePlayer(selection.playerId, entity);
+  return (candidate) =>
+    (selection.entity === undefined || candidate.id === entity?.id) &&
+    (playerId === undefined || candidate.playerId === playerId) &&
+    (definitionIds === undefined || definitionIds.includes(candidate.definitionId));
 }
 
 function runActions(
@@ -157,11 +199,42 @@ function runAction(
     case "addVariable":
       world.variables[action.variable] += action.value;
       return;
-    case "startTimer": {
+    case "startTimer":
+    case "stopTimer": {
       const timer = world.timers.find((candidate) => candidate.id === action.timer)!;
-      timer.remaining = timer.period;
+      timer.remaining = action.type === "startTimer" ? timer.period : null;
       return;
     }
+    case "modify": {
+      for (const selected of world.entities.filter(selects(action, entity))) {
+        addModifier(selected, action);
+      }
+      return;
+    }
+    case "walk":
+      for (const selected of world.entities.filter(selects(action, entity))) {
+        if (definitionOf(world, selected).speed === undefined) continue;
+        selected.order = { type: "path", pathId: action.path, next: 0 };
+        selected.path = [];
+        selected.pathGoal = null;
+      }
+      return;
+    case "setHome":
+      for (const selected of world.entities.filter(selects(action, entity))) {
+        selected.home = { x: selected.x, y: selected.y };
+      }
+      return;
+    case "returnHome": {
+      const accept = selects(action, entity);
+      for (const selected of world.entities.filter(accept)) sendHome(world, selected);
+      bringBack(world, (waiting) => accept(waiting.entity), events);
+      return;
+    }
+    case "rollOffers":
+      for (const selected of world.entities.filter(selects(action, entity))) {
+        rollOffers(world, selected);
+      }
+      return;
     case "spawn": {
       const playerId = action.playerId === null ? null : resolvePlayer(action.playerId, entity);
       const at = world.waypoints[action.at];

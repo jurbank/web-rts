@@ -1,4 +1,4 @@
-import type { Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
+import type { CommandRule, Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
 import type { Command } from "./commands.ts";
 import { hashState } from "./hash.ts";
 import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
@@ -67,6 +67,8 @@ export interface Entity extends Point {
   abilityCooldowns: number[];
   /** The players whose entities damaged it on the last tick anything did. Null for a neutral one. */
   lastHit: { tick: number; playerIds: (string | null)[] } | null;
+  /** Definitions it offers for sale, one per slot. Null for a slot bought since the last roll. */
+  offers: (string | null)[];
 }
 
 export interface PlayerState {
@@ -103,8 +105,8 @@ export interface World {
   /** In id order. */
   entities: Entity[];
   nextEntityId: number;
-  /** Dead entities waiting to come back, in the order they died. */
-  respawns: { remaining: number; entity: Entity }[];
+  /** Dead entities waiting to come back, in the order they died. Null ticks wait for a trigger. */
+  respawns: { remaining: number | null; entity: Entity }[];
   /** In tick order, then player order, then the order each player sent them. */
   pendingCommands: Command[];
   /** Set once the game is decided. A null winner is a draw. */
@@ -119,6 +121,7 @@ export interface World {
   paths: Record<string, string[]>;
   /** In scenario order, which is the order they run in. */
   triggers: Trigger[];
+  commandRules: CommandRule[];
 }
 
 export function createWorld(scenario: Scenario, seed: number): World {
@@ -155,6 +158,7 @@ export function createWorld(scenario: Scenario, seed: number): World {
     waypoints: {},
     paths: {},
     triggers: copy(scenario.triggers),
+    commandRules: copy(scenario.commandRules),
   };
   for (const variable of scenario.variables) world.variables[variable.id] = variable.value;
   for (const waypoint of scenario.waypoints) {
@@ -215,6 +219,7 @@ export function spawn(
     modifiers: [],
     abilityCooldowns: definition.abilities.map(() => 0),
     lastHit: null,
+    offers: [],
   };
   world.nextEntityId += 1;
   world.entities.push(entity);
