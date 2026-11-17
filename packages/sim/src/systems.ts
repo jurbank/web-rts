@@ -3,6 +3,7 @@ import { findPath } from "./nav.ts";
 import {
   definitionOf,
   distance,
+  drawIndex,
   findEntity,
   findPlayer,
   spawn,
@@ -153,35 +154,48 @@ function runAttack(
     target !== undefined &&
     order.resume !== undefined &&
     distance(entity, target) - definitionOf(world, target).radius > sightOf(definition);
-  if (
-    weapon === undefined ||
-    target === undefined ||
-    target.health === null ||
-    target.health <= 0 ||
-    lost
-  ) {
+  if (weapon === undefined || target === undefined || target.health === null || lost) {
     entity.order = resume;
     clearPath(entity);
     return;
   }
   const reach = weapon.range + definitionOf(world, target).radius;
+  // Hits on one tick land together, so a target that died this tick still takes
+  // a ready shot from a unit in reach, or one that gets there this tick.
+  const dead = target.health <= 0;
+  if (dead && entity.cooldown > 0) {
+    entity.order = resume;
+    clearPath(entity);
+    return;
+  }
   if (!approach(world, entity, target, reach)) {
-    if (definition.speed === undefined) entity.order = resume;
+    if (dead || definition.speed === undefined) entity.order = resume;
+    if (dead) clearPath(entity);
     return;
   }
   if (entity.cooldown === 0) {
     target.health -= statOf(world, entity, "damage") ?? 0;
-    target.lastHitBy = entity.playerId;
+    recordHit(world, target, entity.playerId);
     entity.cooldown = toTicks(weapon.cooldown);
   }
 }
 
-function applyEffects(ability: Ability, caster: Entity, target: Entity): void {
+/** Adds the dealing player to the target's hits for this tick, starting over on a new tick. */
+function recordHit(world: World, target: Entity, playerId: string | null): void {
+  const { lastHit } = target;
+  if (lastHit === null || lastHit.tick !== world.tick) {
+    target.lastHit = { tick: world.tick, playerIds: [playerId] };
+  } else if (!lastHit.playerIds.includes(playerId)) {
+    lastHit.playerIds.push(playerId);
+  }
+}
+
+function applyEffects(world: World, ability: Ability, caster: Entity, target: Entity): void {
   for (const effect of ability.effects) {
     if (effect.type === "damage") {
       if (target.health === null) continue;
       target.health -= effect.amount;
-      target.lastHitBy = caster.playerId;
+      recordHit(world, target, caster.playerId);
     } else {
       const { stat, add, seconds } = effect;
       target.modifiers.push({
@@ -214,19 +228,40 @@ function isNear(world: World, entity: Entity, near: NonNullable<Ability["near"]>
  */
 export function canUseAbility(world: World, entity: Entity, index: number): boolean {
   const ability = definitionOf(world, entity).abilities[index];
-  if (ability === undefined || entity.buildRemaining > 0) return false;
-  if (entity.abilityCooldowns[index] > 0 || entity.level < ability.level) return false;
-  if (ability.cost > 0) {
-    const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
-    if (owner === undefined || owner.resources < ability.cost) return false;
-  }
+  if (ability === undefined || !isReadyAndPaid(world, entity, index)) return false;
   return ability.near === undefined || isNear(world, entity, ability.near);
+}
+
+/** `canUseAbility` for each of the entity's abilities, scanning once for each distinct `near`. */
+export function usableAbilities(world: World, entity: Entity): boolean[] {
+  const nearby = new Map<string, boolean>();
+  return definitionOf(world, entity).abilities.map((ability, index) => {
+    if (!isReadyAndPaid(world, entity, index)) return false;
+    const { near } = ability;
+    if (near === undefined) return true;
+    const key = `${near.range} ${near.definitionIds.join(" ")}`;
+    let found = nearby.get(key);
+    if (found === undefined) {
+      found = isNear(world, entity, near);
+      nearby.set(key, found);
+    }
+    return found;
+  });
+}
+
+function isReadyAndPaid(world: World, entity: Entity, index: number): boolean {
+  const ability = definitionOf(world, entity).abilities[index];
+  if (entity.buildRemaining > 0) return false;
+  if (entity.abilityCooldowns[index] > 0 || entity.level < ability.level) return false;
+  if (ability.cost === 0) return true;
+  const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
+  return owner !== undefined && owner.resources >= ability.cost;
 }
 
 /** Uses an ability `canUseAbility` allows, on the caster itself or on `target`, and pays for it. */
 export function useAbility(world: World, entity: Entity, index: number, target: Entity): void {
   const ability = definitionOf(world, entity).abilities[index];
-  applyEffects(ability, entity, target);
+  applyEffects(world, ability, entity, target);
   entity.abilityCooldowns[index] = toTicks(ability.cooldown);
   const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
   if (owner !== undefined) owner.resources -= ability.cost;
@@ -242,7 +277,6 @@ function runCast(
   if (
     target === undefined ||
     target.health === null ||
-    target.health <= 0 ||
     entity.abilityCooldowns[order.ability] > 0
   ) {
     entity.order = null;
@@ -250,8 +284,10 @@ function runCast(
     return;
   }
   const reach = (ability.range ?? 0) + definitionOf(world, target).radius;
+  const dead = target.health <= 0;
   if (!approach(world, entity, target, reach)) {
-    if (definitionOf(world, entity).speed === undefined) entity.order = null;
+    if (dead || definitionOf(world, entity).speed === undefined) entity.order = null;
+    if (dead) clearPath(entity);
     return;
   }
   // The cost and `near` are checked where the effects land.
@@ -497,9 +533,17 @@ export function removeDead(world: World, events: SimEvent[]): void {
   }
 }
 
-/** The player who dealt the last damage gains the bounty, unless they are on the dead entity's team. */
+/**
+ * The player who dealt the last damage gains the bounty, unless they are on the
+ * dead entity's team. Hits on one tick land together, so a seeded draw picks
+ * among their players rather than the order entities act in.
+ */
 function payBounty(world: World, dead: Entity, bounty: number): void {
-  const player = dead.lastHitBy === null ? undefined : findPlayer(world, dead.lastHitBy);
+  const { lastHit } = dead;
+  if (lastHit === null) return;
+  const { playerIds } = lastHit;
+  const id = playerIds.length === 1 ? playerIds[0] : playerIds[drawIndex(world, playerIds.length)];
+  const player = id === null ? undefined : findPlayer(world, id);
   if (player === undefined || player.team === teamOf(world, dead.playerId)) return;
   player.resources += bounty;
 }
@@ -544,7 +588,7 @@ export function runRespawns(world: World, events: SimEvent[]): void {
     entity.queue = [];
     entity.carrying = 0;
     entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining === null);
-    entity.lastHitBy = null;
+    entity.lastHit = null;
     entity.health = statOf(world, entity, "maxHealth") ?? null;
     world.entities.push(entity);
     events.push({ type: "respawned", id: entity.id });

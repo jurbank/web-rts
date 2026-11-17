@@ -1,4 +1,4 @@
-import { canUseAbility } from "./systems.ts";
+import { usableAbilities } from "./systems.ts";
 import {
   definitionOf,
   statOf,
@@ -65,9 +65,7 @@ export function takeSnapshot(world: World): Snapshot {
         maxHealth: statOf(world, entity, "maxHealth") ?? null,
         level: entity.level,
         abilityCooldowns: entity.abilityCooldowns.map((ticks) => ticks * TICK_SECONDS),
-        abilityUsable: entity.abilityCooldowns.map((_, index) =>
-          canUseAbility(world, entity, index),
-        ),
+        abilityUsable: usableAbilities(world, entity),
         built: 1 - entity.buildRemaining / toTicks(definitionOf(world, entity).buildTime),
         carrying: entity.carrying,
         amount: entity.amount,

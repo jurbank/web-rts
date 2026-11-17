@@ -268,10 +268,39 @@ test("a death pays its bounty to the enemy who dealt the last damage", () => {
   expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);
 
   const red = entity(world, RED_HERO);
-  red.lastHitBy = "redBase";
+  red.lastHit = { tick: world.tick, playerIds: ["redBase"] };
   red.health = 0;
   step(world);
   expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);
+});
+
+test("a kill two players land on one tick goes to either by a seeded draw, not by seat", () => {
+  const winners = new Set<string>();
+  for (let seed = 1; seed <= 20; seed++) {
+    const raw: Raw = JSON.parse(JSON.stringify(moba));
+    raw.players[1].controller = "human";
+    raw.players.push({ id: "green", color: "#30a46c", controller: "human", team: "south" });
+    raw.placements = [
+      { definitionId: "hero", playerId: "red", x: 17, y: 12 },
+      // Just out of reach, so blue fires on arriving, after red's shot has killed.
+      { definitionId: "hero", playerId: "blue", x: 24.5, y: 12 },
+      { definitionId: "creep", playerId: "green", x: 20, y: 12 },
+    ];
+    raw.triggers = [];
+    const world = createWorld(loadScenario(raw), seed);
+    entity(world, 3).health = 10;
+    const events = step(world, [
+      { type: "attack", playerId: "red", tick: 0, unitIds: [RED_HERO], targetId: 3 },
+      { type: "attack", playerId: "blue", tick: 0, unitIds: [BLUE_HERO], targetId: 3 },
+    ]);
+    expect(events).toContainEqual(expect.objectContaining({ type: "died", id: 3 }));
+    expect(entity(world, RED_HERO).cooldown).toBeGreaterThan(0);
+    expect(entity(world, BLUE_HERO).cooldown).toBeGreaterThan(0);
+    const paid = world.players.filter((player) => player.resources === 15);
+    expect(paid).toHaveLength(1);
+    winners.add(paid[0].id);
+  }
+  expect([...winners].sort()).toEqual(["blue", "red"]);
 });
 
 test("the ai buys at its shop", () => {
