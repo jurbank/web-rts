@@ -103,7 +103,7 @@ export interface World {
   nextEntityId: number;
   /** Dead entities waiting to come back, in the order they died. */
   respawns: { remaining: number; entity: Entity }[];
-  /** In tick order, then arrival order. */
+  /** In tick order, then player order, then the order each player sent them. */
   pendingCommands: Command[];
   /** Set once the game is decided. A null winner is a draw. */
   outcome: { winnerId: string | null } | null;

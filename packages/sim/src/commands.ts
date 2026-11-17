@@ -123,12 +123,21 @@ export function normalizeCommand(input: Command): Command | null {
   }
 }
 
+/**
+ * Commands for one tick apply in player order, so every device that holds the
+ * same commands applies them the same way, whatever order they arrived in.
+ * A player's own commands keep the order that player sent them.
+ */
 export function enqueueCommand(world: World, command: Command): void {
   const clean = normalizeCommand(command);
   if (clean === null) return;
+  const seat = (playerId: string) => world.players.findIndex((player) => player.id === playerId);
+  const cleanSeat = seat(clean.playerId);
+  const isLater = (queued: Command) =>
+    queued.tick > clean.tick || (queued.tick === clean.tick && seat(queued.playerId) > cleanSeat);
   const queue = world.pendingCommands;
   let index = queue.length;
-  while (index > 0 && queue[index - 1].tick > clean.tick) {
+  while (index > 0 && isLater(queue[index - 1])) {
     index -= 1;
   }
   queue.splice(index, 0, clean);
