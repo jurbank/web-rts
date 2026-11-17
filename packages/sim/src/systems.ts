@@ -1,4 +1,4 @@
-import type { Ability, Definition } from "data";
+import type { Ability, Definition, Modifier } from "data";
 import { findPath } from "./nav.ts";
 import {
   definitionOf,
@@ -24,6 +24,8 @@ export type SimEvent =
   | { type: "produced"; id: number; buildingId: number }
   | { type: "leveled"; id: number; level: number }
   | { type: "respawned"; id: number }
+  /** `from` are the ids that became `id`. */
+  | { type: "merged"; id: number; from: number[] }
   | { type: "defeated"; playerId: string }
   | { type: "ended"; winnerId: string | null };
 
@@ -196,14 +198,31 @@ function applyEffects(world: World, ability: Ability, caster: Entity, target: En
       if (target.health === null) continue;
       target.health -= effect.amount;
       recordHit(world, target, caster.playerId);
+    } else if (effect.type === "modify") {
+      addModifier(target, effect);
     } else {
-      const { stat, add, seconds } = effect;
-      target.modifiers.push({
-        stat,
-        add,
-        remaining: seconds === undefined ? null : toTicks(seconds),
-      });
+      rollOffers(world, target);
     }
+  }
+}
+
+/** A modifier without `seconds` lasts for life and through respawn. */
+export function addModifier(
+  entity: Entity,
+  modifier: { stat: Modifier["stat"]; add: number; seconds?: number },
+): void {
+  const { stat, add, seconds } = modifier;
+  entity.modifiers.push({ stat, add, remaining: seconds === undefined ? null : toTicks(seconds) });
+}
+
+/** New offers drawn from the world's seeded generator. Nothing happens to one without offers. */
+export function rollOffers(world: World, entity: Entity): void {
+  const { offers } = definitionOf(world, entity);
+  if (offers === undefined) return;
+  const { definitionIds, count } = offers;
+  entity.offers = [];
+  for (let slot = 0; slot < count; slot++) {
+    entity.offers.push(definitionIds[drawIndex(world, definitionIds.length)]);
   }
 }
 
@@ -528,7 +547,8 @@ export function removeDead(world: World, events: SimEvent[]): void {
     if (experience > 0) shareExperience(world, entity, experience, events);
     if (bounty > 0) payBounty(world, entity, bounty);
     if (respawn !== undefined) {
-      world.respawns.push({ remaining: toTicks(respawn.seconds), entity });
+      const remaining = respawn.seconds === undefined ? null : toTicks(respawn.seconds);
+      world.respawns.push({ remaining, entity });
     }
   }
 }
@@ -573,27 +593,91 @@ function shareExperience(world: World, dead: Entity, experience: number, events:
 /** Brings back the dead whose wait is over, at home and at full health, with their level. */
 export function runRespawns(world: World, events: SimEvent[]): void {
   if (world.respawns.length === 0) return;
-  for (const waiting of world.respawns) waiting.remaining -= 1;
-  const due = world.respawns.filter((waiting) => waiting.remaining <= 0);
-  if (due.length === 0) return;
-  world.respawns = world.respawns.filter((waiting) => waiting.remaining > 0);
-  for (const { entity } of due) {
-    entity.x = entity.home.x;
-    entity.y = entity.home.y;
-    entity.order = null;
-    clearPath(entity);
-    entity.cooldown = 0;
-    entity.abilityCooldowns = entity.abilityCooldowns.map(() => 0);
+  for (const waiting of world.respawns) {
+    if (waiting.remaining !== null) waiting.remaining -= 1;
+  }
+  bringBack(world, (waiting) => waiting.remaining !== null && waiting.remaining <= 0, events);
+}
+
+/** Respawns the waiting entities `due` accepts now, whatever their wait. */
+export function bringBack(
+  world: World,
+  due: (waiting: World["respawns"][number]) => boolean,
+  events: SimEvent[],
+): void {
+  const back = world.respawns.filter(due);
+  if (back.length === 0) return;
+  world.respawns = world.respawns.filter((waiting) => !due(waiting));
+  for (const { entity } of back) {
+    sendHome(world, entity);
     entity.buildRemaining = 0;
     entity.queue = [];
     entity.carrying = 0;
-    entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining === null);
-    entity.lastHit = null;
-    entity.health = statOf(world, entity, "maxHealth") ?? null;
     world.entities.push(entity);
     events.push({ type: "respawned", id: entity.id });
   }
   world.entities.sort((a, b) => a.id - b.id);
+}
+
+/** Puts an entity back home at full health, with its orders, cooldowns, and timed modifiers cleared. */
+export function sendHome(world: World, entity: Entity): void {
+  entity.x = entity.home.x;
+  entity.y = entity.home.y;
+  entity.order = null;
+  clearPath(entity);
+  entity.cooldown = 0;
+  entity.abilityCooldowns = entity.abilityCooldowns.map(() => 0);
+  entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining === null);
+  entity.lastHit = null;
+  entity.health = statOf(world, entity, "maxHealth") ?? null;
+}
+
+/**
+ * A player who owns `merge.count` finished entities of a definition loses the
+ * lowest-id ones and gains one `merge.into` where the first stood. Repeats
+ * until none applies, so merged units can merge again. Not a death.
+ */
+export function runMerges(world: World, events: SimEvent[]): void {
+  const merging = Object.keys(world.definitions).filter(
+    (id) => world.definitions[id].merge !== undefined,
+  );
+  if (merging.length === 0) return;
+  // One pass groups the finished entities each player owns by definition, in id order.
+  const groups = new Map<string, Entity[]>();
+  const group = (playerId: string, definitionId: string) => {
+    const at = `${playerId} ${definitionId}`;
+    let found = groups.get(at);
+    if (found === undefined) {
+      found = [];
+      groups.set(at, found);
+    }
+    return found;
+  };
+  for (const entity of world.entities) {
+    if (entity.playerId === null || entity.buildRemaining > 0) continue;
+    if (world.definitions[entity.definitionId].merge === undefined) continue;
+    group(entity.playerId, entity.definitionId).push(entity);
+  }
+  const used = new Set<Entity>();
+  for (const player of world.players) {
+    let merged = true;
+    while (merged) {
+      merged = false;
+      for (const id of merging) {
+        const { count, into } = world.definitions[id].merge!;
+        const same = group(player.id, id);
+        while (same.length >= count) {
+          const parts = same.splice(0, count);
+          for (const part of parts) used.add(part);
+          const result = spawn(world, into, player.id, parts[0].x, parts[0].y);
+          group(player.id, into).push(result);
+          events.push({ type: "merged", id: result.id, from: parts.map((part) => part.id) });
+          merged = true;
+        }
+      }
+    }
+  }
+  if (used.size > 0) world.entities = world.entities.filter((entity) => !used.has(entity));
 }
 
 export function defeatPlayer(world: World, playerId: string, events: SimEvent[]): void {

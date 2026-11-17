@@ -16,6 +16,10 @@ export interface GameElements {
 /** What the HUD can ask of a running game. */
 export interface Game {
   produce(definitionId: string): void;
+  /** Buys the offer in a shop's slot, whatever is selected. */
+  buy(buildingId: number, slot: number, definitionId: string): void;
+  /** Uses an ability of an entity that needs no target, whatever is selected. */
+  castOn(unitId: number, abilityId: string): void;
   /** Uses an ability of the selected unit. One that needs an enemy waits for the next tap. */
   cast(abilityId: string): void;
   /** The next tap on the ground places this building. */
@@ -203,6 +207,12 @@ export function createGame(
       const [building] = selected();
       if (building !== undefined)
         submit({ type: "produce", buildingId: building.id, definitionId });
+    },
+    buy(buildingId, slot, definitionId) {
+      submit({ type: "produce", buildingId, definitionId, slot });
+    },
+    castOn(unitId, abilityId) {
+      submit({ type: "cast", unitId, abilityId });
     },
     cast(abilityId) {
       const [caster] = selected();

@@ -81,6 +81,31 @@ export function Hud({
           {view.selection !== null && (
             <div className="rounded-lg bg-slate-900/85 px-3 py-2">{view.selection}</div>
           )}
+          {view.shop !== null && (
+            <div className="flex flex-wrap gap-2">
+              {view.shop.offers.map((offer) => (
+                <Button
+                  key={offer.slot}
+                  disabled={!offer.enabled}
+                  onClick={() =>
+                    game.current?.buy(view.shop!.buildingId, offer.slot, offer.definitionId)
+                  }
+                >
+                  Buy {offer.label} ({offer.cost})
+                </Button>
+              ))}
+              {view.shop.abilities.map((ability) => (
+                <Button
+                  key={ability.id}
+                  disabled={!ability.enabled}
+                  onClick={() => game.current?.castOn(view.shop!.buildingId, ability.id)}
+                >
+                  {ability.label}
+                  {ability.cost > 0 && ` (${ability.cost})`}
+                </Button>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {view.abilities.map((ability) => (
               <Button

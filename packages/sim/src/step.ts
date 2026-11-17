@@ -3,6 +3,7 @@ import { applyCommand, enqueueCommand, type Command } from "./commands.ts";
 import {
   checkEnd,
   removeDead,
+  runMerges,
   runOrders,
   runProduction,
   runRespawns,
@@ -39,6 +40,7 @@ export function step(world: World, commands: readonly Command[] = []): SimEvent[
   runOrders(world, events);
   removeDead(world, events);
   runTriggers(world, events);
+  runMerges(world, events);
   checkEnd(world, events);
   world.tick += 1;
   return events;

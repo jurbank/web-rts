@@ -1,0 +1,600 @@
+{
+  "formatVersion": 5,
+  "map": {
+    "width": 36,
+    "height": 20
+  },
+  "players": [
+    {
+      "id": "red",
+      "color": "#e5484d",
+      "controller": "human",
+      "start": {
+        "x": 8,
+        "y": 10
+      }
+    },
+    {
+      "id": "blue",
+      "color": "#3e63dd",
+      "controller": "ai",
+      "ai": {
+        "workers": 0,
+        "attackSize": 99
+      }
+    }
+  ],
+  "definitions": [
+    {
+      "id": "shop",
+      "name": "Shop",
+      "radius": 1,
+      "offers": {
+        "definitionIds": ["knight", "archer", "brute"],
+        "count": 3
+      },
+      "abilities": [
+        {
+          "id": "reroll",
+          "name": "Reroll",
+          "cooldown": 0.5,
+          "target": "self",
+          "cost": 2,
+          "effects": [
+            {
+              "type": "rollOffers"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "knight",
+      "name": "Knight",
+      "radius": 0.5,
+      "maxHealth": 120,
+      "speed": 3,
+      "weapon": {
+        "damage": 12,
+        "range": 1,
+        "cooldown": 1,
+        "acquireRange": 6
+      },
+      "cost": 3,
+      "buildTime": 0.5,
+      "respawn": {},
+      "merge": {
+        "count": 3,
+        "into": "knight2"
+      }
+    },
+    {
+      "id": "knight2",
+      "name": "Knight II",
+      "radius": 0.6,
+      "maxHealth": 280,
+      "speed": 3,
+      "weapon": {
+        "damage": 28,
+        "range": 1,
+        "cooldown": 1,
+        "acquireRange": 6
+      },
+      "cost": 9,
+      "buildTime": 0.5,
+      "respawn": {}
+    },
+    {
+      "id": "archer",
+      "name": "Archer",
+      "radius": 0.4,
+      "maxHealth": 70,
+      "speed": 3,
+      "weapon": {
+        "damage": 14,
+        "range": 5,
+        "cooldown": 1.2,
+        "acquireRange": 6
+      },
+      "cost": 3,
+      "buildTime": 0.5,
+      "respawn": {},
+      "merge": {
+        "count": 3,
+        "into": "archer2"
+      }
+    },
+    {
+      "id": "archer2",
+      "name": "Archer II",
+      "radius": 0.5,
+      "maxHealth": 160,
+      "speed": 3,
+      "weapon": {
+        "damage": 32,
+        "range": 5,
+        "cooldown": 1.2,
+        "acquireRange": 6
+      },
+      "cost": 9,
+      "buildTime": 0.5,
+      "respawn": {}
+    },
+    {
+      "id": "brute",
+      "name": "Brute",
+      "radius": 0.7,
+      "maxHealth": 240,
+      "speed": 3,
+      "weapon": {
+        "damage": 18,
+        "range": 1,
+        "cooldown": 1.5,
+        "acquireRange": 6
+      },
+      "cost": 5,
+      "buildTime": 0.5,
+      "respawn": {}
+    }
+  ],
+  "placements": [
+    {
+      "definitionId": "shop",
+      "playerId": "red",
+      "x": 3,
+      "y": 10
+    },
+    {
+      "definitionId": "shop",
+      "playerId": "blue",
+      "x": 33,
+      "y": 10
+    }
+  ],
+  "variables": [
+    {
+      "id": "round",
+      "value": 1,
+      "label": "Round"
+    },
+    {
+      "id": "redLives",
+      "value": 3,
+      "label": "Red lives"
+    },
+    {
+      "id": "blueLives",
+      "value": 3,
+      "label": "Blue lives"
+    },
+    {
+      "id": "phase",
+      "value": 0
+    },
+    {
+      "id": "over",
+      "value": 0
+    }
+  ],
+  "timers": [
+    {
+      "id": "planning",
+      "seconds": 20,
+      "label": "Planning"
+    },
+    {
+      "id": "combat",
+      "seconds": 40,
+      "label": "Combat"
+    }
+  ],
+  "regions": [
+    {
+      "id": "middle",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 20
+    }
+  ],
+  "waypoints": [
+    {
+      "id": "westEnd",
+      "x": 5,
+      "y": 10
+    },
+    {
+      "id": "eastEnd",
+      "x": 31,
+      "y": 10
+    }
+  ],
+  "paths": [
+    {
+      "id": "eastward",
+      "waypoints": ["eastEnd"]
+    },
+    {
+      "id": "westward",
+      "waypoints": ["westEnd"]
+    }
+  ],
+  "triggers": [
+    {
+      "id": "begin",
+      "event": {
+        "type": "start"
+      },
+      "actions": [
+        {
+          "type": "rollOffers"
+        },
+        {
+          "type": "grantResources",
+          "playerId": "red",
+          "amount": 10
+        },
+        {
+          "type": "grantResources",
+          "playerId": "blue",
+          "amount": 10
+        },
+        {
+          "type": "startTimer",
+          "timer": "planning"
+        }
+      ]
+    },
+    {
+      "id": "fight",
+      "event": {
+        "type": "timer",
+        "timer": "planning"
+      },
+      "actions": [
+        {
+          "type": "setVariable",
+          "variable": "phase",
+          "value": 1
+        },
+        {
+          "type": "setHome"
+        },
+        {
+          "type": "walk",
+          "playerId": "red",
+          "path": "eastward"
+        },
+        {
+          "type": "walk",
+          "playerId": "blue",
+          "path": "westward"
+        },
+        {
+          "type": "startTimer",
+          "timer": "combat"
+        }
+      ]
+    },
+    {
+      "id": "redKnightsBond",
+      "event": {
+        "type": "timer",
+        "timer": "planning"
+      },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "red",
+          "definitionIds": ["knight", "knight2"],
+          "op": ">=",
+          "value": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "modify",
+          "playerId": "red",
+          "definitionIds": ["knight", "knight2"],
+          "stat": "damage",
+          "add": 6,
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "id": "blueKnightsBond",
+      "event": {
+        "type": "timer",
+        "timer": "planning"
+      },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "blue",
+          "definitionIds": ["knight", "knight2"],
+          "op": ">=",
+          "value": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "modify",
+          "playerId": "blue",
+          "definitionIds": ["knight", "knight2"],
+          "stat": "damage",
+          "add": 6,
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "id": "redArchersBond",
+      "event": {
+        "type": "timer",
+        "timer": "planning"
+      },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "red",
+          "definitionIds": ["archer", "archer2"],
+          "op": ">=",
+          "value": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "modify",
+          "playerId": "red",
+          "definitionIds": ["archer", "archer2"],
+          "stat": "damage",
+          "add": 6,
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "id": "blueArchersBond",
+      "event": {
+        "type": "timer",
+        "timer": "planning"
+      },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "blue",
+          "definitionIds": ["archer", "archer2"],
+          "op": ">=",
+          "value": 2
+        }
+      ],
+      "actions": [
+        {
+          "type": "modify",
+          "playerId": "blue",
+          "definitionIds": ["archer", "archer2"],
+          "stat": "damage",
+          "add": 6,
+          "seconds": 60
+        }
+      ]
+    },
+    {
+      "id": "stayHome",
+      "event": {
+        "type": "entered",
+        "region": "middle"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "phase",
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "returnHome",
+          "entity": "$triggering"
+        }
+      ]
+    },
+    {
+      "id": "redFalls",
+      "event": {
+        "type": "tick"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "phase",
+          "op": "==",
+          "value": 1
+        },
+        {
+          "type": "count",
+          "playerId": "red",
+          "definitionIds": ["knight", "knight2", "archer", "archer2", "brute"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "addVariable",
+          "variable": "redLives",
+          "value": -1
+        },
+        {
+          "type": "setVariable",
+          "variable": "over",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "blueFalls",
+      "event": {
+        "type": "tick"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "phase",
+          "op": "==",
+          "value": 1
+        },
+        {
+          "type": "count",
+          "playerId": "blue",
+          "definitionIds": ["knight", "knight2", "archer", "archer2", "brute"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "addVariable",
+          "variable": "blueLives",
+          "value": -1
+        },
+        {
+          "type": "setVariable",
+          "variable": "over",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "timeUp",
+      "event": {
+        "type": "timer",
+        "timer": "combat"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "phase",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "actions": [
+        {
+          "type": "setVariable",
+          "variable": "over",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "redOut",
+      "event": {
+        "type": "tick"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "redLives",
+          "op": "<=",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "win",
+          "playerId": "blue"
+        }
+      ]
+    },
+    {
+      "id": "blueOut",
+      "event": {
+        "type": "tick"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "blueLives",
+          "op": "<=",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "win",
+          "playerId": "red"
+        }
+      ]
+    },
+    {
+      "id": "roundEnd",
+      "event": {
+        "type": "tick"
+      },
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "over",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "actions": [
+        {
+          "type": "setVariable",
+          "variable": "over",
+          "value": 0
+        },
+        {
+          "type": "setVariable",
+          "variable": "phase",
+          "value": 0
+        },
+        {
+          "type": "stopTimer",
+          "timer": "combat"
+        },
+        {
+          "type": "returnHome"
+        },
+        {
+          "type": "addVariable",
+          "variable": "round",
+          "value": 1
+        },
+        {
+          "type": "rollOffers"
+        },
+        {
+          "type": "grantResources",
+          "playerId": "red",
+          "amount": 10
+        },
+        {
+          "type": "grantResources",
+          "playerId": "blue",
+          "amount": 10
+        },
+        {
+          "type": "startTimer",
+          "timer": "planning"
+        }
+      ]
+    }
+  ],
+  "commandRules": [
+    {
+      "conditions": [
+        {
+          "type": "variable",
+          "variable": "phase",
+          "op": "==",
+          "value": 0
+        }
+      ]
+    }
+  ]
+}

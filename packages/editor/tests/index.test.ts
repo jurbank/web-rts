@@ -199,6 +199,7 @@ test("renaming a guide updates the paths and triggers that name it", () => {
       conditions: [],
       actions: [
         { type: "spawn", definitionId: "hq", playerId: "red", at: "gate", count: 1, path: "lane" },
+        { type: "walk", playerId: "red", path: "lane" },
       ],
     }),
   );
@@ -212,7 +213,7 @@ test("renaming a guide updates the paths and triggers that name it", () => {
   expect(document.triggers[1].actions[0]).toMatchObject({ at: "door" });
   expect(document.triggers[2]).toMatchObject({
     event: { region: "end" },
-    actions: [{ at: "door", path: "road" }],
+    actions: [{ at: "door", path: "road" }, { path: "road" }],
   });
 });
 

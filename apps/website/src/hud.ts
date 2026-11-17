@@ -1,4 +1,4 @@
-import type { Definition, Scenario } from "data";
+import type { CommandType, Definition, Scenario } from "data";
 import type { EntitySnapshot, Snapshot } from "sim";
 
 export interface HudAction {
@@ -22,11 +22,22 @@ export interface HudAbility {
   enabled: boolean;
 }
 
+export interface HudOffer {
+  /** The slot it fills in the shop. */
+  slot: number;
+  definitionId: string;
+  label: string;
+  cost: number;
+  enabled: boolean;
+}
+
 /** Everything the HUD shows. It changes only when one of these values does (U3). */
 export interface HudView {
   resources: number;
-  /** The scenario's labelled variables, in scenario order. */
+  /** The scenario's labelled variables, then its running labelled timers in whole seconds left. */
   counters: { label: string; value: number }[];
+  /** What the local player's first entity with offers has for sale, always on screen. */
+  shop: { buildingId: number; offers: HudOffer[]; abilities: HudAbility[] } | null;
   selection: string | null;
   actions: HudAction[];
   /** What the one selected unit can cast. */
@@ -43,6 +54,7 @@ export interface HudView {
 export const emptyHudView: HudView = {
   resources: 0,
   counters: [],
+  shop: null,
   selection: null,
   actions: [],
   abilities: [],
@@ -73,10 +85,21 @@ export function buildHudView(input: HudInput): HudView {
   const name = (id: string) => definitions.get(id)?.name ?? id;
   const resources = snapshot.players.find((player) => player.id === localPlayerId)?.resources ?? 0;
   const selected = snapshot.entities.filter((entity) => input.selectedIds.includes(entity.id));
+  const refused = (type: CommandType) => snapshot.refusedCommands.includes(type);
+  const affordable = (id: string) => (definitions.get(id)?.cost ?? 0) <= resources;
   const action = (kind: HudAction["kind"], id: string): HudAction => {
     const cost = definitions.get(id)?.cost ?? 0;
-    return { kind, definitionId: id, label: name(id), cost, enabled: cost <= resources };
+    return {
+      kind,
+      definitionId: id,
+      label: name(id),
+      cost,
+      enabled: affordable(id) && !refused(kind),
+    };
   };
+  const store = snapshot.entities.find(
+    (entity) => entity.playerId === localPlayerId && entity.offers.length > 0,
+  );
 
   const producer = selected.length === 1 && selected[0].built === 1 ? selected[0] : undefined;
   let actions = (producer === undefined ? [] : definitionOf(producer).produces).map((id) =>
@@ -89,24 +112,54 @@ export function buildHudView(input: HudInput): HudView {
 
   const caster =
     selected.length === 1 && selected[0].playerId === localPlayerId ? selected[0] : null;
-  const abilities = (caster === null ? [] : definitionOf(caster).abilities).map(
-    (ability, index): HudAbility => ({
-      id: ability.id,
-      label: ability.name,
-      seconds: Math.ceil(caster!.abilityCooldowns[index]),
-      locked: caster!.level < ability.level ? ability.level : null,
-      cost: ability.cost,
-      enabled: caster!.abilityUsable[index],
-    }),
-  );
+  const abilitiesOf = (entity: EntitySnapshot, self = false) =>
+    definitionOf(entity).abilities.flatMap((ability, index): HudAbility[] =>
+      self && ability.target !== "self"
+        ? []
+        : [
+            {
+              id: ability.id,
+              label: ability.name,
+              seconds: Math.ceil(entity.abilityCooldowns[index]),
+              locked: entity.level < ability.level ? ability.level : null,
+              cost: ability.cost,
+              enabled: entity.abilityUsable[index] && !refused("cast"),
+            },
+          ],
+    );
+  const abilities = caster === null ? [] : abilitiesOf(caster);
   const teamOf = (id: string) => snapshot.players.find((player) => player.id === id)?.team;
 
   const { outcome } = snapshot;
   return {
     resources,
-    counters: scenario.variables.flatMap(({ id, label }) =>
-      label === undefined ? [] : { label, value: snapshot.variables[id] },
-    ),
+    counters: [
+      ...scenario.variables.flatMap(({ id, label }) =>
+        label === undefined ? [] : { label, value: snapshot.variables[id] },
+      ),
+      ...scenario.timers.flatMap(({ id, label }) => {
+        const seconds = snapshot.timers[id];
+        return label === undefined || seconds === null ? [] : { label, value: Math.ceil(seconds) };
+      }),
+    ],
+    shop:
+      store === undefined
+        ? null
+        : {
+            buildingId: store.id,
+            offers: store.offers.flatMap((id, slot) =>
+              id === null
+                ? []
+                : {
+                    slot,
+                    definitionId: id,
+                    label: name(id),
+                    cost: definitions.get(id)?.cost ?? 0,
+                    enabled: affordable(id) && !refused("produce"),
+                  },
+            ),
+            abilities: abilitiesOf(store, true),
+          },
     selection: describe(selected, definitionOf),
     actions,
     abilities,
