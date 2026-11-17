@@ -1,3 +1,4 @@
+import { isEnemy, useAbility } from "./systems.ts";
 import {
   canPlace,
   definitionOf,
@@ -57,7 +58,16 @@ export interface ProduceCommand extends CommandBase {
   definitionId: string;
 }
 
+/** Uses one of a unit's abilities. One that targets an enemy needs `targetId`. */
+export interface CastCommand extends CommandBase {
+  type: "cast";
+  unitId: number;
+  abilityId: string;
+  targetId?: number;
+}
+
 export type Command =
+  | CastCommand
   | MoveCommand
   | AttackCommand
   | GatherCommand
@@ -78,6 +88,7 @@ const isFinite = (value: unknown): value is number => Number.isFinite(value);
 export function normalizeCommand(input: Command): Command | null {
   const raw = input as unknown as Record<string, unknown>;
   const { playerId, tick, unitIds, x, y, targetId, nodeId, buildingId, definitionId } = raw;
+  const { unitId, abilityId } = raw;
   if (!isText(playerId) || !isId(tick)) return null;
   const base = { playerId, tick: tick + 0 };
   const ids = () => (unitIds as number[]).map((id) => id + 0);
@@ -100,6 +111,13 @@ export function normalizeCommand(input: Command): Command | null {
     case "produce":
       if (!isId(buildingId) || !isText(definitionId)) return null;
       return { ...base, type: "produce", buildingId: buildingId + 0, definitionId };
+    case "cast": {
+      if (!isId(unitId) || !isText(abilityId)) return null;
+      if (targetId !== undefined && !isId(targetId)) return null;
+      const cast: CastCommand = { ...base, type: "cast", unitId: unitId + 0, abilityId };
+      if (targetId !== undefined) cast.targetId = targetId + 0;
+      return cast;
+    }
     default:
       return null;
   }
@@ -159,9 +177,9 @@ export function applyCommand(world: World, command: Command): void {
     }
     case "attack": {
       const target = findEntity(world, command.targetId);
-      if (target === undefined || target.health === null || target.playerId === player.id) return;
+      if (target === undefined) return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
-        if (definitionOf(world, unit).weapon !== undefined) {
+        if (definitionOf(world, unit).weapon !== undefined && isEnemy(world, unit, target)) {
           giveOrder(unit, { type: "attack", targetId: target.id });
         }
       }
@@ -208,6 +226,24 @@ export function applyCommand(world: World, command: Command): void {
           giveOrder(unit, { type: "build", buildingId: building.id });
         }
       }
+      return;
+    }
+    case "cast": {
+      const unit = findEntity(world, command.unitId);
+      if (unit === undefined || unit.playerId !== player.id || unit.buildRemaining > 0) return;
+      const { abilities } = definitionOf(world, unit);
+      const index = abilities.findIndex((ability) => ability.id === command.abilityId);
+      if (index < 0 || unit.abilityCooldowns[index] > 0) return;
+      const ability = abilities[index];
+      if (unit.level < ability.level) return;
+      if (ability.target === "self") {
+        useAbility(world, unit, index, unit);
+        return;
+      }
+      const target =
+        command.targetId === undefined ? undefined : findEntity(world, command.targetId);
+      if (target === undefined || !isEnemy(world, unit, target)) return;
+      giveOrder(unit, { type: "cast", ability: index, targetId: target.id });
       return;
     }
     case "produce": {

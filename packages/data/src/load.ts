@@ -23,6 +23,8 @@ const migrations: Record<number, Migration> = {
     };
     return { ...rest, formatVersion: 2, triggers: [trigger] };
   },
+  /** Version 3 adds teams, levels, abilities, and respawn. Every addition is optional. */
+  2: (document) => ({ ...document, formatVersion: 3 }),
 };
 
 export function migrateScenario(raw: unknown): unknown {

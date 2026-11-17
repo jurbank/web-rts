@@ -1,4 +1,5 @@
 import { loadScenario, type Scenario } from "data";
+import moba from "./scenarios/moba.json";
 import skirmish from "./scenarios/skirmish.json";
 import towerDefense from "./scenarios/tower-defense.json";
 
@@ -6,4 +7,5 @@ import towerDefense from "./scenarios/tower-defense.json";
 export const examples: readonly { name: string; scenario: Scenario }[] = [
   { name: "Skirmish", scenario: loadScenario(skirmish) },
   { name: "Tower defense", scenario: loadScenario(towerDefense) },
+  { name: "MOBA", scenario: loadScenario(moba) },
 ];

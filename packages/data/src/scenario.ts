@@ -11,9 +11,40 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 2;
+export const FORMAT_VERSION = 3;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
+
+/** A change to one of an entity's numbers, added to what its definition says. */
+export const modifierSchema = z.object({
+  stat: z.enum(["maxHealth", "speed", "damage"]),
+  add: z.number(),
+});
+
+/** What an ability does to the entity it lands on. */
+export const effectSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("damage"), amount: positive }),
+  /** A modifier that wears off. */
+  z.object({ type: z.literal("modify"), ...modifierSchema.shape, seconds: positive }),
+]);
+
+export const abilitySchema = z
+  .object({
+    id: idSchema,
+    name: z.string().min(1),
+    cooldown: positive,
+    /** Who the effects land on: the caster, or an enemy the caster walks into `range` of. */
+    target: z.enum(["self", "enemy"]),
+    /** Measured to the target's edge. */
+    range: positive.optional(),
+    /** The level the caster needs. */
+    level: z.int().positive().default(1),
+    effects: z.array(effectSchema).min(1),
+  })
+  .refine((ability) => ability.target !== "enemy" || ability.range !== undefined, {
+    message: "An ability that targets an enemy needs a range",
+    path: ["range"],
+  });
 
 /** Distances are ground units. Durations are seconds and speeds are per second (C7). */
 export const definitionSchema = z.object({
@@ -50,6 +81,21 @@ export const definitionSchema = z.object({
   queueLimit: z.int().positive().default(5),
   /** Definitions this unit constructs. */
   builds: z.array(idSchema).default([]),
+  /** Experience its death gives each enemy that has levels and is near enough. */
+  experience: z.number().nonnegative().default(0),
+  levels: z
+    .object({
+      /** Experience needed for each level after the first. Its length sets the top level. */
+      thresholds: z.array(positive).min(1),
+      /** How far away a death still gives experience. */
+      range: positive,
+      /** Applied once for each level gained. */
+      perLevel: z.array(modifierSchema).default([]),
+    })
+    .optional(),
+  /** It comes back where it was first placed this long after dying, keeping its level. */
+  respawn: z.object({ seconds: positive }).optional(),
+  abilities: z.array(abilitySchema).default([]),
 });
 
 export const playerSchema = z
@@ -58,6 +104,8 @@ export const playerSchema = z
     color: colorSchema,
     /** Nobody commands a `none` player. Only triggers act for it. */
     controller: z.enum(["human", "ai", "none"]),
+    /** Players on the same team do not fight. Defaults to a team of their own. */
+    team: idSchema.optional(),
     resources: z.number().nonnegative().default(0),
     /** Where this player's view begins. Defaults to something they own. */
     start: z.object({ x: z.number(), y: z.number() }).optional(),
@@ -99,8 +147,8 @@ export const scenarioSchema = z
     triggers: z.array(triggerSchema).default([]),
   })
   .superRefine((scenario, ctx) => {
-    const playerIds = uniqueIds(scenario.players, "players", ctx);
-    const definitionIds = uniqueIds(scenario.definitions, "definitions", ctx);
+    const playerIds = uniqueIds(scenario.players, ["players"], ctx);
+    const definitionIds = uniqueIds(scenario.definitions, ["definitions"], ctx);
     const requireDefinition = (id: string, path: PropertyKey[]) => {
       if (!definitionIds.has(id)) {
         ctx.addIssue({ code: "custom", message: `Unknown definition "${id}"`, path });
@@ -128,6 +176,14 @@ export const scenarioSchema = z
       definition.builds.forEach((id, i) =>
         requireDefinition(id, ["definitions", index, "builds", i]),
       );
+      uniqueIds(definition.abilities, ["definitions", index, "abilities"], ctx);
+      if (definition.respawn !== undefined && definition.maxHealth === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Only something that can be damaged can respawn",
+          path: ["definitions", index, "respawn"],
+        });
+      }
     });
     scenario.placements.forEach((placement, index) => {
       const path = ["placements", index];
@@ -148,13 +204,13 @@ export const scenarioSchema = z
     const refs: References = {
       definition: requireDefinition,
       player: requireIn(playerIds, "player"),
-      variable: requireIn(uniqueIds(scenario.variables, "variables", ctx), "variable"),
-      timer: requireIn(uniqueIds(scenario.timers, "timers", ctx), "timer"),
-      region: requireIn(uniqueIds(scenario.regions, "regions", ctx), "region"),
-      waypoint: requireIn(uniqueIds(scenario.waypoints, "waypoints", ctx), "waypoint"),
-      path: requireIn(uniqueIds(scenario.paths, "paths", ctx), "path"),
+      variable: requireIn(uniqueIds(scenario.variables, ["variables"], ctx), "variable"),
+      timer: requireIn(uniqueIds(scenario.timers, ["timers"], ctx), "timer"),
+      region: requireIn(uniqueIds(scenario.regions, ["regions"], ctx), "region"),
+      waypoint: requireIn(uniqueIds(scenario.waypoints, ["waypoints"], ctx), "waypoint"),
+      path: requireIn(uniqueIds(scenario.paths, ["paths"], ctx), "path"),
     };
-    uniqueIds(scenario.triggers, "triggers", ctx);
+    uniqueIds(scenario.triggers, ["triggers"], ctx);
 
     scenario.regions.forEach((region, index) => {
       const far = { x: region.x + region.width, y: region.y + region.height };
@@ -254,7 +310,7 @@ function checkTrigger(
 
 function uniqueIds(
   items: readonly { id: string }[],
-  key: string,
+  at: PropertyKey[],
   ctx: z.RefinementCtx,
 ): Set<string> {
   const ids = new Set<string>();
@@ -263,7 +319,7 @@ function uniqueIds(
       ctx.addIssue({
         code: "custom",
         message: `Duplicate id "${item.id}"`,
-        path: [key, index, "id"],
+        path: [...at, index, "id"],
       });
     }
     ids.add(item.id);
@@ -271,6 +327,9 @@ function uniqueIds(
   return ids;
 }
 
+export type Modifier = z.infer<typeof modifierSchema>;
+export type Effect = z.infer<typeof effectSchema>;
+export type Ability = z.infer<typeof abilitySchema>;
 export type Definition = z.infer<typeof definitionSchema>;
 export type Player = z.infer<typeof playerSchema>;
 export type Placement = z.infer<typeof placementSchema>;

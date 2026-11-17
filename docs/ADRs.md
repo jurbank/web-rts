@@ -111,3 +111,23 @@ A variable may carry a `label`. The snapshot copies the variables, and the HUD s
 ## 2026-11-16 One operation shape for every list, and edits that would not load are refused
 
 Operations were one type per list and action. With definitions, waypoints, paths, and regions now editable, they are `add`, `remove`, and `set` on a named list, plus `batch`. E2 holds as before. Deleting or renaming can leave a reference that names nothing, and the editor view builds a world from the document on every change, so the app's session refuses any edit whose result fails the `data` schema and shows the schema's messages. That makes the schema the one place that knows what refers to what. Renaming a waypoint, path, or region rewrites the paths and triggers that name it. A definition's id cannot be edited, since its `name` is what people see. The renderer was built for a scenario whose definitions and players never change, so it now has `setContent`, which the editor view calls when either list changes. Editing a definition changes every placement of it, and per-instance overrides wait for a format change. The definition editor covers only fields that have survived two genres. Gathering fields and what the MOBA adds come later.
+
+## 2026-11-16 Format 3 adds what a MOBA needs, all optional
+
+A player may name a `team`. A definition may carry `experience`, `levels`, `respawn`, and `abilities`. Nothing existing changes meaning, so the migration from version 2 only raises the number, and `skirmish-v2.json` checks that a version 2 file loads to the same result. The version still goes up, as C3 requires once users have saved files. The editor's definition panel does not edit the new fields yet.
+
+## 2026-11-16 The MOBA is five mechanisms and some triggers
+
+Creep waves and victory are trigger data, as in tower defense. Five things could not be said with triggers and are mechanisms in `sim`, each usable outside a MOBA.
+
+- Teams. Players on one team do not fight and cannot be ordered to. The lane creeps, towers, and ancient belong to a `none` player on the hero's team, so a human sees allies they cannot command. `win` defeats every other team, and the game ends when one team is left. The winner is the first player of that team still standing.
+- Levels. A death gives its `experience` in full to every enemy with levels inside that enemy's `levels.range`. There is no split and no last-hit rule yet. A neutral death gives experience to every team in range. Each level applies the definition's `perLevel` modifiers once.
+- Modifiers. A stat is the definition's number, plus the level gains, plus whatever abilities left on the entity. Only `maxHealth`, `speed`, and `damage` can be modified, and only by adding.
+- Abilities. A `cast` command uses one by id. One that targets the caster applies at once. One that targets an enemy becomes an order that walks into range first, then leaves the caster attacking. Effects are damage and timed modifiers. Point targets and areas wait for a fixture that needs them.
+- Respawn. A dead entity with `respawn` waits in `world.respawns` and returns at the spot it first appeared, with the same id, its level, and full health. It still fires `died` when it dies. While it waits it is not in the world, so a trigger that counts a player's entities does not count it. Only something with health may respawn.
+
+Armed units walking a path now fight enemies they see and then resume the path, giving up on a target that leaves their sight. Tower defense creeps are unarmed and behave as before. The ai casts any ready ability at an enemy in range, and a self ability while attacking. It does not retreat. Gold bounties and items are not built.
+
+## 2026-11-16 Multiplayer targets twelve humans, and a guardian watches for gaps
+
+The size to plan for is six against six, all human, on any mix of phones, tablets, and desktops in one match. The match must be the same on each device and fair to each. The model is still open and nothing gets built for it yet. The multiplayer-guardian agent reviews changes for single-player assumptions that would be costly to undo, and sorts them by that cost. It runs on changes to commands, mechanics, triggers, players and teams, the loop, and snapshots, and over the whole workspace at the end of each milestone. It holds code to both models until one is chosen.

@@ -34,6 +34,7 @@ export function Hud({
 }) {
   const view = useHud((state) => state.view);
   const debug = useHud((state) => state.debug);
+  const targeting = view.abilities.find((ability) => ability.id === view.targeting);
 
   return (
     <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-white">
@@ -46,9 +47,14 @@ export function Hud({
             </span>
           ))}
         </div>
-        {view.placing !== null && (
+        {(view.placing !== null || view.targeting !== null) && (
           <div className="flex items-center gap-2 rounded-lg bg-slate-900/85 py-1 pr-1 pl-3">
-            <span>{view.notice ?? `Tap the ground to place ${view.placing}`}</span>
+            <span>
+              {view.notice ??
+                (view.placing !== null
+                  ? `Tap the ground to place ${view.placing}`
+                  : `Tap an enemy to use ${targeting?.label}`)}
+            </span>
             <Button onClick={() => game.current?.cancelPlacement()}>Cancel</Button>
           </div>
         )}
@@ -76,6 +82,21 @@ export function Hud({
             <div className="rounded-lg bg-slate-900/85 px-3 py-2">{view.selection}</div>
           )}
           <div className="flex flex-wrap gap-2">
+            {view.abilities.map((ability) => (
+              <Button
+                key={ability.id}
+                disabled={ability.locked !== null || ability.seconds > 0}
+                pressed={view.targeting === ability.id}
+                onClick={() => game.current?.cast(ability.id)}
+              >
+                {ability.label}
+                {ability.locked !== null
+                  ? ` (level ${ability.locked})`
+                  : ability.seconds > 0
+                    ? ` ${ability.seconds}s`
+                    : ""}
+              </Button>
+            ))}
             {view.actions.map((action) => (
               <Button
                 key={action.kind + action.definitionId}

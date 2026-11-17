@@ -58,7 +58,7 @@ Entity storage is one plain table in id order with systems as functions. Navigat
 - **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file. The format is frozen now that users save scenarios. Every schema change bumps the version and ships a migration with a fixture.
 - **C4.** Zod schemas are the source of truth. TypeScript types are inferred from them, not written beside them.
 - **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets inside `step`. Actions may change state in ways no command can, such as spawning units or granting resources, because they are part of the scenario and not input. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs inside `step` in a sandbox with a step budget and changes the world only through trigger actions.
-- **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game. Triggers decide who is defeated or wins. Ending the game once one player or none is left standing is a mechanism in `sim`.
+- **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game. Triggers decide who is defeated or wins. Ending the game once one team or none is left standing is a mechanism in `sim`.
 - **C7.** Scenario data states speeds and durations in seconds, never in ticks. `sim` converts using its tick constant, so the tick rate can change without rewriting content.
 - **C8.** Terrain is an imported asset made in an external terrain editor. The scenario references it and carries the grids `sim` needs, such as pathing. `sim` never reads the mesh. Only `render` does.
 
@@ -107,6 +107,8 @@ Edit, playtest, edit:
 ## Multiplayer
 
 Not in the first slice. The rules above keep two models open. In lockstep, clients exchange commands and each runs `sim`. With an authoritative server, `sim` runs in Node and clients predict. Both need S1 through S7, and both use the state hash to detect divergence. The choice is an open decision.
+
+The target is twelve human players in one match, six against six, on any mix of phones, tablets, and desktops. The match is the same on every device and fair to each, so the UI is responsive and no device is a second-class seat. Nothing gets built for it yet. The multiplayer-guardian agent reviews changes for choices that would make it harder to reach, such as code that assumes one human, two players, commands that apply the moment they are sent, or an action that is quick with a mouse and slow by touch.
 
 ## Tests
 

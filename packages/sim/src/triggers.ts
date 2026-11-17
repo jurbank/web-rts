@@ -192,8 +192,9 @@ function runAction(
     case "win": {
       const winnerId = resolvePlayer(action.playerId, entity);
       if (winnerId === null) return;
+      const team = findPlayer(world, winnerId)?.team;
       for (const player of world.players) {
-        if (player.id !== winnerId) defeatPlayer(world, player.id, events);
+        if (player.team !== team) defeatPlayer(world, player.id, events);
       }
       endGame(world, winnerId, events);
       return;

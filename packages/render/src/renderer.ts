@@ -302,13 +302,14 @@ export function createRenderer(
         view.body.position.set(x, bodyHeight / 2, y);
         view.ring.position.set(x, 0.02, y);
         view.ring.visible = selected;
-        const maxHealth = definitions.get(entity.definitionId)?.maxHealth;
         drawn.push({
           id: entity.id,
           x,
           y,
           health:
-            entity.health === null || maxHealth === undefined ? null : entity.health / maxHealth,
+            entity.health === null || entity.maxHealth === null
+              ? null
+              : entity.health / entity.maxHealth,
           selected,
           target: entity.target,
         });

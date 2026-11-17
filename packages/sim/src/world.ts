@@ -1,4 +1,4 @@
-import type { Definition, Player, Region, Scenario, Trigger } from "data";
+import type { Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
 import type { Command } from "./commands.ts";
 import { hashState } from "./hash.ts";
 import { seedRandom } from "./rng.ts";
@@ -14,7 +14,10 @@ export interface Point {
 
 export type Order =
   | { type: "move"; x: number; y: number }
-  | { type: "attack"; targetId: number }
+  /** `resume` is the path order an enemy on the way interrupted. */
+  | { type: "attack"; targetId: number; resume?: { pathId: string; next: number } }
+  /** Walks into range of the target and uses the ability at this index in its definition. */
+  | { type: "cast"; ability: number; targetId: number }
   | { type: "gather"; nodeId: number; returning: boolean; progress: number }
   | { type: "build"; buildingId: number }
   /** Walks a scenario path. `next` indexes the waypoint it is heading for. */
@@ -22,6 +25,12 @@ export type Order =
 
 export interface QueueItem {
   definitionId: string;
+  /** Ticks left. */
+  remaining: number;
+}
+
+/** A modifier an ability left on an entity. */
+export interface ActiveModifier extends Modifier {
   /** Ticks left. */
   remaining: number;
 }
@@ -47,11 +56,22 @@ export interface Entity extends Point {
   /** Ticks of construction left. Zero when complete. */
   buildRemaining: number;
   queue: QueueItem[];
+  /** Where it first appeared, and where it respawns. */
+  home: Point;
+  /** Starts at 1. */
+  level: number;
+  /** Experience gained toward the next level. */
+  experience: number;
+  modifiers: ActiveModifier[];
+  /** Ticks until each ability is ready, in the definition's ability order. */
+  abilityCooldowns: number[];
 }
 
 export interface PlayerState {
   id: string;
   controller: Player["controller"];
+  /** Players with the same team do not fight. */
+  team: string;
   resources: number;
   defeated: boolean;
   ai: NonNullable<Player["ai"]> | null;
@@ -81,6 +101,8 @@ export interface World {
   /** In id order. */
   entities: Entity[];
   nextEntityId: number;
+  /** Dead entities waiting to come back, in the order they died. */
+  respawns: { remaining: number; entity: Entity }[];
   /** In tick order, then arrival order. */
   pendingCommands: Command[];
   /** Set once the game is decided. A null winner is a draw. */
@@ -110,12 +132,14 @@ export function createWorld(scenario: Scenario, seed: number): World {
     players: scenario.players.map((player) => ({
       id: player.id,
       controller: player.controller,
+      team: player.team ?? player.id,
       resources: player.resources,
       defeated: false,
       ai: player.ai === undefined ? null : { ...player.ai },
     })),
     entities: [],
     nextEntityId: 1,
+    respawns: [],
     pendingCommands: [],
     outcome: null,
     variables: {},
@@ -183,6 +207,11 @@ export function spawn(
     amount: definition.resource?.amount ?? 0,
     buildRemaining: 0,
     queue: [],
+    home: { x: x + 0, y: y + 0 },
+    level: 1,
+    experience: 0,
+    modifiers: [],
+    abilityCooldowns: definition.abilities.map(() => 0),
   };
   world.nextEntityId += 1;
   world.entities.push(entity);
@@ -205,6 +234,31 @@ export function findEntity(world: World, id: number): Entity | undefined {
 
 export function definitionOf(world: World, entity: Entity): Definition {
   return world.definitions[entity.definitionId];
+}
+
+/**
+ * One of an entity's numbers after its levels and modifiers. Undefined when
+ * its definition does not have that number at all.
+ */
+export function statOf(world: World, entity: Entity, stat: Modifier["stat"]): number | undefined {
+  const definition = definitionOf(world, entity);
+  const base = stat === "damage" ? definition.weapon?.damage : definition[stat];
+  if (base === undefined) return undefined;
+  let value = base;
+  for (const modifier of definition.levels?.perLevel ?? []) {
+    if (modifier.stat === stat) value += modifier.add * (entity.level - 1);
+  }
+  for (const modifier of entity.modifiers) {
+    if (modifier.stat === stat) value += modifier.add;
+  }
+  // Health is divided by its maximum, so that never reaches zero.
+  return Math.max(stat === "maxHealth" ? 1 : 0, value);
+}
+
+/** The team an owner is on. Neutral entities are on no team. */
+export function teamOf(world: World, playerId: string | null): string | null {
+  if (playerId === null) return null;
+  return findPlayer(world, playerId)?.team ?? playerId;
 }
 
 export function findPlayer(world: World, id: string): PlayerState | undefined {

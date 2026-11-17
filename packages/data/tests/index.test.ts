@@ -1,6 +1,7 @@
 import { expect, test } from "vite-plus/test";
 import { FORMAT_VERSION, loadScenario, scenarioSchema } from "../src/index.ts";
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
+import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
 
 function fixture(): Record<string, any> {
@@ -86,6 +87,23 @@ test("format 1 migrates its victory condition into a trigger", () => {
       conditions: [{ type: "count", playerId: "$triggering", op: "==", value: 0 }],
       actions: [{ type: "defeat", playerId: "$triggering" }],
     },
+  ]);
+});
+
+test("format 2 loads unchanged", () => {
+  expect(loadScenario(JSON.parse(JSON.stringify(skirmishV2)))).toEqual(loadScenario(fixture()));
+});
+
+test("abilities need unique ids, and a range to target an enemy", () => {
+  const scenario = fixture();
+  const bolt = { id: "bolt", name: "Bolt", cooldown: 5, effects: [{ type: "damage", amount: 5 }] };
+  scenario.definitions[0].abilities = [
+    { ...bolt, target: "enemy" },
+    { ...bolt, target: "self" },
+  ];
+  expect(issues(scenario)).toEqual([
+    "An ability that targets an enemy needs a range",
+    'Duplicate id "bolt"',
   ]);
 });
 
