@@ -14,7 +14,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 6;
+export const FORMAT_VERSION = 7;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -31,6 +31,8 @@ export const effectSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("modify"), ...modifierSchema.shape, seconds: positive.optional() }),
   /** Fills the offers of the entity it lands on. */
   z.object({ type: z.literal("rollOffers") }),
+  /** Gives the entity it lands on experience, if it has levels. */
+  z.object({ type: z.literal("experience"), amount: positive }),
 ]);
 
 export const abilitySchema = z
@@ -98,10 +100,20 @@ export const definitionSchema = z.object({
     .object({
       /** Experience needed for each level after the first. Its length sets the top level. */
       thresholds: z.array(positive).min(1),
-      /** How far away a death still gives experience. */
-      range: positive,
+      /**
+       * Who a death's experience goes to: every enemy with these levels within
+       * `range`, or only the one that dealt the last damage, wherever it stands.
+       * Killer credit is veterancy.
+       */
+      credit: z.enum(["nearby", "killer"]).default("nearby"),
+      /** How far away a death still gives experience. Needed for nearby credit. */
+      range: positive.optional(),
       /** Applied once for each level gained. */
       perLevel: z.array(modifierSchema).default([]),
+    })
+    .refine((levels) => levels.credit === "killer" || levels.range !== undefined, {
+      message: "Nearby credit needs a range",
+      path: ["range"],
     })
     .optional(),
   /**
@@ -286,7 +298,8 @@ function checkTrigger(
   ctx: z.RefinementCtx,
 ): void {
   const { event } = trigger;
-  const hasTriggering = event.type === "died" || event.type === "entered";
+  const hasTriggering =
+    event.type === "died" || event.type === "entered" || event.type === "leveled";
   const player = playerCheck(refs, ctx, hasTriggering);
   const definitions = (ids: string[] | undefined, path: PropertyKey[]) =>
     ids?.forEach((id, i) => refs.definition(id, [...path, i]));
@@ -294,7 +307,7 @@ function checkTrigger(
   const eventPath = [...at, "event"];
   if (event.type === "timer") refs.timer(event.timer, [...eventPath, "timer"]);
   if (event.type === "entered") refs.region(event.region, [...eventPath, "region"]);
-  if (event.type === "died" || event.type === "entered") {
+  if (event.type === "died" || event.type === "entered" || event.type === "leveled") {
     player(event.playerId, [...eventPath, "playerId"]);
     definitions(event.definitionIds, [...eventPath, "definitionIds"]);
   }
@@ -319,6 +332,7 @@ function checkTrigger(
       case "setHome":
       case "returnHome":
       case "rollOffers":
+      case "grantExperience":
         player(action.entity, [...path, "entity"]);
         player(action.playerId, [...path, "playerId"]);
         definitions(action.definitionIds, [...path, "definitionIds"]);
@@ -350,7 +364,7 @@ function playerCheck(refs: References, ctx: z.RefinementCtx, hasTriggering: bool
     else if (!hasTriggering) {
       ctx.addIssue({
         code: "custom",
-        message: `Only died and entered events have a triggering entity`,
+        message: `Only died, entered, and leveled events have a triggering entity`,
         path,
       });
     }

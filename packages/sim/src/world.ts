@@ -77,8 +77,11 @@ export interface Entity extends Point {
   modifiers: ActiveModifier[];
   /** Ticks until each ability is ready, in the definition's ability order. */
   abilityCooldowns: number[];
-  /** The players whose entities damaged it on the last tick anything did. Null for a neutral one. */
-  lastHit: { tick: number; playerIds: (string | null)[] } | null;
+  /**
+   * Who damaged it on the last tick anything did: their players, null for a
+   * neutral one, and the entities that dealt it.
+   */
+  lastHit: { tick: number; playerIds: (string | null)[]; entityIds: number[] } | null;
   /** Definitions it offers for sale, one per slot. Null for a slot bought since the last roll. */
   offers: (string | null)[];
 }
@@ -132,6 +135,12 @@ export interface World {
   /** In scenario order, which is the order they run in. */
   triggers: Trigger[];
   commandRules: CommandRule[];
+  /**
+   * Level-ups that trigger actions caused, in the order they happened. They
+   * fire `leveled` triggers on the next tick, so no chain of actions can keep
+   * one tick from ending.
+   */
+  levelUps: { id: number; level: number }[];
 }
 
 /**
@@ -178,6 +187,7 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
     paths: {},
     triggers: copy(scenario.triggers),
     commandRules: copy(scenario.commandRules),
+    levelUps: [],
   };
   for (const variable of scenario.variables) world.variables[variable.id] = variable.value;
   for (const waypoint of scenario.waypoints) {

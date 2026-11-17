@@ -200,31 +200,45 @@ function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "
   }
   if (entity.cooldown === 0) {
     target.health -= statOf(world, entity, "damage") ?? 0;
-    recordHit(world, target, entity.playerId);
+    recordHit(world, target, entity);
     entity.cooldown = toTicks(weapon.cooldown);
   }
 }
 
-/** Adds the dealing player to the target's hits for this tick, starting over on a new tick. */
-function recordHit(world: World, target: Entity, playerId: string | null): void {
+/** Adds the dealer and its player to the target's hits for this tick, starting over on a new tick. */
+function recordHit(world: World, target: Entity, dealer: Entity): void {
   const { lastHit } = target;
   if (lastHit === null || lastHit.tick !== world.tick) {
-    target.lastHit = { tick: world.tick, playerIds: [playerId] };
-  } else if (!lastHit.playerIds.includes(playerId)) {
-    lastHit.playerIds.push(playerId);
+    target.lastHit = { tick: world.tick, playerIds: [dealer.playerId], entityIds: [dealer.id] };
+    return;
   }
+  if (!lastHit.playerIds.includes(dealer.playerId)) lastHit.playerIds.push(dealer.playerId);
+  if (!lastHit.entityIds.includes(dealer.id)) lastHit.entityIds.push(dealer.id);
 }
 
-function applyEffects(world: World, ability: Ability, caster: Entity, target: Entity): void {
+function applyEffects(
+  world: World,
+  ability: Ability,
+  caster: Entity,
+  target: Entity,
+  events: SimEvent[],
+): void {
   for (const effect of ability.effects) {
-    if (effect.type === "damage") {
-      if (target.health === null) continue;
-      target.health -= effect.amount;
-      recordHit(world, target, caster.playerId);
-    } else if (effect.type === "modify") {
-      addModifier(target, effect);
-    } else {
-      rollOffers(world, target);
+    switch (effect.type) {
+      case "damage":
+        if (target.health === null) continue;
+        target.health -= effect.amount;
+        recordHit(world, target, caster);
+        break;
+      case "modify":
+        addModifier(target, effect);
+        break;
+      case "rollOffers":
+        rollOffers(world, target);
+        break;
+      case "experience":
+        gainExperience(world, target, effect.amount, events);
+        break;
     }
   }
 }
@@ -301,15 +315,26 @@ function isReadyAndPaid(world: World, entity: Entity, index: number): boolean {
 }
 
 /** Uses an ability `canUseAbility` allows, on the caster itself or on `target`, and pays for it. */
-export function useAbility(world: World, entity: Entity, index: number, target: Entity): void {
+export function useAbility(
+  world: World,
+  entity: Entity,
+  index: number,
+  target: Entity,
+  events: SimEvent[],
+): void {
   const ability = definitionOf(world, entity).abilities[index];
-  applyEffects(world, ability, entity, target);
+  applyEffects(world, ability, entity, target, events);
   entity.abilityCooldowns[index] = toTicks(ability.cooldown);
   const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
   if (owner !== undefined) owner.resources -= ability.cost;
 }
 
-function runCast(world: World, entity: Entity, order: Extract<Order, { type: "cast" }>): void {
+function runCast(
+  world: World,
+  entity: Entity,
+  order: Extract<Order, { type: "cast" }>,
+  events: SimEvent[],
+): void {
   const ability = definitionOf(world, entity).abilities[order.ability];
   const target = findEntity(world, order.targetId);
   if (
@@ -331,7 +356,7 @@ function runCast(world: World, entity: Entity, order: Extract<Order, { type: "ca
     finishOrder(entity);
     return;
   }
-  useAbility(world, entity, order.ability, target);
+  useAbility(world, entity, order.ability, target, events);
   finishOrder(entity);
   // With nothing else to do, it keeps fighting what it cast at.
   if (entity.orders.length === 0 && definitionOf(world, entity).weapon !== undefined) {
@@ -493,7 +518,7 @@ export function runOrders(world: World, events: SimEvent[]): void {
         runAttack(world, entity, order);
         break;
       case "cast":
-        runCast(world, entity, order);
+        runCast(world, entity, order, events);
         break;
       case "gather":
         runGather(world, entity, order);
@@ -594,26 +619,67 @@ function payBounty(world: World, dead: Entity, bounty: number): void {
   player.resources += bounty;
 }
 
-/** Every living enemy with levels that is near enough to a death gains its full experience. */
+/**
+ * A death's experience goes in full to each living enemy with levels that
+ * earns it: by being near enough, or, with killer credit, by dealing the last
+ * damage. Only definitions with nearby credit need a look at every entity.
+ */
 function shareExperience(world: World, dead: Entity, experience: number, events: SimEvent[]): void {
-  for (const entity of world.entities) {
-    const { levels } = definitionOf(world, entity);
-    if (levels === undefined || !isEnemy(world, dead, entity)) continue;
-    if (distance(entity, dead) > levels.range) continue;
-    entity.experience += experience;
-    while (
-      entity.level <= levels.thresholds.length &&
-      entity.experience >= levels.thresholds[entity.level - 1]
-    ) {
-      const before = statOf(world, entity, "maxHealth") ?? 0;
-      entity.experience -= levels.thresholds[entity.level - 1];
-      entity.level += 1;
-      if (entity.health !== null) {
-        entity.health += (statOf(world, entity, "maxHealth") ?? 0) - before;
-      }
-      events.push({ type: "leveled", id: entity.id, level: entity.level });
+  const earners: Entity[] = [];
+  const killer = killerOf(world, dead);
+  if (killer !== null) earners.push(killer);
+  const nearbyCredit = Object.values(world.definitions).some(
+    (definition) => definition.levels !== undefined && definition.levels.credit === "nearby",
+  );
+  if (nearbyCredit) {
+    for (const entity of world.entities) {
+      const { levels } = definitionOf(world, entity);
+      if (levels?.credit !== "nearby" || !isEnemy(world, dead, entity)) continue;
+      if (distance(entity, dead) <= (levels.range ?? 0)) earners.push(entity);
     }
   }
+  earners.sort((a, b) => a.id - b.id);
+  for (const entity of earners) gainExperience(world, entity, experience, events);
+}
+
+/** Adds experience to an entity with levels and applies the levels it reaches. */
+export function gainExperience(
+  world: World,
+  entity: Entity,
+  experience: number,
+  events: SimEvent[],
+): void {
+  const { levels } = definitionOf(world, entity);
+  if (levels === undefined) return;
+  entity.experience += experience;
+  while (
+    entity.level <= levels.thresholds.length &&
+    entity.experience >= levels.thresholds[entity.level - 1]
+  ) {
+    const before = statOf(world, entity, "maxHealth") ?? 0;
+    entity.experience -= levels.thresholds[entity.level - 1];
+    entity.level += 1;
+    if (entity.health !== null) {
+      entity.health += (statOf(world, entity, "maxHealth") ?? 0) - before;
+    }
+    events.push({ type: "leveled", id: entity.id, level: entity.level });
+  }
+}
+
+/**
+ * The living entity with killer credit that dealt the last damage, or null.
+ * Hits on one tick land together, so a seeded draw picks among the living
+ * entities that hit on the killing tick, one chance each, whether or not they
+ * can earn. It draws only when one of them could, so scenarios without killer
+ * credit draw as before.
+ */
+function killerOf(world: World, dead: Entity): Entity | null {
+  const living = (dead.lastHit?.entityIds ?? []).flatMap((id) => findEntity(world, id) ?? []);
+  const earns = (entity: Entity) =>
+    definitionOf(world, entity).levels?.credit === "killer" && isEnemy(world, dead, entity);
+  if (!living.some(earns)) return null;
+  const drawn = living.length === 1 ? living[0] : living[drawIndex(world, living.length)];
+  return earns(drawn) ? drawn : null;
 }
 
 /** Brings back the dead whose wait is over, at home and at full health, with their level. */

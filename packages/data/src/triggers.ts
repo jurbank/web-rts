@@ -4,8 +4,9 @@ import { z } from "zod";
 export const idSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]*$/);
 
 /**
- * Stands for the entity that set off a `died` or `entered` event, or for its
- * owner where a player is expected. It cannot be an id, since ids start with a letter.
+ * Stands for the entity that set off a `died`, `entered`, or `leveled` event,
+ * or for its owner where a player is expected. It cannot be an id, since ids
+ * start with a letter.
  */
 export const TRIGGERING = "$triggering";
 
@@ -57,7 +58,7 @@ export const waypointSchema = z.object({ id: idSchema, x: z.number(), y: z.numbe
 /** Waypoints visited in order. */
 export const pathSchema = z.object({ id: idSchema, waypoints: z.array(idSchema).min(1) });
 
-/** What a trigger waits for. Only `died` and `entered` have a triggering entity. */
+/** What a trigger waits for. Only `died`, `entered`, and `leveled` have a triggering entity. */
 export const eventSchema = z.discriminatedUnion("type", [
   /** The first tick. */
   z.object({ type: z.literal("start") }),
@@ -75,6 +76,13 @@ export const eventSchema = z.discriminatedUnion("type", [
     region: idSchema,
     playerId: idSchema.optional(),
     definitionIds: z.array(idSchema).min(1).optional(),
+  }),
+  /** An entity gained a level, or reached `level` when it is given. */
+  z.object({
+    type: z.literal("leveled"),
+    playerId: idSchema.optional(),
+    definitionIds: z.array(idSchema).min(1).optional(),
+    level: z.int().min(2).optional(),
   }),
 ]);
 
@@ -138,6 +146,12 @@ export const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("returnHome"), ...selectionShape }),
   /** Fills the offers of each selected entity that has them. */
   z.object({ type: z.literal("rollOffers"), ...selectionShape }),
+  /** Each selected entity with levels gains this much experience, and the levels it reaches. */
+  z.object({
+    type: z.literal("grantExperience"),
+    ...selectionShape,
+    amount: z.number().positive(),
+  }),
   /** Defeats every other player and ends the game. */
   z.object({ type: z.literal("win"), playerId: playerRefSchema }),
 ]);

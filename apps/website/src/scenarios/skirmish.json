@@ -1,5 +1,5 @@
 {
-  "formatVersion": 6,
+  "formatVersion": 7,
   "map": {
     "width": 64,
     "height": 48
@@ -35,7 +35,8 @@
       },
       "builds": ["barracks"],
       "cost": 50,
-      "buildTime": 4
+      "buildTime": 4,
+      "experience": 10
     },
     {
       "id": "soldier",
@@ -50,7 +51,22 @@
         "acquireRange": 9
       },
       "cost": 80,
-      "buildTime": 5
+      "buildTime": 5,
+      "experience": 20,
+      "levels": {
+        "thresholds": [40, 80, 160],
+        "credit": "killer",
+        "perLevel": [
+          {
+            "stat": "damage",
+            "add": 2
+          },
+          {
+            "stat": "maxHealth",
+            "add": 15
+          }
+        ]
+      }
     },
     {
       "id": "hq",
@@ -58,7 +74,8 @@
       "radius": 2.5,
       "maxHealth": 1500,
       "dropOff": true,
-      "produces": ["worker"]
+      "produces": ["worker"],
+      "experience": 100
     },
     {
       "id": "barracks",
@@ -67,7 +84,8 @@
       "maxHealth": 400,
       "cost": 150,
       "buildTime": 10,
-      "produces": ["soldier"]
+      "produces": ["soldier"],
+      "experience": 40
     },
     {
       "id": "ore",

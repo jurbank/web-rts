@@ -269,7 +269,7 @@ test("a death pays its bounty to the enemy who dealt the last damage", () => {
   expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);
 
   const red = entity(world, RED_HERO);
-  red.lastHit = { tick: world.tick, playerIds: ["redBase"] };
+  red.lastHit = { tick: world.tick, playerIds: ["redBase"], entityIds: [] };
   red.health = 0;
   step(world);
   expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);

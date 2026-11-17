@@ -75,6 +75,7 @@ interface DrawnEntity extends Point {
   selected: boolean;
   target: Readonly<Point> | null;
   waypoints: readonly Readonly<Point>[];
+  level: number;
 }
 
 interface EntityView {
@@ -272,6 +273,21 @@ export function createRenderer(
           entity.health > 0.5 ? "#46a758" : entity.health > 0.25 ? "#ffc53d" : "#e5484d";
         context.fillRect(left, top, BAR_WIDTH * Math.max(0, entity.health), 4);
       }
+      // A chevron for each level gained, so veterans stand out in a crowd.
+      if (entity.level > 1) {
+        context.strokeStyle = "#ffd60a";
+        context.lineWidth = 2;
+        const chevrons = Math.min(entity.level - 1, 3);
+        for (let index = 0; index < chevrons; index++) {
+          const y = at.y - 32 - index * 5;
+          context.beginPath();
+          context.moveTo(at.x - 5, y + 3);
+          context.lineTo(at.x, y);
+          context.lineTo(at.x + 5, y + 3);
+          context.stroke();
+        }
+        context.lineWidth = 1;
+      }
       if (!debug) continue;
       context.fillStyle = "#ffffff";
       context.fillText(
@@ -335,6 +351,7 @@ export function createRenderer(
           selected,
           target: entity.target,
           waypoints: entity.waypoints,
+          level: entity.level,
         });
       }
       removeStaleViews();

@@ -214,3 +214,23 @@ Left open:
 - A player's commands for one tick apply in the order sent, which now decides the order of queued waypoints. The model ADR must require ordered delivery for each seat or give commands a sequence number.
 - Browsers on Windows and Linux may keep Ctrl with a digit for switching tabs, which a page cannot stop. Set group covers it on every device. Another key may be needed.
 - Centering the camera on a group, a formation that keeps its shape on queued points, and the width of the group buttons on a small phone.
+
+## 2026-11-17 Veterancy is levels with killer credit
+
+Generals gives a kill's experience to the unit that made it, and its levels add damage and health. The StarCraft 2 editor does the same with a veterancy behavior. The MOBA's `levels` already hold thresholds and what each level adds, so veterancy is one field on them, in format 7.
+
+- `levels.credit` says who earns a death's experience. `nearby`, the default, is the MOBA's rule: every enemy with these levels within `range`. `killer` gives it to the one entity that dealt the last damage, wherever it stands. `range` is needed only for nearby credit. Each earner's own levels decide, so heroes and veterans can share a map.
+- `lastHit` now records the entities that dealt damage on the last tick anything did, beside their players. When several hit on the killing tick, a draw from the world's seeded generator picks one among those still alive, one chance each, as the bounty does among players. The draw happens only when one of them could earn, so a scenario without killer credit draws as before. One that cannot earn, such as a tower without levels, can still be drawn, and then nobody earns. A killer that died on the same tick earns nothing. Only nearby credit looks at every entity on a death, since killer credit already knows its earner.
+- The skirmish example gives soldiers three ranks at 40, 80, and 160 experience, each adding 2 damage and 15 health, and puts experience on workers, soldiers, barracks, and the headquarters.
+- The renderer draws a chevron for each level gained, up to three, over anything above level 1. The HUD already names the level of a selected unit.
+- The migration from version 6 only raises the number. `skirmish-v6.json` checks that a version 6 file loads to the same result.
+
+Gold and experience are separate draws. Gold gives each player one chance and experience gives each entity one, so allies who share a kill can split them, and a player with more units hitting has a better chance at the experience. Credit comes from weapon cooldowns, not from when a command arrives, so a faster connection wins none of it. That stops being true if a scenario puts killer credit on damage aimed by a command, such as an ability, and the model ADR should note it beside input delay.
+
+Triggers and abilities reach experience as the StarCraft 2 editor's do, and these join format 7, which no saved file uses yet:
+
+- A `leveled` event fires when an entity gains a level, with that entity as `$triggering`, and may name the `level` reached. It fires after deaths and before region entries. Level-ups that trigger actions cause wait in the world's `levelUps` and fire on the next tick, before that tick's own. Firing them the same tick was tried, and a trigger that spawns a unit and promotes it on every level-up kept a tick from ever ending, on every device at once. Waiting a tick bounds each tick's trigger work with no limit to tune, and no other trigger event can cause itself, so this is the only chain to bound. An entity that leveled and then left the world before its event fires, fires none.
+- A `grantExperience` action gives each selected entity with levels an amount, and an `experience` ability effect gives it to what the ability lands on. Either can bring several levels at once.
+- The definition panel edits a definition's experience, switches levels on and off, and edits credit, share range, thresholds, and the damage, health, and speed each level adds. A switched-on definition starts with three ranks of veterancy.
+
+Not built: names for ranks, healing at the top rank as Generals' heroic units do, starting at a rank from an upgrade or a building (waits for upgrades), split credit and assists, and modifiers that multiply.

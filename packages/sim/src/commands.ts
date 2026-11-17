@@ -441,7 +441,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       if (index < 0 || !canUseAbility(world, unit, index)) return;
       const ability = abilities[index];
       if (ability.target === "self") {
-        useAbility(world, unit, index, unit);
+        useAbility(world, unit, index, unit, events);
         return;
       }
       const target =

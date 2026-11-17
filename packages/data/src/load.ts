@@ -39,6 +39,12 @@ const migrations: Record<number, Migration> = {
     formatVersion: 6,
     ...(Array.isArray(commandRules) ? { commandRules: commandRules.map(addMovingCommands) } : {}),
   }),
+  /**
+   * Version 7 adds killer credit to levels, which is veterancy, a `leveled`
+   * trigger event, a `grantExperience` action, and an `experience` effect.
+   * Every addition is optional.
+   */
+  6: (document) => ({ ...document, formatVersion: 7 }),
 };
 
 function addMovingCommands(rule: unknown): unknown {

@@ -3,6 +3,7 @@ import { FORMAT_VERSION, loadScenario, scenarioSchema } from "../src/index.ts";
 import mobaV3 from "./fixtures/moba-v3.json" with { type: "json" };
 import mobaV4 from "./fixtures/moba-v4.json" with { type: "json" };
 import autoChessV5 from "./fixtures/auto-chess-v5.json" with { type: "json" };
+import skirmishV6 from "./fixtures/skirmish-v6.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
@@ -129,6 +130,34 @@ test("format 6 adds the new movement commands to rules that kept units still", (
   ]);
 });
 
+test("format 6 loads unchanged", () => {
+  const v6 = JSON.parse(JSON.stringify(skirmishV6));
+  expect(loadScenario(v6)).toEqual(loadScenario({ ...v6, formatVersion: FORMAT_VERSION }));
+});
+
+test("levels give experience to those nearby unless they credit the killer", () => {
+  const scenario = fixture();
+  scenario.definitions[0].levels = { thresholds: [10] };
+  expect(issues(scenario)).toEqual(["Nearby credit needs a range"]);
+  scenario.definitions[0].levels = { thresholds: [10], credit: "killer" };
+  expect(issues(scenario)).toEqual([]);
+});
+
+test("a level-up names its entity, and granting experience names what it selects", () => {
+  const scenario = fixture();
+  scenario.triggers = [
+    {
+      id: "promotion",
+      event: { type: "leveled", level: 2 },
+      actions: [
+        { type: "grantExperience", entity: "$triggering", amount: 5 },
+        { type: "grantExperience", definitionIds: ["dragon"], amount: 5 },
+      ],
+    },
+  ];
+  expect(issues(scenario)).toEqual(['Unknown definition "dragon"']);
+});
+
 test("offers and merging name definitions", () => {
   const scenario = fixture();
   scenario.definitions[0].offers = { definitionIds: ["soldier", "dragon"], count: 3 };
@@ -160,8 +189,8 @@ test("validates selections, stopTimer, and command rules", () => {
     { conditions: [{ type: "variable", variable: "gold", op: "==", value: 0 }] },
   ];
   expect(issues(scenario).sort()).toEqual([
-    "Only died and entered events have a triggering entity",
-    "Only died and entered events have a triggering entity",
+    "Only died, entered, and leveled events have a triggering entity",
+    "Only died, entered, and leveled events have a triggering entity",
     'Unknown definition "dragon"',
     'Unknown path "road"',
     'Unknown player "green"',
@@ -277,8 +306,8 @@ test("only died and entered events have a triggering entity", () => {
     ],
   });
   expect(issues(scenario)).toEqual([
-    "Only died and entered events have a triggering entity",
-    "Only died and entered events have a triggering entity",
+    "Only died, entered, and leveled events have a triggering entity",
+    "Only died, entered, and leveled events have a triggering entity",
   ]);
 });
 

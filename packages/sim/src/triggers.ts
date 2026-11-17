@@ -12,6 +12,7 @@ import {
   bringBack,
   defeatPlayer,
   endGame,
+  gainExperience,
   rollOffers,
   sendHome,
   type SimEvent,
@@ -26,7 +27,7 @@ import {
   type World,
 } from "./world.ts";
 
-/** The entity behind a `died` or `entered` event. A dead one is already gone from the world. */
+/** The entity behind a `died`, `entered`, or `leveled` event. A dead one is already gone from the world. */
 interface Triggering {
   id: number;
   definitionId: string;
@@ -37,13 +38,15 @@ type Fired =
   | { type: "start" | "tick" }
   | { type: "timer"; timer: string }
   | { type: "died"; entity: Triggering }
-  | { type: "entered"; region: string; entity: Triggering };
+  | { type: "entered"; region: string; entity: Triggering }
+  | { type: "leveled"; level: number; entity: Triggering };
 
 /**
  * Runs the scenario's triggers for this tick (C5). Events fire in a fixed
- * order: start, deaths, region entries, timers, then the tick itself. Each
- * event runs the matching triggers in scenario order. Changes made by actions
- * are seen by the triggers after them.
+ * order: start, deaths, level-ups (those trigger actions caused last tick,
+ * then this tick's), region entries, timers, then the tick itself. Each event
+ * runs the matching triggers in scenario order. Changes made by actions are
+ * seen by the triggers after them.
  */
 export function runTriggers(world: World, events: SimEvent[]): void {
   const fired: Fired[] = [];
@@ -51,6 +54,7 @@ export function runTriggers(world: World, events: SimEvent[]): void {
   for (const event of events) {
     if (event.type === "died") fired.push({ type: "died", entity: event });
   }
+  fired.push(...levelUps(world, [...world.levelUps, ...leveled(events)]));
   for (const region of world.regions) {
     const inside = entitiesInside(world, region);
     for (const id of inside) {
@@ -69,9 +73,10 @@ export function runTriggers(world: World, events: SimEvent[]): void {
   }
   fired.push({ type: "tick" });
 
+  const before = events.length;
   for (const event of fired) {
     for (const trigger of world.triggers) {
-      if (world.outcome !== null) return;
+      if (world.outcome !== null) break;
       if (!matches(trigger.event, event)) continue;
       const entity = "entity" in event ? event.entity : null;
       if (trigger.conditions.every((condition) => holds(world, condition, entity))) {
@@ -79,6 +84,21 @@ export function runTriggers(world: World, events: SimEvent[]): void {
       }
     }
   }
+  world.levelUps = leveled(events.slice(before));
+}
+
+function leveled(events: readonly SimEvent[]): World["levelUps"] {
+  return events.flatMap((event) =>
+    event.type === "leveled" ? [{ id: event.id, level: event.level }] : [],
+  );
+}
+
+/** Level-ups of entities still in the world, as events to fire. */
+function levelUps(world: World, ups: World["levelUps"]): Fired[] {
+  return ups.flatMap(({ id, level }): Fired[] => {
+    const entity = findEntity(world, id);
+    return entity === undefined ? [] : [{ type: "leveled", level, entity: triggering(entity) }];
+  });
 }
 
 function triggering(entity: Entity): Triggering {
@@ -93,10 +113,14 @@ function matches(wanted: TriggerEvent, event: Fired): boolean {
     case "timer":
       return event.type === "timer" && event.timer === wanted.timer;
     case "died":
-    case "entered": {
+    case "entered":
+    case "leveled": {
       if (event.type !== wanted.type) return false;
       if (event.type === "entered" && wanted.type === "entered" && event.region !== wanted.region) {
         return false;
+      }
+      if (event.type === "leveled" && wanted.type === "leveled") {
+        if (wanted.level !== undefined && event.level !== wanted.level) return false;
       }
       const { playerId, definitionIds } = wanted;
       return (
@@ -162,7 +186,10 @@ function holds(world: World, condition: Condition, entity: Triggering | null): b
 
 /** Whether an entity matches every field of an action's selection. */
 function selects(
-  selection: Extract<Action, { type: "modify" | "walk" | "setHome" | "returnHome" | "rollOffers" }>,
+  selection: Extract<
+    Action,
+    { type: "modify" | "walk" | "setHome" | "returnHome" | "rollOffers" | "grantExperience" }
+  >,
   entity: Triggering | null,
 ): (candidate: Entity) => boolean {
   const { definitionIds } = selection;
@@ -233,6 +260,11 @@ function runAction(
     case "rollOffers":
       for (const selected of world.entities.filter(selects(action, entity))) {
         rollOffers(world, selected);
+      }
+      return;
+    case "grantExperience":
+      for (const selected of world.entities.filter(selects(action, entity))) {
+        gainExperience(world, selected, action.amount, events);
       }
       return;
     case "spawn": {

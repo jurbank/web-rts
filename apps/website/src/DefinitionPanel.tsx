@@ -1,11 +1,32 @@
-import type { Definition, Scenario } from "data";
+import type { Definition, Modifier, Scenario } from "data";
 import { addItem, freshId, removeItem, setItem } from "editor";
 import { Button } from "./Hud.tsx";
-import { NumberField, Panel, TextField, type Edit } from "./editorFields.tsx";
+import { FIELD, NumberField, Panel, TextField, type Edit } from "./editorFields.tsx";
 import { SELECT, useEditor } from "./store.ts";
 
 /** What a definition gets when its weapon is switched on. */
 const NEW_WEAPON = { damage: 5, range: 4, cooldown: 1 };
+
+type Levels = NonNullable<Definition["levels"]>;
+
+/** What a definition gets when its levels are switched on: three ranks of veterancy. */
+const NEW_LEVELS: Levels = {
+  thresholds: [50, 100, 200],
+  credit: "killer",
+  perLevel: [
+    { stat: "damage", add: 2 },
+    { stat: "maxHealth", add: 10 },
+  ],
+};
+
+/** How far a death shares its experience when credit switches to nearby. */
+const NEARBY_RANGE = 10;
+
+const LEVEL_STATS: readonly [Modifier["stat"], string][] = [
+  ["damage", "Damage"],
+  ["maxHealth", "Health"],
+  ["speed", "Speed"],
+];
 
 function Toggle(props: { label: string; checked: boolean; onChange: () => void }) {
   return (
@@ -25,6 +46,21 @@ export function DefinitionPanel(props: { document: Scenario; index: number; edit
     edit(setItem("definitions", index, { ...definition, ...patch }));
   const setWeapon = (patch: Partial<NonNullable<Definition["weapon"]>>) =>
     set({ weapon: { ...NEW_WEAPON, ...weapon, ...patch } });
+  const { levels } = definition;
+  const setLevels = (patch: Partial<Levels>) =>
+    set({ levels: { ...NEW_LEVELS, ...levels, ...patch } });
+  const perLevel = (stat: Modifier["stat"]) =>
+    (levels?.perLevel ?? [])
+      .filter((modifier) => modifier.stat === stat)
+      .reduce((sum, modifier) => sum + modifier.add, 0);
+  /** One modifier per stat, and none for a stat that gains nothing. */
+  const setPerLevel = (stat: Modifier["stat"], add: number) =>
+    setLevels({
+      perLevel: [
+        ...(levels?.perLevel ?? []).filter((modifier) => modifier.stat !== stat),
+        ...(add === 0 ? [] : [{ stat, add }]),
+      ],
+    });
 
   function duplicate(): void {
     const id = freshId(document.definitions, `${definition.id}-copy`);
@@ -125,6 +161,60 @@ export function DefinitionPanel(props: { document: Scenario; index: number; edit
             onCommit={(acquireRange) => setWeapon({ acquireRange })}
             onClear={() => setWeapon({ acquireRange: undefined })}
           />
+        </>
+      )}
+      <NumberField
+        label="Experience"
+        value={definition.experience}
+        onCommit={(experience) => set({ experience })}
+      />
+      <Toggle
+        label="Levels"
+        checked={levels !== undefined}
+        onChange={() => set({ levels: levels === undefined ? NEW_LEVELS : undefined })}
+      />
+      {levels !== undefined && (
+        <>
+          <label className="flex items-center justify-between gap-2">
+            Credit
+            <select
+              aria-label="Experience credit"
+              className={`${FIELD} w-24`}
+              value={levels.credit}
+              onChange={(event) =>
+                setLevels({
+                  credit: event.target.value as Levels["credit"],
+                  range: levels.range ?? NEARBY_RANGE,
+                })
+              }
+            >
+              <option value="killer">Killer</option>
+              <option value="nearby">Nearby</option>
+            </select>
+          </label>
+          {levels.credit === "nearby" && (
+            <NumberField
+              label="Share range"
+              value={levels.range}
+              onCommit={(range) => setLevels({ range })}
+            />
+          )}
+          <TextField
+            label="Thresholds"
+            value={levels.thresholds.join(", ")}
+            onCommit={(text) =>
+              setLevels({ thresholds: text.split(",").map((part) => Number(part.trim())) })
+            }
+          />
+          {LEVEL_STATS.map(([stat, label]) => (
+            <NumberField
+              key={stat}
+              label={`${label} per level`}
+              value={perLevel(stat)}
+              onCommit={(add) => setPerLevel(stat, add)}
+              onClear={() => setPerLevel(stat, 0)}
+            />
+          ))}
         </>
       )}
       {links("Trains", "produces")}

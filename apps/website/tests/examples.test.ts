@@ -48,4 +48,6 @@ test.each(examples.map((example, index) => [example.name, index] as const))(
 
     expect(hashWorld(second)).toBe(hashWorld(first));
   },
+  // Skirmish alone takes over three seconds, so the default five fails on a busy machine.
+  20_000,
 );
