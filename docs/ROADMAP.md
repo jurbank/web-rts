@@ -68,13 +68,23 @@ Triggers as data (C5), written by agents against the schema. The visual trigger 
 
 Done when the standard RTS, tower defense, MOBA, and auto chess fixtures each play start to finish in a headless test, with no genre-specific code in `sim` (C6).
 
+## 7. Army control and information
+
+The standard RTS controls and the systems that make a match about scouting and tech. The ADR of 2026-11-17 sets the direction. Steps go in this order because each later one builds on the earlier. Each step that adds a command or a mechanic gets the multiplayer-guardian before it is done.
+
+- Orders. An entity holds a queue of orders instead of one. Every unit command may be queued. `attack` takes a target or a point, and a point is attack-move. `patrol`, `stop`, and `hold` are new commands. Auto-acquire puts an attack at the front of the queue, which replaces the attack order's `resume`. The app keeps control groups. Touch gets an attack mode, a sticky queue toggle, and control group buttons, so a phone player can do everything a keyboard player can.
+- Veterancy. `levels` may give a kill's experience to the killer instead of everyone near.
+- Upgrades. Definitions carry tags. More stats can be modified, at least weapon range, weapon cooldown, sight, and armor. A player researches upgrades in a production queue, and an upgrade's modifiers apply to every matching entity that player owns, including ones made later. Definitions, abilities, and upgrades may require upgrades or buildings, which gives a tech tree.
+- Fog of war. A definition carries `sight`. `sim` keeps what each team sees and has explored, and remembers the buildings it last saw. Auto-acquire, attack orders, and the ai respect it. Triggers can reveal an area and ask whether something is visible. A snapshot is taken for one viewer and holds only what that viewer may know. A scenario turns fog on. Without it nothing changes.
+
+Done when the standard RTS fixture plays to a win or a loss with fog on, through a tech tree and an attack-moved army, every step works by touch, the other three fixtures still pass unchanged, and a test shows a viewer's snapshot holds nothing that viewer cannot see.
+
 ## Later
 
 Not ordered and not committed.
 
 - A visual trigger editor over the milestone 6 records.
-- Fog of war and visibility.
-- Upgrades, veterancy, patrol, attack-move, queued orders, control groups.
+- Line of sight from terrain height, once terrain import exists (C8). Detection and cloaking.
 - Terrain imported from the external terrain editor (C8), real models and effects.
 - The rest of game data editing: gathering and resource fields, whatever the MOBA adds (abilities, stat modifiers, levels), and per-instance overrides.
 - Larger armies against the performance budgets.

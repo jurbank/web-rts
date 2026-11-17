@@ -164,3 +164,22 @@ Left open for later decisions:
 - One random stream. Offers draw from the world's one generator, so one seat's reroll shifts every other seat's next roll, and under lockstep a client can compute its next roll. Keep one stream or split one per player when the multiplayer model is chosen.
 - Late commands. A rule is checked at the command's target tick, so a buy sent in the last moments of planning is refused. Under lockstep that delay is the same for every seat. Under a server that stamps arrival, a slow link loses part of every planning phase. Settle it with the input delay.
 - Ties. Same-tick commands apply in seat order. That is harmless while each shop is private and decides who gets the last copy once a shared pool exists. A seeded draw like the one for last hits would settle it. The version goes to 5. The migration only raises the number, and `moba-v4.json` checks that a version 4 file loads to the same result.
+
+## 2026-11-17 Milestone 7 follows StarCraft 2 for orders and upgrades, and filters snapshots for fog
+
+Generals and the StarCraft 2 editor agree on fog and differ on the rest. Generals queues little more than move waypoints, and its upgrades are modules on an object that react to an upgrade flag. StarCraft 2 gives each unit a queue any command can join, makes attack-move the attack ability aimed at a point, and makes an upgrade a per-player list of changes to data, gated by requirements. We follow StarCraft 2 for orders and upgrades. An upgrade for a single unit already works as a costed self ability with a lasting `modify` (format 4).
+
+- Orders. `entity.order` becomes a queue. Commands that order units may carry `queued`, which adds to the queue instead of replacing it. Auto-acquire puts an attack at the front, and losing the target goes back to what was next, so the attack order's `resume` goes away. Attack-move is an `attack` with a point. `patrol`, `stop`, and `hold` are new command types, so the format version goes up (C3). Hold acquires and fires but never moves.
+- Control groups stay in the app as UI state (U4), and commands keep naming their units. Both reference games send selection through the network to keep commands small. Names are simpler, replay plainly, and say nothing about the device. Revisit if command size at twelve players shows up in measurements.
+- Touch. Shift and the A key would make queueing and attack-move desktop privileges. The command card gets an attack mode, a queue toggle that stays on until turned off, and control group buttons (U2).
+- Veterancy is the MOBA's `levels`. An option says whether a kill's experience goes to every enemy near or to the killer, read from `lastHit`.
+- Upgrades. A player holds a level for each upgrade. An upgrade's modifiers apply to the player's entities whose definition or tags match, and `statOf` adds them, so units made later have them. Research goes through the production queue. Requirements name upgrades or entities a player must have. Tags also give weapons something to name for bonus damage later.
+- Fog. Visibility is computed in `sim`, since targeting, the ai, and triggers depend on it. What a team sees now is rebuilt each tick from positions and stays out of the save and the hash. What it has explored and the buildings it last saw are world state. `sight` is its own field, separate from the weapon's acquire range. Fog is off unless a scenario turns it on, so existing scenarios do not change.
+- Per-viewer snapshots. `takeSnapshot` takes a viewer and leaves out what that viewer cannot see, including events and other players' resources. A null viewer sees everything, for replays and spectators. Under lockstep every client still holds the whole world, as in both reference games, so a client could cheat. Under a server the filter runs before sending and it cannot. Either way the renderer and HUD can only draw what the player may know. S8 gets a line saying so when this lands.
+
+Left open for later decisions:
+
+- Whether vision is shared by team or by an alliance setting that triggers can change.
+- How much the ai may see. Fair vision is the default to beat. A full-vision option is the honest way to make a harder ai.
+- One format version for the milestone or one per step.
+- Line of sight from height, which waits for terrain import (C8), and detection and cloaking.
