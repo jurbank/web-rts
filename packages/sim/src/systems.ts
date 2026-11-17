@@ -171,26 +171,65 @@ function runAttack(
   }
   if (entity.cooldown === 0) {
     target.health -= statOf(world, entity, "damage") ?? 0;
+    target.lastHitBy = entity.playerId;
     entity.cooldown = toTicks(weapon.cooldown);
   }
 }
 
-function applyEffects(world: World, ability: Ability, target: Entity): void {
+function applyEffects(ability: Ability, caster: Entity, target: Entity): void {
   for (const effect of ability.effects) {
     if (effect.type === "damage") {
-      if (target.health !== null) target.health -= effect.amount;
+      if (target.health === null) continue;
+      target.health -= effect.amount;
+      target.lastHitBy = caster.playerId;
     } else {
       const { stat, add, seconds } = effect;
-      target.modifiers.push({ stat, add, remaining: toTicks(seconds) });
+      target.modifiers.push({
+        stat,
+        add,
+        remaining: seconds === undefined ? null : toTicks(seconds),
+      });
     }
   }
 }
 
-/** Uses an ability whose cooldown has run out, on the caster itself or on `target`. */
+/** Whether one of `near`'s definitions on the entity's team is within its range, edge to edge. */
+function isNear(world: World, entity: Entity, near: NonNullable<Ability["near"]>): boolean {
+  const team = teamOf(world, entity.playerId);
+  if (team === null) return false;
+  const radius = definitionOf(world, entity).radius;
+  return world.entities.some(
+    (other) =>
+      near.definitionIds.includes(other.definitionId) &&
+      other.buildRemaining === 0 &&
+      teamOf(world, other.playerId) === team &&
+      distance(entity, other) - radius - definitionOf(world, other).radius <= near.range,
+  );
+}
+
+/**
+ * Whether the ability at `index` would take effect now, apart from its target:
+ * ready, unlocked, paid for, and near what it needs. Commands, orders, the ai,
+ * and the HUD all ask this, so they agree on every device.
+ */
+export function canUseAbility(world: World, entity: Entity, index: number): boolean {
+  const ability = definitionOf(world, entity).abilities[index];
+  if (ability === undefined || entity.buildRemaining > 0) return false;
+  if (entity.abilityCooldowns[index] > 0 || entity.level < ability.level) return false;
+  if (ability.cost > 0) {
+    const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
+    if (owner === undefined || owner.resources < ability.cost) return false;
+  }
+  return ability.near === undefined || isNear(world, entity, ability.near);
+}
+
+/** Uses an ability `canUseAbility` allows, on the caster itself or on `target`, and pays for it. */
 export function useAbility(world: World, entity: Entity, index: number, target: Entity): void {
   const ability = definitionOf(world, entity).abilities[index];
-  applyEffects(world, ability, target);
+  applyEffects(ability, entity, target);
   entity.abilityCooldowns[index] = toTicks(ability.cooldown);
+  const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
+  if (owner !== undefined) owner.resources -= ability.cost;
 }
 
 function runCast(
@@ -213,6 +252,11 @@ function runCast(
   const reach = (ability.range ?? 0) + definitionOf(world, target).radius;
   if (!approach(world, entity, target, reach)) {
     if (definitionOf(world, entity).speed === undefined) entity.order = null;
+    return;
+  }
+  // The cost and `near` are checked where the effects land.
+  if (!canUseAbility(world, entity, order.ability)) {
+    entity.order = null;
     return;
   }
   useAbility(world, entity, order.ability, target);
@@ -334,9 +378,16 @@ function runTimers(world: World, entity: Entity): void {
   for (let index = 0; index < entity.abilityCooldowns.length; index++) {
     if (entity.abilityCooldowns[index] > 0) entity.abilityCooldowns[index] -= 1;
   }
-  if (entity.modifiers.length === 0) return;
-  for (const modifier of entity.modifiers) modifier.remaining -= 1;
-  entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining > 0);
+  let expired = false;
+  for (const modifier of entity.modifiers) {
+    if (modifier.remaining === null) continue;
+    modifier.remaining -= 1;
+    if (modifier.remaining <= 0) expired = true;
+  }
+  if (!expired) return;
+  entity.modifiers = entity.modifiers.filter(
+    (modifier) => modifier.remaining === null || modifier.remaining > 0,
+  );
   const maxHealth = statOf(world, entity, "maxHealth");
   if (entity.health !== null && maxHealth !== undefined && entity.health > maxHealth) {
     entity.health = maxHealth;
@@ -437,12 +488,20 @@ export function removeDead(world: World, events: SimEvent[]): void {
       definitionId: entity.definitionId,
       playerId: entity.playerId,
     });
-    const { experience, respawn } = definitionOf(world, entity);
+    const { experience, bounty, respawn } = definitionOf(world, entity);
     if (experience > 0) shareExperience(world, entity, experience, events);
+    if (bounty > 0) payBounty(world, entity, bounty);
     if (respawn !== undefined) {
       world.respawns.push({ remaining: toTicks(respawn.seconds), entity });
     }
   }
+}
+
+/** The player who dealt the last damage gains the bounty, unless they are on the dead entity's team. */
+function payBounty(world: World, dead: Entity, bounty: number): void {
+  const player = dead.lastHitBy === null ? undefined : findPlayer(world, dead.lastHitBy);
+  if (player === undefined || player.team === teamOf(world, dead.playerId)) return;
+  player.resources += bounty;
 }
 
 /** Every living enemy with levels that is near enough to a death gains its full experience. */
@@ -484,7 +543,8 @@ export function runRespawns(world: World, events: SimEvent[]): void {
     entity.buildRemaining = 0;
     entity.queue = [];
     entity.carrying = 0;
-    entity.modifiers = [];
+    entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining === null);
+    entity.lastHitBy = null;
     entity.health = statOf(world, entity, "maxHealth") ?? null;
     world.entities.push(entity);
     events.push({ type: "respawned", id: entity.id });

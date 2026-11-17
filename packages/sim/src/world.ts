@@ -31,8 +31,8 @@ export interface QueueItem {
 
 /** A modifier an ability left on an entity. */
 export interface ActiveModifier extends Modifier {
-  /** Ticks left. */
-  remaining: number;
+  /** Ticks left, or null for one that lasts for life and through respawn. */
+  remaining: number | null;
 }
 
 export interface Entity extends Point {
@@ -65,6 +65,8 @@ export interface Entity extends Point {
   modifiers: ActiveModifier[];
   /** Ticks until each ability is ready, in the definition's ability order. */
   abilityCooldowns: number[];
+  /** The player whose entity last damaged it, who collects its bounty. */
+  lastHitBy: string | null;
 }
 
 export interface PlayerState {
@@ -212,6 +214,7 @@ export function spawn(
     experience: 0,
     modifiers: [],
     abilityCooldowns: definition.abilities.map(() => 0),
+    lastHitBy: null,
   };
   world.nextEntityId += 1;
   world.entities.push(entity);

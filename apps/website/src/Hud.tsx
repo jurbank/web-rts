@@ -85,11 +85,12 @@ export function Hud({
             {view.abilities.map((ability) => (
               <Button
                 key={ability.id}
-                disabled={ability.locked !== null || ability.seconds > 0}
+                disabled={!ability.enabled}
                 pressed={view.targeting === ability.id}
                 onClick={() => game.current?.cast(ability.id)}
               >
                 {ability.label}
+                {ability.cost > 0 && ` (${ability.cost})`}
                 {ability.locked !== null
                   ? ` (level ${ability.locked})`
                   : ability.seconds > 0

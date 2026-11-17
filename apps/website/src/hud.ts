@@ -16,6 +16,10 @@ export interface HudAbility {
   seconds: number;
   /** The level it unlocks at, or null once the caster has it. */
   locked: number | null;
+  /** Resources it costs. */
+  cost: number;
+  /** Whether `sim` would take it now, apart from its target. */
+  enabled: boolean;
 }
 
 /** Everything the HUD shows. It changes only when one of these values does (U3). */
@@ -91,6 +95,8 @@ export function buildHudView(input: HudInput): HudView {
       label: ability.name,
       seconds: Math.ceil(caster!.abilityCooldowns[index]),
       locked: caster!.level < ability.level ? ability.level : null,
+      cost: ability.cost,
+      enabled: caster!.abilityUsable[index],
     }),
   );
   const teamOf = (id: string) => snapshot.players.find((player) => player.id === id)?.team;

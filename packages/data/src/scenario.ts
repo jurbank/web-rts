@@ -11,7 +11,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 3;
+export const FORMAT_VERSION = 4;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -24,8 +24,8 @@ export const modifierSchema = z.object({
 /** What an ability does to the entity it lands on. */
 export const effectSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("damage"), amount: positive }),
-  /** A modifier that wears off. */
-  z.object({ type: z.literal("modify"), ...modifierSchema.shape, seconds: positive }),
+  /** A modifier that wears off after `seconds`, or without them lasts for life and through respawn. */
+  z.object({ type: z.literal("modify"), ...modifierSchema.shape, seconds: positive.optional() }),
 ]);
 
 export const abilitySchema = z
@@ -39,6 +39,10 @@ export const abilitySchema = z
     range: positive.optional(),
     /** The level the caster needs. */
     level: z.int().positive().default(1),
+    /** Resources the owner pays when the effects land. */
+    cost: z.number().nonnegative().default(0),
+    /** Usable only while one of these, on the caster's team, is within `range`, edge to edge. */
+    near: z.object({ definitionIds: z.array(idSchema).min(1), range: positive }).optional(),
     effects: z.array(effectSchema).min(1),
   })
   .refine((ability) => ability.target !== "enemy" || ability.range !== undefined, {
@@ -83,6 +87,8 @@ export const definitionSchema = z.object({
   builds: z.array(idSchema).default([]),
   /** Experience its death gives each enemy that has levels and is near enough. */
   experience: z.number().nonnegative().default(0),
+  /** Resources its death gives the enemy player who dealt the last damage. */
+  bounty: z.number().nonnegative().default(0),
   levels: z
     .object({
       /** Experience needed for each level after the first. Its length sets the top level. */
@@ -177,6 +183,11 @@ export const scenarioSchema = z
         requireDefinition(id, ["definitions", index, "builds", i]),
       );
       uniqueIds(definition.abilities, ["definitions", index, "abilities"], ctx);
+      definition.abilities.forEach((ability, a) =>
+        ability.near?.definitionIds.forEach((id, i) =>
+          requireDefinition(id, ["definitions", index, "abilities", a, "near", "definitionIds", i]),
+        ),
+      );
       if (definition.respawn !== undefined && definition.maxHealth === undefined) {
         ctx.addIssue({
           code: "custom",

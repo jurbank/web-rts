@@ -1,0 +1,131 @@
+{
+  "formatVersion": 3,
+  "map": { "width": 64, "height": 24 },
+  "players": [
+    { "id": "red", "color": "#e5484d", "controller": "human", "team": "west" },
+    {
+      "id": "blue",
+      "color": "#3e63dd",
+      "controller": "ai",
+      "team": "east",
+      "ai": { "workers": 0, "attackSize": 1 }
+    },
+    { "id": "redBase", "color": "#b03a3e", "controller": "none", "team": "west" },
+    { "id": "blueBase", "color": "#2f4bb0", "controller": "none", "team": "east" }
+  ],
+  "definitions": [
+    {
+      "id": "hero",
+      "name": "Hero",
+      "radius": 0.6,
+      "maxHealth": 300,
+      "speed": 5,
+      "weapon": { "damage": 20, "range": 4, "cooldown": 1, "acquireRange": 7 },
+      "experience": 60,
+      "levels": {
+        "thresholds": [60, 100, 140, 180],
+        "range": 10,
+        "perLevel": [
+          { "stat": "maxHealth", "add": 60 },
+          { "stat": "damage", "add": 6 }
+        ]
+      },
+      "respawn": { "seconds": 10 },
+      "abilities": [
+        {
+          "id": "bolt",
+          "name": "Bolt",
+          "cooldown": 6,
+          "target": "enemy",
+          "range": 6,
+          "effects": [{ "type": "damage", "amount": 70 }]
+        },
+        {
+          "id": "sprint",
+          "name": "Sprint",
+          "cooldown": 12,
+          "target": "self",
+          "level": 2,
+          "effects": [{ "type": "modify", "stat": "speed", "add": 3, "seconds": 4 }]
+        }
+      ]
+    },
+    {
+      "id": "creep",
+      "name": "Creep",
+      "radius": 0.4,
+      "maxHealth": 60,
+      "speed": 3,
+      "weapon": { "damage": 6, "range": 1.5, "cooldown": 1, "acquireRange": 5 },
+      "experience": 20
+    },
+    {
+      "id": "tower",
+      "name": "Tower",
+      "radius": 1,
+      "maxHealth": 500,
+      "weapon": { "damage": 25, "range": 6, "cooldown": 1 },
+      "experience": 50
+    },
+    { "id": "ancient", "name": "Ancient", "radius": 2, "maxHealth": 800 }
+  ],
+  "placements": [
+    { "definitionId": "hero", "playerId": "red", "x": 8, "y": 12 },
+    { "definitionId": "hero", "playerId": "blue", "x": 56, "y": 12 },
+    { "definitionId": "ancient", "playerId": "redBase", "x": 4, "y": 12 },
+    { "definitionId": "ancient", "playerId": "blueBase", "x": 60, "y": 12 },
+    { "definitionId": "tower", "playerId": "redBase", "x": 18, "y": 9 },
+    { "definitionId": "tower", "playerId": "blueBase", "x": 46, "y": 9 }
+  ],
+  "variables": [{ "id": "wave", "value": 0, "label": "Wave" }],
+  "timers": [{ "id": "wave", "seconds": 20, "repeat": true }],
+  "waypoints": [
+    { "id": "west", "x": 8, "y": 12 },
+    { "id": "mid", "x": 32, "y": 12 },
+    { "id": "east", "x": 56, "y": 12 }
+  ],
+  "paths": [
+    { "id": "eastward", "waypoints": ["mid", "east"] },
+    { "id": "westward", "waypoints": ["mid", "west"] }
+  ],
+  "triggers": [
+    {
+      "id": "begin",
+      "event": { "type": "start" },
+      "actions": [{ "type": "startTimer", "timer": "wave" }]
+    },
+    {
+      "id": "wave",
+      "event": { "type": "timer", "timer": "wave" },
+      "actions": [
+        { "type": "addVariable", "variable": "wave", "value": 1 },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "redBase",
+          "at": "west",
+          "count": 3,
+          "path": "eastward"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "blueBase",
+          "at": "east",
+          "count": 3,
+          "path": "westward"
+        }
+      ]
+    },
+    {
+      "id": "redFalls",
+      "event": { "type": "died", "playerId": "redBase", "definitionIds": ["ancient"] },
+      "actions": [{ "type": "win", "playerId": "blue" }]
+    },
+    {
+      "id": "blueFalls",
+      "event": { "type": "died", "playerId": "blueBase", "definitionIds": ["ancient"] },
+      "actions": [{ "type": "win", "playerId": "red" }]
+    }
+  ]
+}
