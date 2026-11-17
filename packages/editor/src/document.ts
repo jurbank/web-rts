@@ -1,6 +1,10 @@
 import { loadScenario, type Scenario } from "data";
+import { VICTORY_TRIGGER } from "./victory.ts";
 
-/** An empty map that keeps the players, definitions, and victory condition of `base`. */
+/**
+ * An empty map that keeps the players, definitions, and victory trigger of
+ * `base`. Other triggers go with the map, since they may name its regions and waypoints.
+ */
 export function blankDocument(base: Scenario, map: Scenario["map"]): Scenario {
   return {
     ...base,
@@ -11,6 +15,12 @@ export function blankDocument(base: Scenario, map: Scenario["map"]): Scenario {
       return copy;
     }),
     placements: [],
+    variables: [],
+    timers: [],
+    regions: [],
+    waypoints: [],
+    paths: [],
+    triggers: base.triggers.filter(({ id }) => id === VICTORY_TRIGGER),
   };
 }
 

@@ -5,10 +5,21 @@ export {
   placementSchema,
   playerSchema,
   scenarioSchema,
-  victorySchema,
   type Definition,
   type Placement,
   type Player,
   type Scenario,
-  type Victory,
 } from "./scenario.ts";
+export {
+  TRIGGERING,
+  triggerSchema,
+  type Action,
+  type Condition,
+  type Path,
+  type Region,
+  type Timer,
+  type Trigger,
+  type TriggerEvent,
+  type Variable,
+  type Waypoint,
+} from "./triggers.ts";

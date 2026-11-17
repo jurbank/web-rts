@@ -26,14 +26,34 @@ export interface Marker extends Readonly<Point> {
   readonly label: string;
 }
 
+/** A labelled line on the ground through `points`, such as a path units walk. */
+export interface Route {
+  readonly points: readonly Readonly<Point>[];
+  readonly label: string;
+  /** Overrides the usual guide color. */
+  readonly color?: string;
+}
+
+/** A labelled rectangle on the ground, from its low corner. */
+export interface Zone extends Readonly<Point> {
+  readonly width: number;
+  readonly height: number;
+  readonly label: string;
+  readonly color?: string;
+}
+
 /** What the app wants drawn on top of the snapshot. */
 export interface Overlay {
   selectedIds: readonly number[];
   debug: boolean;
   markers?: readonly Marker[];
+  routes?: readonly Route[];
+  zones?: readonly Zone[];
 }
 
 export interface Renderer {
+  /** Takes definitions and players that changed since creation, as the editor's do. */
+  setContent(content: Pick<Scenario, "definitions" | "players">): void;
   resize(width: number, height: number, pixelRatio: number): void;
   /** Draws the state `alpha` of the way from `previous` to `current`. */
   draw(previous: Snapshot, current: Snapshot, alpha: number, overlay: Overlay): void;
@@ -70,6 +90,7 @@ const UNIT_HEIGHT = 0.8;
 const STRUCTURE_HEIGHT = 1.6;
 const NEUTRAL_COLOR = "#8a8f98";
 const BAR_WIDTH = 30;
+const GUIDE_COLOR = "rgba(255, 255, 255, 0.55)";
 
 export function createRenderer(
   canvas: HTMLCanvasElement,
@@ -102,10 +123,8 @@ export function createRenderer(
   const ringGeometry = new RingGeometry(1.25, 1.45, 32);
   ringGeometry.rotateX(-Math.PI / 2);
   const ringMaterial = new MeshBasicMaterial({ color: "#ffffff" });
-  const definitions = new Map(
-    scenario.definitions.map((definition) => [definition.id, definition]),
-  );
-  const playerColors = new Map(scenario.players.map((player) => [player.id, player.color]));
+  let definitions = new Map(scenario.definitions.map((definition) => [definition.id, definition]));
+  let playerColors = new Map(scenario.players.map((player) => [player.id, player.color]));
   const materials = new Map<string, MeshLambertMaterial>();
 
   function materialFor(color: string): MeshLambertMaterial {
@@ -171,12 +190,40 @@ export function createRenderer(
     }
   }
 
-  function drawOverlay({ debug, markers = [] }: Overlay): void {
+  function drawOverlay({ debug, markers = [], routes = [], zones = [] }: Overlay): void {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.font = "12px ui-monospace, monospace";
     context.lineWidth = 2;
+    for (const zone of zones) {
+      context.strokeStyle = context.fillStyle = zone.color ?? GUIDE_COLOR;
+      const corners = [
+        { x: zone.x, y: zone.y },
+        { x: zone.x + zone.width, y: zone.y },
+        { x: zone.x + zone.width, y: zone.y + zone.height },
+        { x: zone.x, y: zone.y + zone.height },
+      ].map((corner) => rig.project(corner));
+      context.beginPath();
+      corners.forEach((at, index) =>
+        index === 0 ? context.moveTo(at.x, at.y) : context.lineTo(at.x, at.y),
+      );
+      context.closePath();
+      context.stroke();
+      context.fillText(zone.label, corners[3].x + 4, corners[3].y + 14);
+    }
+    context.setLineDash([8, 6]);
+    for (const route of routes) {
+      context.strokeStyle = context.fillStyle = route.color ?? GUIDE_COLOR;
+      const points = route.points.map((point) => rig.project(point));
+      context.beginPath();
+      points.forEach((at, index) =>
+        index === 0 ? context.moveTo(at.x, at.y) : context.lineTo(at.x, at.y),
+      );
+      context.stroke();
+      if (points.length > 0) context.fillText(route.label, points[0].x + 6, points[0].y - 6);
+    }
+    context.setLineDash([]);
     for (const marker of markers) {
       const at = rig.project(marker);
       context.strokeStyle = marker.color;
@@ -221,6 +268,12 @@ export function createRenderer(
   }
 
   return {
+    setContent(content) {
+      definitions = new Map(content.definitions.map((definition) => [definition.id, definition]));
+      playerColors = new Map(content.players.map((player) => [player.id, player.color]));
+      for (const [id, view] of views) removeView(id, view);
+    },
+
     resize(newWidth, newHeight, newPixelRatio) {
       width = newWidth;
       height = newHeight;

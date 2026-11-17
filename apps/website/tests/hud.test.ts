@@ -3,6 +3,7 @@ import { createWorld, step, takeSnapshot, type Command } from "sim";
 import { expect, test } from "vite-plus/test";
 import { buildHudView } from "../src/hud.ts";
 import skirmish from "../src/scenarios/skirmish.json";
+import towerDefense from "../src/scenarios/tower-defense.json";
 
 const scenario = loadScenario(skirmish);
 
@@ -73,4 +74,22 @@ test("the outcome is reported from the local player's side", () => {
       notice: null,
     }).outcome;
   expect([outcome("red"), outcome("blue"), outcome(null)]).toEqual(["won", "lost", "draw"]);
+});
+
+test("labelled scenario variables show as counters", () => {
+  const defense = loadScenario(towerDefense);
+  const world = createWorld(defense, 1);
+  step(world);
+  const hud = buildHudView({
+    scenario: defense,
+    snapshot: takeSnapshot(world),
+    localPlayerId: "red",
+    selectedIds: [],
+    placingId: null,
+    notice: null,
+  });
+  expect(hud.counters).toEqual([
+    { label: "Lives", value: 10 },
+    { label: "Wave", value: 0 },
+  ]);
 });

@@ -1,13 +1,27 @@
 import type { Scenario } from "data";
-import { applyOperation, movePlacements, type Operation } from "editor";
+import {
+  addItem,
+  applyOperation,
+  freshId,
+  moveGuide,
+  movePlacements,
+  setItem,
+  type Operation,
+} from "editor";
 import { createRenderer, type ScreenPoint } from "render";
 import { createWorld, takeSnapshot, type Point, type Snapshot } from "sim";
 import type { GameElements } from "./game.ts";
+import { guideAt, scenarioGuides } from "./guides.ts";
 import { attachInput, showBox } from "./input.ts";
 import { session } from "./session.ts";
 import { SELECT, useEditor } from "./store.ts";
 
 const SNAP = 0.5;
+const WAYPOINT_COLOR = "#ffffff";
+const SELECTED_COLOR = "#ffd60a";
+/** How far from a waypoint a tap still picks it, in ground units. */
+const WAYPOINT_REACH = 1;
+const NEW_REGION_SIZE = 4;
 const snap = (value: number) => Math.round(value / SNAP) * SNAP;
 
 /**
@@ -19,7 +33,12 @@ export function createEditorView(elements: GameElements): () => void {
   const renderer = createRenderer(elements.scene, elements.overlay, current());
 
   /** A move in progress. Its operation joins the history when the drag ends. */
-  let drag: { from: Point; operation: Operation | null; preview: Scenario } | null = null;
+  let drag: {
+    from: Point;
+    move: (document: Scenario, dx: number, dy: number) => Operation;
+    operation: Operation | null;
+    preview: Scenario;
+  } | null = null;
   let shown: Scenario | null = null;
   let snapshot: Snapshot;
 
@@ -27,6 +46,9 @@ export function createEditorView(elements: GameElements): () => void {
   function view(): Snapshot {
     const document = drag?.preview ?? current();
     if (document !== shown) {
+      if (document.definitions !== shown?.definitions || document.players !== shown.players) {
+        renderer.setContent(document);
+      }
       shown = document;
       snapshot = takeSnapshot(createWorld(document, 1));
     }
@@ -40,7 +62,7 @@ export function createEditorView(elements: GameElements): () => void {
   }
 
   function select(selection: number[]): void {
-    useEditor.setState({ selection });
+    useEditor.setState({ selection, guide: null });
   }
 
   /** The snapped ground point under the pointer, or null when it is off the map. */
@@ -54,10 +76,17 @@ export function createEditorView(elements: GameElements): () => void {
 
   const detachInput = attachInput(elements.battlefield, {
     tap(at, slop) {
-      const { tool, owner } = useEditor.getState();
+      const { tool, owner, guide } = useEditor.getState();
       if (tool.kind === "select") {
         const index = placementAt(at, slop);
-        select(index < 0 ? [] : [index]);
+        const ground = renderer.pickGround(at);
+        if (index >= 0 || ground === null) select(index < 0 ? [] : [index]);
+        else {
+          useEditor.setState({
+            selection: [],
+            guide: guideAt(current(), ground, WAYPOINT_REACH),
+          });
+        }
         return;
       }
       const point = mapPoint(at);
@@ -66,12 +95,41 @@ export function createEditorView(elements: GameElements): () => void {
       if (tool.kind === "place") {
         const index = document.placements.length;
         const placement = { definitionId: tool.definitionId, playerId: owner, ...point };
-        session.edit({ type: "addPlacement", index, placement });
-        select([index]);
+        if (session.edit(addItem("placements", index, placement))) select([index]);
+      } else if (tool.kind === "waypoint") {
+        const index = document.waypoints.length;
+        const waypoint = { id: freshId(document.waypoints, "waypoint"), ...point };
+        const add = addItem("waypoints", index, waypoint);
+        const path = guide?.list === "paths" ? document.paths[guide.index] : undefined;
+        if (guide === null || path === undefined) {
+          if (session.edit(add)) {
+            useEditor.setState({ selection: [], guide: { list: "waypoints", index } });
+          }
+        } else {
+          const extended = { ...path, waypoints: [...path.waypoints, waypoint.id] };
+          session.edit({
+            type: "batch",
+            operations: [add, setItem("paths", guide.index, extended)],
+          });
+        }
+      } else if (tool.kind === "region") {
+        const { width, height } = document.map;
+        const size = Math.min(NEW_REGION_SIZE, width, height);
+        const index = document.regions.length;
+        session.edit(
+          addItem("regions", index, {
+            id: freshId(document.regions, "region"),
+            x: Math.min(width - size, Math.max(0, point.x - size / 2)),
+            y: Math.min(height - size, Math.max(0, point.y - size / 2)),
+            width: size,
+            height: size,
+          }),
+        );
+        useEditor.setState({ selection: [], guide: { list: "regions", index }, tool: SELECT });
       } else {
         const index = document.players.findIndex((player) => player.id === tool.playerId);
         const player = { ...document.players[index], start: point };
-        session.edit({ type: "setPlayer", index, player });
+        session.edit(setItem("players", index, player));
         useEditor.setState({ tool: SELECT });
       }
     },
@@ -84,24 +142,34 @@ export function createEditorView(elements: GameElements): () => void {
       );
     },
     dragStart(at) {
-      const index = placementAt(at, 0);
+      const { tool, selection, guide: selected } = useEditor.getState();
       const from = renderer.pickGround(at);
-      if (useEditor.getState().tool.kind !== "select" || index < 0 || from === null) return false;
-      if (!useEditor.getState().selection.includes(index)) select([index]);
-      drag = { from, operation: null, preview: current() };
+      if (tool.kind !== "select" || from === null) return false;
+      const index = placementAt(at, 0);
+      if (index >= 0) {
+        if (!selection.includes(index)) select([index]);
+        const move: NonNullable<typeof drag>["move"] = (document, dx, dy) =>
+          movePlacements(document, useEditor.getState().selection, dx, dy);
+        drag = { from, move, operation: null, preview: current() };
+        return true;
+      }
+      const guide = guideAt(current(), from, WAYPOINT_REACH);
+      if (guide === null || guide.list === "paths") return false;
+      // A region may cover units, so only a selected one moves. Otherwise the drag boxes them.
+      const isSelected = selected?.list === guide.list && selected.index === guide.index;
+      if (guide.list === "regions" && !isSelected) return false;
+      const { list } = guide;
+      useEditor.setState({ selection: [], guide });
+      const move: NonNullable<typeof drag>["move"] = (document, dx, dy) =>
+        moveGuide(document, list, guide.index, dx, dy);
+      drag = { from, move, operation: null, preview: current() };
       return true;
     },
     dragMove(at) {
       const to = renderer.pickGround(at);
       if (drag === null || to === null) return;
       const document = current();
-      const { selection } = useEditor.getState();
-      const operation = movePlacements(
-        document,
-        selection,
-        snap(to.x - drag.from.x),
-        snap(to.y - drag.from.y),
-      );
+      const operation = drag.move(document, snap(to.x - drag.from.x), snap(to.y - drag.from.y));
       drag.operation = operation;
       drag.preview = applyOperation(document, operation).document;
     },
@@ -128,15 +196,31 @@ export function createEditorView(elements: GameElements): () => void {
 
   let frameId = requestAnimationFrame(function frame() {
     const world = view();
-    const { selection } = useEditor.getState();
+    const document = current();
+    const { selection, guide } = useEditor.getState();
+    const { routes, zones } = scenarioGuides(document);
+    const chosen = (list: string, index: number) =>
+      guide?.list === list && guide.index === index ? { color: SELECTED_COLOR } : {};
+    const onPath = guide?.list === "paths" ? document.paths[guide.index]?.waypoints : undefined;
     renderer.draw(world, world, 0, {
       selectedIds: selection.flatMap((index) => world.entities[index]?.id ?? []),
       debug: false,
-      markers: current().players.flatMap((player) =>
-        player.start === undefined
-          ? []
-          : { ...player.start, color: player.color, label: `${player.id} start` },
-      ),
+      markers: [
+        ...document.players.flatMap((player) =>
+          player.start === undefined
+            ? []
+            : { ...player.start, color: player.color, label: `${player.id} start` },
+        ),
+        ...document.waypoints.map((waypoint, index) => ({
+          ...waypoint,
+          color: WAYPOINT_COLOR,
+          label: waypoint.id,
+          ...chosen("waypoints", index),
+          ...(onPath?.includes(waypoint.id) ? { color: SELECTED_COLOR } : {}),
+        })),
+      ],
+      routes: routes?.map((route, index) => ({ ...route, ...chosen("paths", index) })),
+      zones: zones?.map((zone, index) => ({ ...zone, ...chosen("regions", index) })),
     });
     frameId = requestAnimationFrame(frame);
   });

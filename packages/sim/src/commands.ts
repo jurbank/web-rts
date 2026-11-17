@@ -134,7 +134,8 @@ function giveOrder(entity: Entity, order: Entity["order"]): void {
 
 export function applyCommand(world: World, command: Command): void {
   const player = findPlayer(world, command.playerId);
-  if (player === undefined || player.defeated) return;
+  // A `none` player is moved only by triggers.
+  if (player === undefined || player.defeated || player.controller === "none") return;
 
   switch (command.type) {
     case "move": {

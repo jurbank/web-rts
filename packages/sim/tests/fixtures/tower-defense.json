@@ -1,0 +1,110 @@
+{
+  "formatVersion": 2,
+  "map": { "width": 48, "height": 24 },
+  "players": [
+    { "id": "red", "color": "#e5484d", "controller": "human", "resources": 150 },
+    { "id": "creeps", "color": "#8e4ec6", "controller": "none" }
+  ],
+  "definitions": [
+    {
+      "id": "builder",
+      "name": "Builder",
+      "radius": 0.5,
+      "maxHealth": 50,
+      "speed": 6,
+      "builds": ["tower"]
+    },
+    {
+      "id": "tower",
+      "name": "Tower",
+      "radius": 1,
+      "maxHealth": 200,
+      "cost": 50,
+      "buildTime": 3,
+      "weapon": { "damage": 10, "range": 5, "cooldown": 0.5 }
+    },
+    { "id": "creep", "name": "Creep", "radius": 0.5, "maxHealth": 60, "speed": 3 }
+  ],
+  "placements": [{ "definitionId": "builder", "playerId": "red", "x": 20, "y": 10 }],
+  "variables": [
+    { "id": "lives", "value": 10, "label": "Lives" },
+    { "id": "wave", "value": 0, "label": "Wave" },
+    { "id": "toSpawn", "value": 0 }
+  ],
+  "timers": [
+    { "id": "wave", "seconds": 15, "repeat": true },
+    { "id": "drip", "seconds": 1, "repeat": true }
+  ],
+  "regions": [{ "id": "goal", "x": 44, "y": 8, "width": 4, "height": 8 }],
+  "waypoints": [
+    { "id": "spawn", "x": 1, "y": 12 },
+    { "id": "a", "x": 12, "y": 4 },
+    { "id": "b", "x": 24, "y": 20 },
+    { "id": "c", "x": 36, "y": 4 },
+    { "id": "exit", "x": 46, "y": 12 }
+  ],
+  "paths": [{ "id": "lane", "waypoints": ["a", "b", "c", "exit"] }],
+  "triggers": [
+    {
+      "id": "begin",
+      "event": { "type": "start" },
+      "actions": [
+        { "type": "startTimer", "timer": "wave" },
+        { "type": "startTimer", "timer": "drip" }
+      ]
+    },
+    {
+      "id": "nextWave",
+      "event": { "type": "timer", "timer": "wave" },
+      "conditions": [{ "type": "variable", "variable": "wave", "op": "<", "value": 5 }],
+      "actions": [
+        { "type": "addVariable", "variable": "wave", "value": 1 },
+        { "type": "setVariable", "variable": "toSpawn", "value": 6 }
+      ]
+    },
+    {
+      "id": "spawnCreep",
+      "event": { "type": "timer", "timer": "drip" },
+      "conditions": [{ "type": "variable", "variable": "toSpawn", "op": ">", "value": 0 }],
+      "actions": [
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "creeps",
+          "at": "spawn",
+          "path": "lane"
+        },
+        { "type": "addVariable", "variable": "toSpawn", "value": -1 }
+      ]
+    },
+    {
+      "id": "leak",
+      "event": { "type": "entered", "region": "goal", "playerId": "creeps" },
+      "actions": [
+        { "type": "remove", "entity": "$triggering" },
+        { "type": "addVariable", "variable": "lives", "value": -1 }
+      ]
+    },
+    {
+      "id": "bounty",
+      "event": { "type": "died", "playerId": "creeps" },
+      "actions": [{ "type": "grantResources", "playerId": "red", "amount": 10 }]
+    },
+    {
+      "id": "lose",
+      "event": { "type": "tick" },
+      "conditions": [{ "type": "variable", "variable": "lives", "op": "<=", "value": 0 }],
+      "actions": [{ "type": "defeat", "playerId": "red" }]
+    },
+    {
+      "id": "survive",
+      "event": { "type": "tick" },
+      "conditions": [
+        { "type": "variable", "variable": "wave", "op": ">=", "value": 5 },
+        { "type": "variable", "variable": "toSpawn", "op": "==", "value": 0 },
+        { "type": "count", "playerId": "creeps", "op": "==", "value": 0 }
+      ],
+      "actions": [{ "type": "win", "playerId": "red" }]
+    }
+  ]
+}

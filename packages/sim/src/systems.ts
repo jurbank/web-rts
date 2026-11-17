@@ -106,6 +106,27 @@ function runMove(world: World, entity: Entity, order: { x: number; y: number }):
   }
 }
 
+function runPath(world: World, entity: Entity, order: { pathId: string; next: number }): void {
+  const { speed } = definitionOf(world, entity);
+  const waypoints = world.paths[order.pathId];
+  if (speed === undefined || waypoints === undefined || order.next >= waypoints.length) {
+    entity.order = null;
+    clearPath(entity);
+    return;
+  }
+  const goal = world.waypoints[waypoints[order.next]];
+  if (entity.pathGoal === null) {
+    entity.path = findPath(world, entity, goal);
+    entity.pathGoal = { x: goal.x, y: goal.y };
+  }
+  followPath(entity, speed);
+  if (entity.path.length === 0) {
+    entity.pathGoal = null;
+    order.next += 1;
+    if (order.next >= waypoints.length) entity.order = null;
+  }
+}
+
 function runAttack(world: World, entity: Entity, targetId: number): void {
   const { weapon, speed } = definitionOf(world, entity);
   const target = findEntity(world, targetId);
@@ -243,6 +264,9 @@ export function runOrders(world: World, events: SimEvent[]): void {
       case "build":
         runBuild(world, entity, order.buildingId, events);
         break;
+      case "path":
+        runPath(world, entity, order);
+        break;
     }
   }
 }
@@ -312,25 +336,27 @@ export function removeDead(world: World, events: SimEvent[]): void {
   world.entities = world.entities.filter((entity) => !gone(entity));
 }
 
-export function checkVictory(world: World, events: SimEvent[]): void {
-  const { victory } = world;
-  for (const player of world.players) {
-    if (player.defeated) continue;
-    const alive = world.entities.some(
-      (entity) =>
-        entity.playerId === player.id &&
-        (victory.type === "destroyAll"
-          ? entity.health !== null
-          : victory.definitionIds.includes(entity.definitionId)),
-    );
-    if (!alive) {
-      player.defeated = true;
-      events.push({ type: "defeated", playerId: player.id });
-    }
-  }
-  const standing = world.players.filter((player) => !player.defeated);
-  if (world.players.length > 1 && standing.length <= 1) {
-    world.outcome = { winnerId: standing[0]?.id ?? null };
-    events.push({ type: "ended", winnerId: world.outcome.winnerId });
+export function defeatPlayer(world: World, playerId: string, events: SimEvent[]): void {
+  const player = findPlayer(world, playerId);
+  if (player === undefined || player.defeated) return;
+  player.defeated = true;
+  events.push({ type: "defeated", playerId });
+}
+
+export function endGame(world: World, winnerId: string | null, events: SimEvent[]): void {
+  if (world.outcome !== null) return;
+  world.outcome = { winnerId };
+  events.push({ type: "ended", winnerId });
+}
+
+/**
+ * Triggers decide who is defeated. The game ends when one player is left
+ * standing, or when nobody is.
+ */
+export function checkEnd(world: World, events: SimEvent[]): void {
+  const { players } = world;
+  const standing = players.filter((player) => !player.defeated);
+  if (standing.length === 0 ? players.length > 0 : players.length > 1 && standing.length === 1) {
+    endGame(world, standing[0]?.id ?? null, events);
   }
 }

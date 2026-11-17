@@ -29,6 +29,7 @@ export interface Snapshot {
   readonly entities: readonly EntitySnapshot[];
   readonly players: readonly PlayerSnapshot[];
   readonly outcome: { readonly winnerId: string | null } | null;
+  readonly variables: Readonly<Record<string, number>>;
 }
 
 /** A copy, so it stays valid after later steps (S8). */
@@ -61,5 +62,6 @@ export function takeSnapshot(world: World): Snapshot {
       defeated: player.defeated,
     })),
     outcome: world.outcome === null ? null : { winnerId: world.outcome.winnerId },
+    variables: { ...world.variables },
   };
 }

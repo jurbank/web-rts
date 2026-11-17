@@ -1,7 +1,23 @@
-import type { Player, Scenario, Victory } from "data";
-import { assignPlacements, blankDocument, parseDocument, serializeDocument } from "editor";
-import { useEffect, useState, type ReactNode } from "react";
+import { definitionSchema, type Player, type Scenario } from "data";
+import {
+  addItem,
+  assignPlacements,
+  blankDocument,
+  freshId,
+  parseDocument,
+  readVictory,
+  serializeDocument,
+  setItem,
+  setVictory,
+  VICTORY_TRIGGER,
+  type Victory,
+} from "editor";
+import { useEffect, useState } from "react";
+import { DefinitionPanel } from "./DefinitionPanel.tsx";
+import { FIELD, Panel, type Edit } from "./editorFields.tsx";
 import { createEditorView } from "./editorView.ts";
+import { examples } from "./examples.ts";
+import { GuidesPanel } from "./GuidesPanel.tsx";
 import { Button } from "./Hud.tsx";
 import { session, useSession } from "./session.ts";
 import { createLocalStorage } from "./storage.ts";
@@ -14,18 +30,6 @@ const storage = createLocalStorage(localStorage);
 const DEFAULT_AI = { workers: 5, attackSize: 5 };
 const NEUTRAL = "-";
 const MIXED = "?";
-
-const FIELD =
-  "pointer-events-auto min-h-9 min-w-0 rounded-md border border-white/30 bg-slate-800 px-2 text-white";
-
-function Panel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="pointer-events-auto flex flex-col gap-2 rounded-lg bg-slate-900/85 p-2">
-      <h2 className="text-xs tracking-wide text-white/60 uppercase">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 function OwnerSelect(props: {
   label: string;
@@ -56,15 +60,17 @@ function OwnerSelect(props: {
 
 export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => void }) {
   const { history, saved, opened } = useSession();
-  const { selection, tool, owner, name } = useEditor();
+  const { selection, tool, owner, name, notice } = useEditor();
   const document = history.document;
   const dirty = document !== saved;
   const [names, setNames] = useState<string[]>([]);
-  const [notice, setNotice] = useState<string | null>(null);
+  const setNotice = (notice: string | null) => useEditor.setState({ notice });
   const [size, setSize] = useState(document.map);
 
   const report = (error: unknown) =>
     setNotice(error instanceof Error ? error.message : String(error));
+
+  const edit: Edit = (operation) => session.edit(operation);
 
   useEffect(() => {
     storage.list().then(setNames, report);
@@ -107,10 +113,16 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
     setNotice(`Loaded "${target}"`);
   }
 
+  function openExample(index: number): void {
+    if (!mayDiscard()) return;
+    const { name: title, scenario } = examples[index];
+    session.open(scenario, "");
+    setNotice(`Opened the ${title} example`);
+  }
+
   function create(): void {
     if (!mayDiscard()) return;
     session.open(blankDocument(document, size), "");
-    setNotice(null);
   }
 
   /** The game gets a copy that went through the same load as a saved file (E3). */
@@ -123,11 +135,25 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
   }
 
   function setPlayer(index: number, player: Player): void {
-    session.edit({ type: "setPlayer", index, player });
+    edit(setItem("players", index, player));
   }
 
-  function setVictory(victory: Victory): void {
-    session.edit({ type: "setVictory", victory });
+  function chooseVictory(victory: Victory | null): void {
+    edit(setVictory(document, victory));
+  }
+
+  function newDefinition(): void {
+    const id = freshId(document.definitions, "unit");
+    const definition = definitionSchema.parse({
+      id,
+      name: "New unit",
+      radius: 0.5,
+      maxHealth: 50,
+      speed: 3,
+    });
+    if (edit(addItem("definitions", document.definitions.length, definition))) {
+      useEditor.setState({ tool: { kind: "place", definitionId: id } });
+    }
   }
 
   const selected = selection.map((index) => document.placements[index]);
@@ -137,7 +163,12 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
   const destructible = document.definitions.filter(
     (definition) => definition.maxHealth !== undefined,
   );
-  const { victory } = document;
+  const editing =
+    tool.kind === "place"
+      ? document.definitions.findIndex(({ id }) => id === tool.definitionId)
+      : -1;
+  const victory = readVictory(document);
+  const otherTriggers = document.triggers.filter(({ id }) => id !== VICTORY_TRIGGER).length;
 
   return (
     <>
@@ -158,14 +189,29 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
             aria-label="Load scenario"
             className={FIELD}
             value=""
-            onChange={(event) => load(event.target.value).catch(report)}
+            onChange={(event) => {
+              const [kind, value] = event.target.value.split(/:(.*)/s);
+              if (kind === "example") openExample(Number(value));
+              else load(value).catch(report);
+            }}
           >
             <option value="">Load…</option>
-            {names.map((saved) => (
-              <option key={saved} value={saved}>
-                {saved}
-              </option>
-            ))}
+            {names.length > 0 && (
+              <optgroup label="Saved">
+                {names.map((saved) => (
+                  <option key={saved} value={`saved:${saved}`}>
+                    {saved}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            <optgroup label="Examples">
+              {examples.map((example, index) => (
+                <option key={example.name} value={`example:${index}`}>
+                  {example.name}
+                </option>
+              ))}
+            </optgroup>
           </select>
           <Button disabled={history.past.length === 0} onClick={() => session.undo()}>
             Undo
@@ -179,7 +225,7 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
         </div>
 
         <div className="flex min-h-0 flex-1 items-start justify-between gap-2">
-          <div className="flex max-h-full w-44 flex-col gap-2 overflow-y-auto">
+          <div className="flex max-h-full w-52 flex-col gap-2 overflow-y-auto">
             <Panel title="Place">
               <Button
                 pressed={tool.kind === "select"}
@@ -204,7 +250,9 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                   {definition.name}
                 </Button>
               ))}
+              <Button onClick={newDefinition}>New unit type</Button>
             </Panel>
+            <GuidesPanel document={document} edit={edit} />
             <Panel title="New map">
               <div className="flex items-center gap-1">
                 {(["width", "height"] as const).map((side) => (
@@ -238,12 +286,18 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                   label="Owner of the selection"
                   players={document.players}
                   value={owners.size === 1 ? selected[0].playerId : MIXED}
-                  onChange={(playerId) =>
-                    session.edit(assignPlacements(document, selection, playerId))
-                  }
+                  onChange={(playerId) => edit(assignPlacements(document, selection, playerId))}
                 />
                 <Button onClick={() => session.deleteSelection()}>Delete</Button>
               </Panel>
+            )}
+            {editing >= 0 && (
+              <DefinitionPanel
+                key={document.definitions[editing].id}
+                document={document}
+                index={editing}
+                edit={edit}
+              />
             )}
             <Panel title="Players">
               {document.players.map((player, index) => (
@@ -264,6 +318,7 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                   >
                     <option value="human">Human</option>
                     <option value="ai">AI</option>
+                    <option value="none">Nobody</option>
                   </select>
                   <Button
                     pressed={tool.kind === "start" && tool.playerId === player.id}
@@ -280,20 +335,30 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
               <select
                 aria-label="Victory condition"
                 className={FIELD}
-                value={victory.type}
+                value={victory === null ? "none" : victory === "custom" ? "custom" : victory.type}
                 disabled={destructible.length === 0}
                 onChange={(event) =>
-                  setVictory(
-                    event.target.value === "destroyAll"
-                      ? { type: "destroyAll" }
-                      : { type: "destroyDefinitions", definitionIds: [destructible[0].id] },
+                  chooseVictory(
+                    event.target.value === "none"
+                      ? null
+                      : event.target.value === "destroyAll"
+                        ? { type: "destroyAll" }
+                        : { type: "destroyDefinitions", definitionIds: [destructible[0].id] },
                   )
                 }
               >
+                {victory === "custom" && (
+                  <option value="custom" disabled>
+                    Custom trigger
+                  </option>
+                )}
+                <option value="none">No one is eliminated</option>
                 <option value="destroyAll">Destroy everything</option>
                 <option value="destroyDefinitions">Destroy all of…</option>
               </select>
-              {victory.type === "destroyDefinitions" &&
+              {victory !== null &&
+                victory !== "custom" &&
+                victory.type === "destroyDefinitions" &&
                 destructible.map(({ id, name }) => {
                   const ids = victory.definitionIds;
                   const checked = ids.includes(id);
@@ -305,7 +370,7 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                         checked={checked}
                         disabled={checked && ids.length === 1}
                         onChange={() =>
-                          setVictory({
+                          chooseVictory({
                             type: "destroyDefinitions",
                             definitionIds: checked
                               ? ids.filter((other) => other !== id)
@@ -317,6 +382,12 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                     </label>
                   );
                 })}
+              {otherTriggers > 0 && (
+                <div className="text-white/60">
+                  {otherTriggers} more {otherTriggers === 1 ? "trigger" : "triggers"} in this
+                  scenario
+                </div>
+              )}
             </Panel>
           </div>
         </div>

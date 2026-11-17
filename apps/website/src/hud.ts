@@ -12,6 +12,8 @@ export interface HudAction {
 /** Everything the HUD shows. It changes only when one of these values does (U3). */
 export interface HudView {
   resources: number;
+  /** The scenario's labelled variables, in scenario order. */
+  counters: { label: string; value: number }[];
   selection: string | null;
   actions: HudAction[];
   queue: { label: string; percent: number }[];
@@ -23,6 +25,7 @@ export interface HudView {
 
 export const emptyHudView: HudView = {
   resources: 0,
+  counters: [],
   selection: null,
   actions: [],
   queue: [],
@@ -66,6 +69,9 @@ export function buildHudView(input: HudInput): HudView {
   const { outcome } = snapshot;
   return {
     resources,
+    counters: scenario.variables.flatMap(({ id, label }) =>
+      label === undefined ? [] : { label, value: snapshot.variables[id] },
+    ),
     selection: describe(selected, definitionOf),
     actions,
     queue: (producer?.queue ?? []).map((item) => ({

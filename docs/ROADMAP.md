@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 6, not started. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 6. Its trigger records, the tower defense fixture, and editing of guides and basic game data are done, and the MOBA is next. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -60,8 +60,9 @@ The editor follows the rules because the simulation is the priority and the hard
 
 Triggers as data (C5), written by agents against the schema. The visual trigger editor comes later and edits the same records. Each step adds only what its genre fixture needs.
 
-- Trigger records, variables, timers, regions, and waypoints. The milestone 4 fixture moves its victory condition into triggers.
-- Tower defense: wave spawners, paths, a lives counter, and survive-N-waves victory.
+- Trigger records, variables, timers, regions, and waypoints. The milestone 4 fixture moves its victory condition into triggers. Done in format 2.
+- Tower defense: wave spawners, paths, a lives counter, and survive-N-waves victory. Done, as trigger data with no wave mechanism in `sim`.
+- Editor: add, move, rename, and delete waypoints, paths, and regions, and edit the settled definition fields (name, color, size, health, speed, cost, build time, weapon, what it trains and builds). Done. Pulled forward from Later so the genre fixtures can be opened and tuned by hand.
 - MOBA: one hero per player, abilities, stat modifiers, experience and levels, respawn, and lane creeps.
 - Auto chess: round phases, commands limited per phase, a shop rolled from the seeded generator, unit merging, count-based synergies, and HUD elements driven by data.
 
@@ -75,7 +76,7 @@ Not ordered and not committed.
 - Fog of war and visibility.
 - Upgrades, veterancy, patrol, attack-move, queued orders, control groups.
 - Terrain imported from the external terrain editor (C8), real models and effects.
-- Game data editing in the editor, with per-instance overrides.
+- The rest of game data editing: gathering and resource fields, whatever the MOBA adds (abilities, stat modifiers, levels), and per-instance overrides.
 - Larger armies against the performance budgets.
 - Campaigns, asset packs, and scenario sharing.
 - Multiplayer, after the ADR that picks a model.

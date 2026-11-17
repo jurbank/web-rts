@@ -1,6 +1,7 @@
 import type { Scenario } from "data";
 import { createRenderer, type ScreenPoint } from "render";
 import { createWorld, type Command, type EntitySnapshot } from "sim";
+import { scenarioGuides } from "./guides.ts";
 import { buildHudView, type HudView } from "./hud.ts";
 import { attachInput, showBox } from "./input.ts";
 import { createGameLoop } from "./loop.ts";
@@ -32,13 +33,16 @@ export function createGame(
 ): Game {
   /** Until scenarios say which seat is ours, the first human player is. */
   const localPlayer =
-    scenario.players.find((player) => player.controller === "human") ?? scenario.players[0];
+    scenario.players.find((player) => player.controller === "human") ??
+    scenario.players.find((player) => player.controller !== "none") ??
+    scenario.players[0];
   const localPlayerId = localPlayer.id;
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
   const loop = createGameLoop(createWorld(scenario, 1));
   const renderer = createRenderer(elements.scene, elements.overlay, scenario);
+  const guides = scenarioGuides(scenario);
 
   const home =
     localPlayer.start ?? loop.current.entities.find((entity) => entity.playerId === localPlayerId);
@@ -176,7 +180,7 @@ export function createGame(
     const alpha = loop.advance((time - lastTime) / 1000);
     lastTime = time;
     publishView();
-    renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug });
+    renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug, ...guides });
     frameId = requestAnimationFrame(frame);
   });
 

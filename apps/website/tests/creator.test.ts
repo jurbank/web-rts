@@ -1,12 +1,17 @@
 import { loadScenario } from "data";
 import {
+  addItem,
   applyEdit,
   blankDocument,
   createHistory,
   parseDocument,
+  readVictory,
   serializeDocument,
+  setItem,
+  setVictory,
   undo,
   type Operation,
+  type Victory,
 } from "editor";
 import { createWorld, step } from "sim";
 import { expect, test } from "vite-plus/test";
@@ -40,22 +45,19 @@ test("build, save, reload, playtest, and return to editing with nothing lost", a
   const storage = memoryStorage();
   const base = loadScenario(skirmish);
   const place = (index: number, definitionId: string, playerId: string | null, x: number) =>
-    ({
-      type: "addPlacement",
-      index,
-      placement: { definitionId, playerId, x, y: 10 },
-    }) satisfies Operation;
+    addItem("placements", index, { definitionId, playerId, x, y: 10 });
 
-  let history = createHistory(blankDocument(base, { width: 40, height: 20 }));
+  let history = createHistory(blankDocument({ ...base, triggers: [] }, { width: 40, height: 20 }));
   const edits: Operation[] = [
     place(0, "hq", "red", 5),
     place(1, "soldier", "red", 10),
     place(2, "hq", "blue", 35),
     place(3, "rock", null, 20),
-    { type: "setPlayer", index: 0, player: { ...base.players[0], start: { x: 5, y: 10 } } },
-    { type: "setVictory", victory: { type: "destroyDefinitions", definitionIds: ["hq"] } },
+    setItem("players", 0, { ...base.players[0], start: { x: 5, y: 10 } }),
   ];
   for (const edit of edits) history = applyEdit(history, edit);
+  const hq: Victory = { type: "destroyDefinitions", definitionIds: ["hq"] };
+  history = applyEdit(history, setVictory(history.document, hq));
 
   await storage.save("mine", serializeDocument(history.document));
   const reloaded = parseDocument((await storage.load("mine"))!);
@@ -68,5 +70,6 @@ test("build, save, reload, playtest, and return to editing with nothing lost", a
   expect(world.outcome).toEqual({ winnerId: "red" });
 
   expect(serializeDocument(history.document)).toBe(before);
-  expect(undo(history).document.victory).toEqual(base.victory);
+  expect(readVictory(history.document)).toEqual(hq);
+  expect(readVictory(undo(history).document)).toBeNull();
 });

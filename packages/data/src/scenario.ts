@@ -1,9 +1,17 @@
 import { z } from "zod";
+import {
+  idSchema,
+  pathSchema,
+  regionSchema,
+  timerSchema,
+  triggerSchema,
+  TRIGGERING,
+  variableSchema,
+  waypointSchema,
+  type Trigger,
+} from "./triggers.ts";
 
-export const FORMAT_VERSION = 1;
-
-/** Starts with a letter, so an id is never a special object key such as `__proto__`. */
-const idSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]*$/);
+export const FORMAT_VERSION = 2;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -48,7 +56,8 @@ export const playerSchema = z
   .object({
     id: idSchema,
     color: colorSchema,
-    controller: z.enum(["human", "ai"]),
+    /** Nobody commands a `none` player. Only triggers act for it. */
+    controller: z.enum(["human", "ai", "none"]),
     resources: z.number().nonnegative().default(0),
     /** Where this player's view begins. Defaults to something they own. */
     start: z.object({ x: z.number(), y: z.number() }).optional(),
@@ -74,14 +83,6 @@ export const placementSchema = z.object({
   y: z.number(),
 });
 
-/** A player who no longer meets the condition is defeated. The last one standing wins. */
-export const victorySchema = z.discriminatedUnion("type", [
-  /** Keep anything that has health. */
-  z.object({ type: z.literal("destroyAll") }),
-  /** Keep at least one entity of the listed definitions. */
-  z.object({ type: z.literal("destroyDefinitions"), definitionIds: z.array(idSchema).min(1) }),
-]);
-
 export const scenarioSchema = z
   .object({
     formatVersion: z.literal(FORMAT_VERSION),
@@ -89,7 +90,13 @@ export const scenarioSchema = z
     players: z.array(playerSchema),
     definitions: z.array(definitionSchema),
     placements: z.array(placementSchema),
-    victory: victorySchema,
+    variables: z.array(variableSchema).default([]),
+    timers: z.array(timerSchema).default([]),
+    regions: z.array(regionSchema).default([]),
+    waypoints: z.array(waypointSchema).default([]),
+    paths: z.array(pathSchema).default([]),
+    /** Scenario logic, including how the game is won and lost (C5, C6). */
+    triggers: z.array(triggerSchema).default([]),
   })
   .superRefine((scenario, ctx) => {
     const playerIds = uniqueIds(scenario.players, "players", ctx);
@@ -122,11 +129,6 @@ export const scenarioSchema = z
         requireDefinition(id, ["definitions", index, "builds", i]),
       );
     });
-    if (scenario.victory.type === "destroyDefinitions") {
-      scenario.victory.definitionIds.forEach((id, i) =>
-        requireDefinition(id, ["victory", "definitionIds", i]),
-      );
-    }
     scenario.placements.forEach((placement, index) => {
       const path = ["placements", index];
       if (placement.playerId !== null && !playerIds.has(placement.playerId)) {
@@ -139,7 +141,116 @@ export const scenarioSchema = z
       requireDefinition(placement.definitionId, [...path, "definitionId"]);
       requireInside(placement, "Placement", path);
     });
+
+    const requireIn = (ids: Set<string>, what: string) => (id: string, path: PropertyKey[]) => {
+      if (!ids.has(id)) ctx.addIssue({ code: "custom", message: `Unknown ${what} "${id}"`, path });
+    };
+    const refs: References = {
+      definition: requireDefinition,
+      player: requireIn(playerIds, "player"),
+      variable: requireIn(uniqueIds(scenario.variables, "variables", ctx), "variable"),
+      timer: requireIn(uniqueIds(scenario.timers, "timers", ctx), "timer"),
+      region: requireIn(uniqueIds(scenario.regions, "regions", ctx), "region"),
+      waypoint: requireIn(uniqueIds(scenario.waypoints, "waypoints", ctx), "waypoint"),
+      path: requireIn(uniqueIds(scenario.paths, "paths", ctx), "path"),
+    };
+    uniqueIds(scenario.triggers, "triggers", ctx);
+
+    scenario.regions.forEach((region, index) => {
+      const far = { x: region.x + region.width, y: region.y + region.height };
+      requireInside(region, "Region", ["regions", index]);
+      requireInside(far, "Region", ["regions", index]);
+    });
+    scenario.waypoints.forEach((waypoint, index) =>
+      requireInside(waypoint, "Waypoint", ["waypoints", index]),
+    );
+    scenario.paths.forEach((path, index) =>
+      path.waypoints.forEach((id, i) => refs.waypoint(id, ["paths", index, "waypoints", i])),
+    );
+    scenario.triggers.forEach((trigger, index) =>
+      checkTrigger(trigger, ["triggers", index], refs, ctx),
+    );
   });
+
+type Check = (id: string, path: PropertyKey[]) => void;
+
+interface References {
+  definition: Check;
+  player: Check;
+  variable: Check;
+  timer: Check;
+  region: Check;
+  waypoint: Check;
+  path: Check;
+}
+
+/** Reports every reference that names nothing, so an author gets each exact path to fix. */
+function checkTrigger(
+  trigger: Trigger,
+  at: PropertyKey[],
+  refs: References,
+  ctx: z.RefinementCtx,
+): void {
+  const { event } = trigger;
+  const hasTriggering = event.type === "died" || event.type === "entered";
+  const player = (id: string | null | undefined, path: PropertyKey[]) => {
+    if (id === null || id === undefined) return;
+    if (id !== TRIGGERING) refs.player(id, path);
+    else if (!hasTriggering) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Only died and entered events have a triggering entity`,
+        path,
+      });
+    }
+  };
+  const definitions = (ids: string[] | undefined, path: PropertyKey[]) =>
+    ids?.forEach((id, i) => refs.definition(id, [...path, i]));
+
+  const eventPath = [...at, "event"];
+  if (event.type === "timer") refs.timer(event.timer, [...eventPath, "timer"]);
+  if (event.type === "entered") refs.region(event.region, [...eventPath, "region"]);
+  if (event.type === "died" || event.type === "entered") {
+    player(event.playerId, [...eventPath, "playerId"]);
+    definitions(event.definitionIds, [...eventPath, "definitionIds"]);
+  }
+
+  trigger.conditions.forEach((condition, index) => {
+    const path = [...at, "conditions", index];
+    if (condition.type === "variable") refs.variable(condition.variable, [...path, "variable"]);
+    if (condition.type === "count") {
+      player(condition.playerId, [...path, "playerId"]);
+      definitions(condition.definitionIds, [...path, "definitionIds"]);
+    }
+  });
+
+  trigger.actions.forEach((action, index) => {
+    const path = [...at, "actions", index];
+    switch (action.type) {
+      case "setVariable":
+      case "addVariable":
+        refs.variable(action.variable, [...path, "variable"]);
+        break;
+      case "startTimer":
+        refs.timer(action.timer, [...path, "timer"]);
+        break;
+      case "spawn":
+        refs.definition(action.definitionId, [...path, "definitionId"]);
+        player(action.playerId, [...path, "playerId"]);
+        refs.waypoint(action.at, [...path, "at"]);
+        if (action.path !== undefined) refs.path(action.path, [...path, "path"]);
+        break;
+      case "remove":
+        player(action.entity, [...path, "entity"]);
+        break;
+      case "grantResources":
+      case "defeat":
+      case "win":
+        player(action.playerId, [...path, "playerId"]);
+        break;
+    }
+  });
+}
 
 function uniqueIds(
   items: readonly { id: string }[],
@@ -163,5 +274,4 @@ function uniqueIds(
 export type Definition = z.infer<typeof definitionSchema>;
 export type Player = z.infer<typeof playerSchema>;
 export type Placement = z.infer<typeof placementSchema>;
-export type Victory = z.infer<typeof victorySchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;

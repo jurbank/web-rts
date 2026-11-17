@@ -38,8 +38,13 @@ export function Hud({
   return (
     <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-white">
       <div className="flex items-start justify-between gap-2">
-        <div className="rounded-lg bg-slate-900/85 px-3 py-2 tabular-nums">
-          Resources {view.resources}
+        <div className="flex gap-3 rounded-lg bg-slate-900/85 px-3 py-2 tabular-nums">
+          <span>Resources {view.resources}</span>
+          {view.counters.map((counter) => (
+            <span key={counter.label}>
+              {counter.label} {counter.value}
+            </span>
+          ))}
         </div>
         {view.placing !== null && (
           <div className="flex items-center gap-2 rounded-lg bg-slate-900/85 py-1 pr-1 pl-3">

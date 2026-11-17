@@ -87,3 +87,27 @@ A player may carry a `start` point. The game centers that player's camera there 
 ## 2026-11-15 A new world has one entity per placement, in order
 
 The editor viewport draws a tick-zero world and maps each entity back to its placement by position. `createWorld` therefore guarantees one entity per placement in placement order, and a `sim` test holds it. When triggers spawn entities at tick zero or the editor needs to name a placement elsewhere, placements get stable ids and this goes away.
+
+## 2026-11-16 Format 2 moves victory into triggers
+
+`victory` is gone. A scenario carries `variables`, `timers`, `regions`, `waypoints`, `paths`, and `triggers`, all defaulting to empty. The migration from version 1 turns the old condition into one trigger with id `victory`: on a death, if the dead entity's owner has none of the listed definitions left (or nothing, for `destroyAll`), defeat them. The editor's victory control reads and writes that trigger and shows "Custom trigger" when it says anything else. A blank map keeps only that trigger, since others may name the old map's regions and waypoints. Two behaviors changed. `destroyAll` used to count only entities with health and now counts everything a player owns, so an owned entity that cannot be damaged keeps its owner in the game. And a player who starts with nothing is no longer defeated on the first tick, because no death fires the trigger.
+
+## 2026-11-16 How triggers run
+
+A trigger is one event, conditions that must all hold, and actions run in order. `sim` runs them after deaths are removed and before the end check. Events fire in a fixed order: start, deaths, region entries, timers, then the tick. Each event runs the matching triggers in scenario order, and later triggers see what earlier ones changed. `died` and `entered` events carry a triggering entity, which data names as `$triggering`. It cannot collide with an id, and validation rejects it on other events. Entities placed inside a region never entered it. `remove` is not a death, so it fires no `died` triggers. Every reference is validated with its exact path so an agent can fix it. Values are plain numbers. Expressions wait until a fixture needs them. The `tick` event is for checking conditions every tick and acting when they first hold. An action that repeats every tick happens at a rate set by the tick rate, which C7 forbids content to depend on, so repeating work uses a timer.
+
+## 2026-11-16 Triggers defeat players, `sim` ends the game
+
+`defeat` and `win` are actions. The rule that the game ends when one player is left standing, or none, stays in `sim` as a mechanism, and C6 now says so. `win` defeats everyone else and ends the game, which also covers a scenario with one player. A player with controller `none` has no ai, and `sim` drops commands from it. The app never seats the local player as a `none` player while another seat exists. Only triggers act for it, as the creeps do in tower defense.
+
+## 2026-11-16 Tower defense needs no wave mechanism
+
+Waves, spawning, leaks, bounties, lives, and survive-N-waves victory are all trigger data in the fixture: two repeating timers, three variables, a region, and a path. The only additions to `sim` are the `path` order that walks waypoints in sequence and the `none` controller. A wave spawner mechanism was considered and is not needed yet.
+
+## 2026-11-16 Labelled variables show in the HUD
+
+A variable may carry a `label`. The snapshot copies the variables, and the HUD shows each labelled one next to resources, in scenario order. That is enough for tower defense lives and waves. Richer HUD elements driven by data wait for auto chess. The field joins format 2 before any format 2 file has been saved, so it needs no version bump. The app draws a scenario's paths and regions over the ground in play and in the editor, and the editor also marks waypoints. They are overlays the app builds from the scenario (R1). Skirmish and tower defense ship as examples in the editor's Load menu and go through the same load as a saved file.
+
+## 2026-11-16 One operation shape for every list, and edits that would not load are refused
+
+Operations were one type per list and action. With definitions, waypoints, paths, and regions now editable, they are `add`, `remove`, and `set` on a named list, plus `batch`. E2 holds as before. Deleting or renaming can leave a reference that names nothing, and the editor view builds a world from the document on every change, so the app's session refuses any edit whose result fails the `data` schema and shows the schema's messages. That makes the schema the one place that knows what refers to what. Renaming a waypoint, path, or region rewrites the paths and triggers that name it. A definition's id cannot be edited, since its `name` is what people see. The renderer was built for a scenario whose definitions and players never change, so it now has `setContent`, which the editor view calls when either list changes. Editing a definition changes every placement of it, and per-instance overrides wait for a format change. The definition editor covers only fields that have survived two genres. Gathering fields and what the MOBA adds come later.
