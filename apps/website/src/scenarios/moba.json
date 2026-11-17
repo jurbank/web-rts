@@ -1,5 +1,5 @@
 {
-  "formatVersion": 7,
+  "formatVersion": 8,
   "map": { "width": 64, "height": 24 },
   "players": [
     { "id": "red", "color": "#e5484d", "controller": "human", "team": "west" },

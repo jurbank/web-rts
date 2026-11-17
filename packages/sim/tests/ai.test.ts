@@ -4,14 +4,21 @@ import { ids, skirmishWorld } from "./helpers.ts";
 
 const LIMIT = 20 * 60 * TICK_RATE;
 
-test("the ai gathers, builds a barracks, trains soldiers, and defeats an idle opponent", () => {
+test("the ai gathers, builds a barracks, trains soldiers, researches, and defeats an idle opponent", () => {
   const world = skirmishWorld({ ai: true });
   const seen = new Set<string>();
   while (world.outcome === null && world.tick < LIMIT) {
     for (const event of step(world)) seen.add(event.type);
   }
   expect(world.outcome).toEqual({ winningTeam: "blue" });
-  expect([...seen].sort()).toEqual(["completed", "defeated", "died", "ended", "produced"]);
+  expect([...seen].sort()).toEqual([
+    "completed",
+    "defeated",
+    "died",
+    "ended",
+    "produced",
+    "researched",
+  ]);
   expect(world.players.find((player) => player.id === "red")!.defeated).toBe(true);
   expect(world.entities.some((entity) => entity.id === ids.redHq)).toBe(false);
 });

@@ -11,7 +11,9 @@ export {
   type Modifier,
   type Placement,
   type Player,
+  type Requirement,
   type Scenario,
+  type Upgrade,
 } from "./scenario.ts";
 export {
   COMMAND_TYPES,

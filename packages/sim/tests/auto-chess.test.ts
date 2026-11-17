@@ -156,6 +156,7 @@ test("commands are refused during combat and allowed again in planning", () => {
     "build",
     "assist",
     "produce",
+    "research",
     "cast",
   ]);
   run(world, 1, [buy(world, "knight")]);

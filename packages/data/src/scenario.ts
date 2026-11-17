@@ -14,14 +14,53 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 7;
+export const FORMAT_VERSION = 8;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
-/** A change to one of an entity's numbers, added to what its definition says. */
+/**
+ * A change to one of an entity's numbers. Every `add` is summed onto what the
+ * definition says, and then every `multiply` scales the total.
+ */
 export const modifierSchema = z.object({
   stat: statSchema,
-  add: z.number(),
+  add: z.number().default(0),
+  multiply: positive.optional(),
+});
+
+/** Something a player must have before they can use what carries it. */
+export const requirementSchema = z.discriminatedUnion("type", [
+  /** The upgrade researched to at least `level`. */
+  z.object({
+    type: z.literal("upgrade"),
+    upgrade: idSchema,
+    level: z.int().positive().default(1),
+  }),
+  /** At least `count` finished entities of these definitions. */
+  z.object({
+    type: z.literal("owns"),
+    definitionIds: z.array(idSchema).min(1),
+    count: z.int().positive().default(1),
+  }),
+]);
+
+/**
+ * Researched by a player in a building, and applied to every entity of theirs
+ * it names, including ones made later. Each level applies the modifiers once more.
+ */
+export const upgradeSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1),
+  /** Paid for each level, when research starts. */
+  cost: z.number().nonnegative().default(0),
+  /** Seconds each level takes. */
+  researchTime: positive.default(1),
+  levels: z.int().positive().default(1),
+  /** The entities it changes: those of these definitions, or with any of these tags. */
+  definitionIds: z.array(idSchema).default([]),
+  tags: z.array(idSchema).default([]),
+  modifiers: z.array(modifierSchema).min(1),
+  requires: z.array(requirementSchema).default([]),
 });
 
 /** What an ability does to the entity it lands on. */
@@ -50,6 +89,7 @@ export const abilitySchema = z
     cost: z.number().nonnegative().default(0),
     /** Usable only while one of these, on the caster's team, is within `range`, edge to edge. */
     near: z.object({ definitionIds: z.array(idSchema).min(1), range: positive }).optional(),
+    requires: z.array(requirementSchema).default([]),
     effects: z.array(effectSchema).min(1),
   })
   .refine((ability) => ability.target !== "enemy" || ability.range !== undefined, {
@@ -67,6 +107,10 @@ export const definitionSchema = z.object({
   color: colorSchema.optional(),
   /** Absent means it cannot be damaged. */
   maxHealth: positive.optional(),
+  /** Taken off each weapon hit, down to half a point. Ability damage ignores it. */
+  armor: z.number().nonnegative().default(0),
+  /** Names that upgrades and requirements use to mean a kind of thing, such as `infantry`. */
+  tags: z.array(idSchema).default([]),
   /** Absent means it never moves and blocks movement. */
   speed: positive.optional(),
   weapon: z
@@ -92,6 +136,10 @@ export const definitionSchema = z.object({
   queueLimit: z.int().positive().default(5),
   /** Definitions this unit constructs. */
   builds: z.array(idSchema).default([]),
+  /** Upgrades this building researches. */
+  researches: z.array(idSchema).default([]),
+  /** What a player needs before they can train or build one. */
+  requires: z.array(requirementSchema).default([]),
   /** Experience its death gives each enemy that has levels and is near enough. */
   experience: z.number().nonnegative().default(0),
   /** Resources its death gives the enemy player who dealt the last damage. */
@@ -179,15 +227,48 @@ export const scenarioSchema = z
     triggers: z.array(triggerSchema).default([]),
     /** Limits on when players may give commands. */
     commandRules: z.array(commandRuleSchema).default([]),
+    upgrades: z.array(upgradeSchema).default([]),
   })
   .superRefine((scenario, ctx) => {
     const playerIds = uniqueIds(scenario.players, ["players"], ctx);
     const definitionIds = uniqueIds(scenario.definitions, ["definitions"], ctx);
+    const upgrades = new Map(scenario.upgrades.map((upgrade) => [upgrade.id, upgrade]));
+    uniqueIds(scenario.upgrades, ["upgrades"], ctx);
     const requireDefinition = (id: string, path: PropertyKey[]) => {
       if (!definitionIds.has(id)) {
         ctx.addIssue({ code: "custom", message: `Unknown definition "${id}"`, path });
       }
     };
+    const requireUpgrade = (id: string, path: PropertyKey[]) => {
+      if (!upgrades.has(id)) {
+        ctx.addIssue({ code: "custom", message: `Unknown upgrade "${id}"`, path });
+      }
+    };
+    const checkRequirements = (requires: Requirement[], path: PropertyKey[]) =>
+      requires.forEach((requirement, r) => {
+        const at = [...path, "requires", r];
+        if (requirement.type === "owns") {
+          requirement.definitionIds.forEach((id, i) =>
+            requireDefinition(id, [...at, "definitionIds", i]),
+          );
+          return;
+        }
+        const upgrade = upgrades.get(requirement.upgrade);
+        if (upgrade === undefined) requireUpgrade(requirement.upgrade, [...at, "upgrade"]);
+        else if (requirement.level > upgrade.levels) {
+          ctx.addIssue({
+            code: "custom",
+            message: `"${upgrade.id}" has only ${upgrade.levels} levels`,
+            path: [...at, "level"],
+          });
+        }
+      });
+    scenario.upgrades.forEach((upgrade, index) => {
+      upgrade.definitionIds.forEach((id, i) =>
+        requireDefinition(id, ["upgrades", index, "definitionIds", i]),
+      );
+      checkRequirements(upgrade.requires, ["upgrades", index]);
+    });
 
     const requireInside = (point: { x: number; y: number }, what: string, path: PropertyKey[]) => {
       const inside =
@@ -209,6 +290,13 @@ export const scenarioSchema = z
       );
       definition.builds.forEach((id, i) =>
         requireDefinition(id, ["definitions", index, "builds", i]),
+      );
+      definition.researches.forEach((id, i) =>
+        requireUpgrade(id, ["definitions", index, "researches", i]),
+      );
+      checkRequirements(definition.requires, ["definitions", index]);
+      definition.abilities.forEach((ability, a) =>
+        checkRequirements(ability.requires, ["definitions", index, "abilities", a]),
       );
       uniqueIds(definition.abilities, ["definitions", index, "abilities"], ctx);
       definition.abilities.forEach((ability, a) =>
@@ -405,6 +493,8 @@ function uniqueIds(
 }
 
 export type Modifier = z.infer<typeof modifierSchema>;
+export type Requirement = z.infer<typeof requirementSchema>;
+export type Upgrade = z.infer<typeof upgradeSchema>;
 export type Effect = z.infer<typeof effectSchema>;
 export type Ability = z.infer<typeof abilitySchema>;
 export type Definition = z.infer<typeof definitionSchema>;

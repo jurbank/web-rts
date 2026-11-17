@@ -1,9 +1,11 @@
-import type { Command } from "./commands.ts";
+import { researchedOrQueued, type Command } from "./commands.ts";
 import { canUseAbility, isEnemy, nearest } from "./systems.ts";
 import { distance } from "./world.ts";
 import {
   canPlace,
   definitionOf,
+  findUpgrade,
+  meetsRequirements,
   toTicks,
   type Entity,
   type PlayerState,
@@ -49,12 +51,39 @@ export function think(world: World, player: PlayerState): Command[] {
   let workers = 0;
   for (const entity of own) {
     if (isGatherer(entity.definitionId)) workers += 1;
-    workers += entity.queue.filter((item) => isGatherer(item.definitionId)).length;
+    workers += entity.queue.filter(
+      (item) => "definitionId" in item && isGatherer(item.definitionId),
+    ).length;
   }
+  const unlocked = (id: string) => meetsRequirements(world, player, world.definitions[id].requires);
+  // With an army in hand, idle buildings research before they train more.
+  const armed = own.filter(
+    (entity) => definition(entity).weapon !== undefined && definition(entity).speed !== undefined,
+  ).length;
   for (const building of own) {
     if (building.buildRemaining > 0 || building.queue.length > 0) continue;
-    const options = [...definition(building).produces];
-    for (const offer of building.offers) if (offer !== null) options.push(offer);
+    if (armed >= settings.attackSize) {
+      const upgrade = definition(building)
+        .researches.map((id) => findUpgrade(world, id)!)
+        .find(
+          (each) =>
+            each.cost <= budget &&
+            researchedOrQueued(world, player.id, each.id) < each.levels &&
+            meetsRequirements(world, player, each.requires),
+        );
+      if (upgrade !== undefined) {
+        budget -= upgrade.cost;
+        commands.push({
+          ...base,
+          type: "research",
+          buildingId: building.id,
+          upgradeId: upgrade.id,
+        });
+        continue;
+      }
+    }
+    const options = [...definition(building).produces].filter(unlocked);
+    for (const offer of building.offers) if (offer !== null && unlocked(offer)) options.push(offer);
     const choice =
       workers < settings.workers
         ? options.find(isGatherer)
@@ -70,7 +99,9 @@ export function think(world: World, player: PlayerState): Command[] {
   if (builder !== undefined && home !== undefined) {
     const wanted = definition(builder).builds.find(
       (id) =>
-        !own.some((entity) => entity.definitionId === id) && world.definitions[id].cost <= budget,
+        !own.some((entity) => entity.definitionId === id) &&
+        world.definitions[id].cost <= budget &&
+        unlocked(id),
     );
     const site = wanted === undefined ? undefined : findSite(world, home, wanted);
     if (wanted !== undefined && site !== undefined) {

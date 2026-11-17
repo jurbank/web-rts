@@ -234,3 +234,21 @@ Triggers and abilities reach experience as the StarCraft 2 editor's do, and thes
 - The definition panel edits a definition's experience, switches levels on and off, and edits credit, share range, thresholds, and the damage, health, and speed each level adds. A switched-on definition starts with three ranks of veterancy.
 
 Not built: names for ranks, healing at the top rank as Generals' heroic units do, starting at a rank from an upgrade or a building (waits for upgrades), split credit and assists, and modifiers that multiply.
+
+## 2026-11-17 Upgrades are research a player owns, with tags, modifiers, and requirements
+
+The StarCraft 2 shape from the milestone 7 entry, narrower: an upgrade changes stats through the modifiers `sim` already has, not any field of any definition. Format 8.
+
+- A scenario lists `upgrades`. Each has a name, a cost and research time for each level, a number of `levels`, the definitions or `tags` it applies to, `modifiers` applied once for each level, and `requires`. A player holds a level for every upgrade, in scenario order. `statOf` adds the owner's upgrades after levels and entity modifiers, so units made later have them too.
+- A building lists what it `researches`. The `research` command is a new command type. It pays when research starts, as training does, and waits in the building's production queue, one level per item. Levels waiting in any of the player's queues count toward the limit, so two buildings cannot research past it. A building that dies loses its research and the cost, as with training. Cancelling and refunds wait.
+- `requires` on a definition gates training and building it. On an ability it gates casting and is part of `abilityUsable`. On an upgrade it gates research. A requirement is an upgrade at a level, or a count of finished entities of some definitions. Each is checked where the command applies. Units already made stay when a requirement is lost. The snapshot gives each player's upgrade levels and `locked`, the definitions and upgrades whose requirements they do not meet, so every device greys the same buttons.
+- Definitions carry `tags` and `armor`. Modifiers can change `range`, `cooldown`, and `armor` as well as health, speed, and damage, and may `multiply` as well as add. Every add counts first, then every multiply. Armor comes off each weapon hit, down to half a point. Ability damage ignores it, as StarCraft 2 spells do. An entity looks for targets at least as far as its weapon reaches, so a range upgrade lengthens both.
+- The migration from version 7 adds `research` to a command rule that refused `produce`, since both spend at a building. `skirmish-v7.json` checks that a version 7 file loads to the same result.
+- The skirmish example makes workers and soldiers `infantry`, and the barracks researches Infantry Weapons (three levels of 2 damage) and Infantry Armor (two levels of 1 armor, after Weapons 1).
+- The ai, once it has as many armed units as its attack size, researches the first affordable upgrade it can at an idle building before training more. It skips units and buildings it cannot have yet. The HUD offers Research with the next level, says when an upgrade is done, and names research in a building's queue.
+
+Not built: editing upgrades in the editor, costs that rise with each level, starting at a veterancy rank from an upgrade, bonus damage against tags (counters), and `sight`, which arrives with fog. A Generals-style upgrade for one unit stays a costed ability with a lasting `modify`.
+
+Requirements and upgrades belong to one player, as in StarCraft 2, so an ally's barracks unlocks nothing. Shared tech would be an optional field on a requirement later, with no migration. A snapshot counts each player's finished entities once and checks every requirement against that count, so `locked` and `abilityUsable` cost one pass over the world, not one per entity.
+
+Left for the fog step: `locked` and `researched` events go only to their owner, since an `owns` requirement turns them into scouting. Whether other players' upgrade levels are public or shown only with a visible unit, as StarCraft 2 does, is decided there too. `statOf` checks every upgrade against an entity's definition on each call. Working that out once per definition when the world is made would keep results the same, and waits for a profile that shows the need.

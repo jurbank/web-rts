@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 7. Orders and veterancy are done. Upgrades are next. Milestone 6 is done, and the gaps its multiplayer audit found in the format and world state are settled. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 7. Orders, veterancy, and upgrades are done. Fog of war is next. Milestone 6 is done, and the gaps its multiplayer audit found in the format and world state are settled. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -74,7 +74,7 @@ The standard RTS controls and the systems that make a match about scouting and t
 
 - Orders. An entity holds a queue of orders instead of one. Every unit command may be queued. `attack` takes a target or a point, and a point is attack-move. `patrol`, `stop`, and `hold` are new commands. Auto-acquire puts an attack at the front of the queue, which replaces the attack order's `resume`. The app keeps control groups. Touch gets an attack mode, a sticky queue toggle, and control group buttons, so a phone player can do everything a keyboard player can. Done in format 6.
 - Veterancy. `levels` may give a kill's experience to the killer instead of everyone near. Done in format 7.
-- Upgrades. Definitions carry tags. More stats can be modified, at least weapon range, weapon cooldown, sight, and armor. A player researches upgrades in a production queue, and an upgrade's modifiers apply to every matching entity that player owns, including ones made later. Definitions, abilities, and upgrades may require upgrades or buildings, which gives a tech tree.
+- Upgrades. Definitions carry tags. More stats can be modified, at least weapon range, weapon cooldown, sight, and armor. A player researches upgrades in a production queue, and an upgrade's modifiers apply to every matching entity that player owns, including ones made later. Definitions, abilities, and upgrades may require upgrades or buildings, which gives a tech tree. Done in format 8, apart from sight, which arrives with fog.
 - Fog of war. A definition carries `sight`. `sim` keeps what each team sees and has explored, and remembers the buildings it last saw. Auto-acquire, attack orders, and the ai respect it. Triggers can reveal an area and ask whether something is visible. A snapshot is taken for one viewer and holds only what that viewer may know, including the fields of a visible enemy that only its owner should see, such as its queue, offers, route, and which abilities it can afford. A scenario turns fog on. Without it nothing changes.
 
 Done when the standard RTS fixture plays to a win or a loss with fog on, through a tech tree and an attack-moved army, every step works by touch, the other three fixtures still pass unchanged, and a test shows a viewer's snapshot holds nothing that viewer cannot see.

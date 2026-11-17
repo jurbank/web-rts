@@ -37,7 +37,13 @@ const migrations: Record<number, Migration> = {
   5: ({ commandRules, ...rest }) => ({
     ...rest,
     formatVersion: 6,
-    ...(Array.isArray(commandRules) ? { commandRules: commandRules.map(addMovingCommands) } : {}),
+    ...(Array.isArray(commandRules)
+      ? {
+          commandRules: commandRules.map((rule) =>
+            addCommands(rule, { move: ["patrol", "hold", "stop"], attack: ["patrol"] }),
+          ),
+        }
+      : {}),
   }),
   /**
    * Version 7 adds killer credit to levels, which is veterancy, a `leveled`
@@ -45,18 +51,34 @@ const migrations: Record<number, Migration> = {
    * Every addition is optional.
    */
   6: (document) => ({ ...document, formatVersion: 7 }),
+  /**
+   * Version 8 adds upgrades, research, requirements, tags, armor, more stats,
+   * and modifiers that multiply. A command rule that refused `produce` now
+   * refuses `research` too, since both spend at a building.
+   */
+  7: ({ commandRules, ...rest }) => ({
+    ...rest,
+    formatVersion: 8,
+    ...(Array.isArray(commandRules)
+      ? { commandRules: commandRules.map((rule) => addCommands(rule, { produce: ["research"] })) }
+      : {}),
+  }),
 };
 
-function addMovingCommands(rule: unknown): unknown {
+/**
+ * Adds command types to a command rule that refused others. For each type the
+ * rule lists, `additions` names the types it now refuses too.
+ */
+function addCommands(rule: unknown, additions: Record<string, string[]>): unknown {
   if (typeof rule !== "object" || rule === null) return rule;
   const { commands } = rule as { commands?: unknown };
   if (!Array.isArray(commands)) return rule;
-  const added = commands.includes("move")
-    ? ["patrol", "hold", "stop"]
-    : commands.includes("attack")
-      ? ["patrol"]
-      : [];
-  return { ...rule, commands: [...commands, ...added.filter((type) => !commands.includes(type))] };
+  const result = [...commands];
+  for (const listed of Object.keys(additions)) {
+    if (!commands.includes(listed)) continue;
+    for (const type of additions[listed]) if (!result.includes(type)) result.push(type);
+  }
+  return { ...rule, commands: result };
 }
 
 export function migrateScenario(raw: unknown): unknown {

@@ -1,4 +1,14 @@
-import type { CommandRule, Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
+import type {
+  CommandRule,
+  Definition,
+  Modifier,
+  Player,
+  Region,
+  Requirement,
+  Scenario,
+  Trigger,
+  Upgrade,
+} from "data";
 import { hashState } from "./hash.ts";
 import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
 
@@ -34,11 +44,10 @@ export type Order =
   /** Walks a scenario path. `next` indexes the waypoint it is heading for. */
   | { type: "path"; pathId: string; next: number };
 
-export interface QueueItem {
-  definitionId: string;
-  /** Ticks left. */
-  remaining: number;
-}
+/** A unit being trained, or the next level of an upgrade being researched. Ticks left. */
+export type QueueItem =
+  | { definitionId: string; remaining: number }
+  | { upgradeId: string; remaining: number };
 
 /** A modifier an ability left on an entity. */
 export interface ActiveModifier extends Modifier {
@@ -94,6 +103,8 @@ export interface PlayerState {
   resources: number;
   defeated: boolean;
   ai: NonNullable<Player["ai"]> | null;
+  /** The level researched of every upgrade, in scenario order. */
+  upgrades: Record<string, number>;
 }
 
 export interface TimerState {
@@ -116,6 +127,8 @@ export interface World {
   rngState: number;
   map: { width: number; height: number };
   definitions: Record<string, Definition>;
+  /** In scenario order, which is the order their modifiers apply in. */
+  upgrades: Upgrade[];
   players: PlayerState[];
   /** In id order. */
   entities: Entity[];
@@ -160,6 +173,7 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
     rngState: seedRandom(seed),
     map: { ...scenario.map },
     definitions,
+    upgrades: copy(scenario.upgrades),
     players: scenario.players.map((player) => ({
       id: player.id,
       controller:
@@ -170,6 +184,7 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
       resources: player.resources,
       defeated: false,
       ai: player.ai === undefined ? null : { ...player.ai },
+      upgrades: Object.fromEntries(scenario.upgrades.map((upgrade) => [upgrade.id, 0])),
     })),
     entities: [],
     nextEntityId: 1,
@@ -274,22 +289,109 @@ export function definitionOf(world: World, entity: Entity): Definition {
 }
 
 /**
- * One of an entity's numbers after its levels and modifiers. Undefined when
- * its definition does not have that number at all.
+ * One of an entity's numbers after its levels, modifiers, and its owner's
+ * upgrades. Every add counts first, then every multiply. Undefined when its
+ * definition does not have that number at all.
  */
 export function statOf(world: World, entity: Entity, stat: Modifier["stat"]): number | undefined {
   const definition = definitionOf(world, entity);
-  const base = stat === "damage" ? definition.weapon?.damage : definition[stat];
+  const base = baseStat(definition, stat);
   if (base === undefined) return undefined;
-  let value = base;
+  const total = { add: 0, multiply: 1 };
   for (const modifier of definition.levels?.perLevel ?? []) {
-    if (modifier.stat === stat) value += modifier.add * (entity.level - 1);
+    applyModifier(total, modifier, stat, entity.level - 1);
   }
-  for (const modifier of entity.modifiers) {
-    if (modifier.stat === stat) value += modifier.add;
+  for (const modifier of entity.modifiers) applyModifier(total, modifier, stat, 1);
+  if (world.upgrades.length > 0 && entity.playerId !== null) {
+    const owner = findPlayer(world, entity.playerId);
+    for (const upgrade of world.upgrades) {
+      const level = owner?.upgrades[upgrade.id] ?? 0;
+      if (level === 0 || !upgradeApplies(upgrade, definition)) continue;
+      for (const modifier of upgrade.modifiers) applyModifier(total, modifier, stat, level);
+    }
   }
   // Health is divided by its maximum, so that never reaches zero.
-  return Math.max(stat === "maxHealth" ? 1 : 0, value);
+  return Math.max(stat === "maxHealth" ? 1 : 0, (base + total.add) * total.multiply);
+}
+
+/** Counts a modifier `times` times into the running total, if it changes `stat`. */
+function applyModifier(
+  total: { add: number; multiply: number },
+  modifier: Modifier,
+  stat: Modifier["stat"],
+  times: number,
+): void {
+  if (modifier.stat !== stat) return;
+  for (let i = 0; i < times; i++) {
+    total.add += modifier.add;
+    if (modifier.multiply !== undefined) total.multiply *= modifier.multiply;
+  }
+}
+
+function baseStat(definition: Definition, stat: Modifier["stat"]): number | undefined {
+  switch (stat) {
+    case "damage":
+    case "range":
+    case "cooldown":
+      return definition.weapon?.[stat];
+    case "maxHealth":
+    case "speed":
+    case "armor":
+      return definition[stat];
+  }
+}
+
+/** Whether an upgrade changes entities of this definition. */
+export function upgradeApplies(upgrade: Upgrade, definition: Definition): boolean {
+  return (
+    upgrade.definitionIds.includes(definition.id) ||
+    upgrade.tags.some((tag) => definition.tags.includes(tag))
+  );
+}
+
+/** Finished entities by player, then by definition. Derived, so never part of world state. */
+export type Owned = Map<string, Map<string, number>>;
+
+/** One pass over the world, for checking many requirements at once. */
+export function countOwned(world: World): Owned {
+  const owned: Owned = new Map();
+  for (const entity of world.entities) {
+    if (entity.playerId === null || entity.buildRemaining > 0) continue;
+    let counts = owned.get(entity.playerId);
+    if (counts === undefined) {
+      counts = new Map();
+      owned.set(entity.playerId, counts);
+    }
+    counts.set(entity.definitionId, (counts.get(entity.definitionId) ?? 0) + 1);
+  }
+  return owned;
+}
+
+/**
+ * Whether a player has everything a list of requirements asks for. Pass
+ * `owned` when checking many lists in a row, so the world is counted once.
+ */
+export function meetsRequirements(
+  world: World,
+  player: PlayerState,
+  requires: readonly Requirement[],
+  owned?: Owned,
+): boolean {
+  let counts: Map<string, number> | undefined;
+  return requires.every((requirement) => {
+    if (requirement.type === "upgrade") {
+      return (player.upgrades[requirement.upgrade] ?? 0) >= requirement.level;
+    }
+    counts ??= (owned ?? countOwned(world)).get(player.id) ?? new Map();
+    let count = 0;
+    for (const id of requirement.definitionIds) count += counts.get(id) ?? 0;
+    return count >= requirement.count;
+  });
+}
+
+/** A scenario upgrade by an id that came from outside, such as a command. */
+export function findUpgrade(world: World, id: string): Upgrade | undefined {
+  return world.upgrades.find((upgrade) => upgrade.id === id);
 }
 
 /** The team an owner is on. Neutral entities are on no team. */

@@ -6,6 +6,7 @@ import {
   drawIndex,
   findEntity,
   findPlayer,
+  meetsRequirements,
   spawn,
   statOf,
   teamOf,
@@ -13,6 +14,7 @@ import {
   toTicks,
   type Entity,
   type Order,
+  type Owned,
   type PlayerState,
   type Point,
   type World,
@@ -23,12 +25,16 @@ export type SimEvent =
   | { type: "died"; id: number; definitionId: string; playerId: string | null }
   | { type: "completed"; id: number }
   | { type: "produced"; id: number; buildingId: number }
+  | { type: "researched"; playerId: string; upgradeId: string; level: number }
   | { type: "leveled"; id: number; level: number }
   | { type: "respawned"; id: number }
   /** `from` are the ids that became `id`. */
   | { type: "merged"; id: number; from: number[] }
   | { type: "defeated"; playerId: string }
   | { type: "ended"; winningTeam: string | null };
+
+/** The least a weapon hit deals, however much armor the target has. */
+const MIN_DAMAGE = 0.5;
 
 /** How close a unit must get to something it works on, beyond the two footprints. */
 const WORK_MARGIN = 1.5;
@@ -177,12 +183,12 @@ function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "
     target !== undefined &&
     order.acquired === true &&
     beneath !== undefined &&
-    distance(entity, target) - definitionOf(world, target).radius > sightOf(definition, holding);
+    distance(entity, target) - definitionOf(world, target).radius > sightOf(world, entity, holding);
   if (weapon === undefined || target === undefined || target.health === null || lost) {
     finishOrder(entity);
     return;
   }
-  const reach = weapon.range + definitionOf(world, target).radius;
+  const reach = (statOf(world, entity, "range") ?? 0) + definitionOf(world, target).radius;
   // Hits on one tick land together, so a target that died this tick still takes
   // a ready shot from a unit in reach, or one that gets there this tick.
   const dead = target.health <= 0;
@@ -199,9 +205,11 @@ function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "
     return;
   }
   if (entity.cooldown === 0) {
-    target.health -= statOf(world, entity, "damage") ?? 0;
+    const damage = statOf(world, entity, "damage") ?? 0;
+    const armor = statOf(world, target, "armor") ?? 0;
+    target.health -= damage > 0 ? Math.max(MIN_DAMAGE, damage - armor) : 0;
     recordHit(world, target, entity);
-    entity.cooldown = toTicks(weapon.cooldown);
+    entity.cooldown = toTicks(statOf(world, entity, "cooldown") ?? weapon.cooldown);
   }
 }
 
@@ -289,10 +297,10 @@ export function canUseAbility(world: World, entity: Entity, index: number): bool
 }
 
 /** `canUseAbility` for each of the entity's abilities, scanning once for each distinct `near`. */
-export function usableAbilities(world: World, entity: Entity): boolean[] {
+export function usableAbilities(world: World, entity: Entity, owned?: Owned): boolean[] {
   const nearby = new Map<string, boolean>();
   return definitionOf(world, entity).abilities.map((ability, index) => {
-    if (!isReadyAndPaid(world, entity, index)) return false;
+    if (!isReadyAndPaid(world, entity, index, owned)) return false;
     const { near } = ability;
     if (near === undefined) return true;
     const key = `${near.range} ${near.definitionIds.join(" ")}`;
@@ -305,13 +313,14 @@ export function usableAbilities(world: World, entity: Entity): boolean[] {
   });
 }
 
-function isReadyAndPaid(world: World, entity: Entity, index: number): boolean {
+function isReadyAndPaid(world: World, entity: Entity, index: number, owned?: Owned): boolean {
   const ability = definitionOf(world, entity).abilities[index];
   if (entity.buildRemaining > 0) return false;
   if (entity.abilityCooldowns[index] > 0 || entity.level < ability.level) return false;
-  if (ability.cost === 0) return true;
+  if (ability.cost === 0 && ability.requires.length === 0) return true;
   const owner = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
-  return owner !== undefined && owner.resources >= ability.cost;
+  if (owner === undefined || owner.resources < ability.cost) return false;
+  return meetsRequirements(world, owner, ability.requires, owned);
 }
 
 /** Uses an ability `canUseAbility` allows, on the caster itself or on `target`, and pays for it. */
@@ -441,12 +450,18 @@ function runBuild(world: World, entity: Entity, buildingId: number, events: SimE
   }
 }
 
-/** How far an armed entity looks for a target. One holding its position looks only as far as it shoots. */
-function sightOf(definition: Definition, holding = false): number {
+/**
+ * How far an armed entity looks for a target: its acquire range, or its weapon
+ * range when that is longer. One holding its position, or one that cannot
+ * move, looks only as far as it shoots.
+ */
+function sightOf(world: World, entity: Entity, holding = false): number {
+  const definition = definitionOf(world, entity);
   const { weapon } = definition;
   if (weapon === undefined) return 0;
-  if (holding || definition.speed === undefined) return weapon.range;
-  return weapon.acquireRange ?? weapon.range;
+  const range = statOf(world, entity, "range") ?? weapon.range;
+  if (holding || definition.speed === undefined) return range;
+  return Math.max(weapon.acquireRange ?? range, range);
 }
 
 /** Orders under which an armed entity picks its own targets. */
@@ -460,7 +475,7 @@ function acquireTarget(world: World, entity: Entity, definition: Definition): vo
   if (definition.weapon === undefined || entity.buildRemaining > 0) return;
   const current = entity.orders[0];
   if (current !== undefined && !ACQUIRING.has(current.type)) return;
-  const sight = sightOf(definition, current?.type === "hold");
+  const sight = sightOf(world, entity, current?.type === "hold");
   const target = nearest(
     world,
     entity,
@@ -574,6 +589,14 @@ export function runProduction(world: World, events: SimEvent[]): void {
     item.remaining -= 1;
     if (item.remaining > 0) continue;
     building.queue.shift();
+    if ("upgradeId" in item) {
+      const player = building.playerId === null ? undefined : findPlayer(world, building.playerId);
+      if (player === undefined) continue;
+      const level = (player.upgrades[item.upgradeId] ?? 0) + 1;
+      player.upgrades[item.upgradeId] = level;
+      events.push({ type: "researched", playerId: player.id, upgradeId: item.upgradeId, level });
+      continue;
+    }
     const at = exitPoint(world, building, world.definitions[item.definitionId]);
     const unit = spawn(world, item.definitionId, building.playerId, at.x, at.y);
     events.push({ type: "produced", id: unit.id, buildingId: building.id });

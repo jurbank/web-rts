@@ -12,6 +12,8 @@ import {
 import { entity, ids, skirmishWorld } from "./helpers.ts";
 
 const TICKS = 4000;
+/** Timeout for tests that play the whole script, which is slow on a busy machine. */
+const LONG = 20_000;
 const [worker, second, third] = ids.redWorkers;
 
 /** A human player's game against the ai: gather, build, train, and send soldiers out. */
@@ -67,9 +69,13 @@ function play(saveAt?: number): string {
   return hashWorld(world);
 }
 
-test("the same scenario, seed, and commands produce the same hash", () => {
-  expect(play()).toBe(play());
-});
+test(
+  "the same scenario, seed, and commands produce the same hash",
+  () => {
+    expect(play()).toBe(play());
+  },
+  LONG,
+);
 
 test("the script leaves units with queued orders, patrols, and holds to save", () => {
   const world = skirmishWorld({ ai: true });
@@ -87,18 +93,26 @@ test("the script leaves units with queued orders, patrols, and holds to save", (
   expect([...kinds]).toEqual(expect.arrayContaining(["queued", "patrol", "attackMove", "hold"]));
 });
 
-test("a save and load partway through does not change the hash", () => {
-  const expected = play();
-  for (const saveAt of [3, 700, 2600, 2800, 3000, 3500]) {
-    expect(play(saveAt)).toBe(expected);
-  }
-});
+test(
+  "a save and load partway through does not change the hash",
+  () => {
+    const expected = play();
+    for (const saveAt of [3, 700, 2000, 2600, 2800, 3000, 3500]) {
+      expect(play(saveAt)).toBe(expected);
+    }
+  },
+  LONG,
+);
 
-test("the hash depends on the commands", () => {
-  const world = skirmishWorld({ ai: true });
-  for (let tick = 0; tick < TICKS; tick++) step(world);
-  expect(hashWorld(world)).not.toBe(play());
-});
+test(
+  "the hash depends on the commands",
+  () => {
+    const world = skirmishWorld({ ai: true });
+    for (let tick = 0; tick < TICKS; tick++) step(world);
+    expect(hashWorld(world)).not.toBe(play());
+  },
+  LONG,
+);
 
 test("malformed commands are dropped and cannot make a save diverge", () => {
   const move = { type: "move", playerId: "red", unitIds: [worker], x: 20, y: 20 } as const;

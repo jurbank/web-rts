@@ -40,7 +40,7 @@ test("a selected building offers what it trains and shows its queue", () => {
   expect(hud.resources).toBe(100);
   expect(hud.selection).toBe("Headquarters · 1500/1500");
   expect(hud.actions).toEqual([
-    { kind: "produce", definitionId: "worker", label: "Worker", cost: 50, enabled: true },
+    { kind: "produce", id: "worker", label: "Worker", cost: 50, enabled: true },
   ]);
   expect(hud.queue).toEqual([
     { label: "Worker", percent: 50 },
@@ -57,11 +57,11 @@ test("selected builders offer what they build, disabled when it costs too much",
     definitionId: "worker",
   };
   expect(view([2, 3]).actions).toEqual([
-    { kind: "build", definitionId: "barracks", label: "Barracks", cost: 150, enabled: true },
+    { kind: "build", id: "barracks", label: "Barracks", cost: 150, enabled: true },
   ]);
   expect(view([2, 3], [produce, produce])).toMatchObject({
     selection: "2 units",
-    actions: [{ definitionId: "barracks", enabled: false }],
+    actions: [{ id: "barracks", enabled: false }],
   });
 });
 

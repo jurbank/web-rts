@@ -7,6 +7,8 @@ import {
   findDefinition,
   findEntity,
   findPlayer,
+  findUpgrade,
+  meetsRequirements,
   spawn,
   toTicks,
   TICK_RATE,
@@ -91,6 +93,13 @@ export interface ProduceCommand extends CommandBase {
   slot?: number;
 }
 
+/** Researches the next level of an upgrade in a building that researches it. */
+export interface ResearchCommand extends CommandBase {
+  type: "research";
+  buildingId: number;
+  upgradeId: string;
+}
+
 /** Uses one of a unit's abilities. One that targets an enemy needs `targetId`. */
 export interface CastCommand extends CommandBase {
   type: "cast";
@@ -117,7 +126,8 @@ export type OrderCommand =
   | GatherCommand
   | BuildCommand
   | AssistCommand
-  | ProduceCommand;
+  | ProduceCommand
+  | ResearchCommand;
 
 /** About the player's place in the match, not the game in it. Command rules never refuse them. */
 export type SessionCommand = ConcedeCommand;
@@ -155,7 +165,7 @@ const isFinite = (value: unknown): value is number => Number.isFinite(value);
 export function normalizeCommand(input: Command): Command | null {
   const raw = input as unknown as Record<string, unknown>;
   const { playerId, tick, unitIds, x, y, targetId, nodeId, buildingId, definitionId } = raw;
-  const { unitId, abilityId, slot, queued } = raw;
+  const { unitId, abilityId, slot, queued, upgradeId } = raw;
   if (!isText(playerId) || !isId(tick)) return null;
   if (queued !== undefined && typeof queued !== "boolean") return null;
   const base = { playerId, tick: tick + 0 };
@@ -212,6 +222,9 @@ export function normalizeCommand(input: Command): Command | null {
       if (targetId !== undefined) cast.targetId = targetId + 0;
       return cast;
     }
+    case "research":
+      if (!isId(buildingId) || !isText(upgradeId)) return null;
+      return { ...base, type: "research", buildingId: buildingId + 0, upgradeId };
     case "concede":
       return { ...base, type: "concede" };
     default:
@@ -407,6 +420,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
         definitionOf(world, unit).builds.includes(definition.id),
       );
       if (builders.length === 0 || player.resources < definition.cost) return;
+      if (!meetsRequirements(world, player, definition.requires)) return;
       if (!canPlace(world, definition, command.x, command.y)) return;
       player.resources -= definition.cost;
       const building = spawn(world, definition.id, player.id, command.x, command.y);
@@ -462,6 +476,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       if (!trained && building.offers[slot] !== definition.id) return;
       const { queueLimit } = definitionOf(world, building);
       if (building.queue.length >= queueLimit || player.resources < definition.cost) return;
+      if (!meetsRequirements(world, player, definition.requires)) return;
       player.resources -= definition.cost;
       if (!trained) building.offers[slot] = null;
       building.queue.push({
@@ -470,7 +485,32 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       });
       return;
     }
+    case "research": {
+      const building = findEntity(world, command.buildingId);
+      const upgrade = findUpgrade(world, command.upgradeId);
+      if (building === undefined || upgrade === undefined) return;
+      if (building.playerId !== player.id || building.buildRemaining > 0) return;
+      const { researches, queueLimit } = definitionOf(world, building);
+      if (!researches.includes(upgrade.id) || building.queue.length >= queueLimit) return;
+      if (researchedOrQueued(world, player.id, upgrade.id) >= upgrade.levels) return;
+      if (player.resources < upgrade.cost) return;
+      if (!meetsRequirements(world, player, upgrade.requires)) return;
+      player.resources -= upgrade.cost;
+      building.queue.push({ upgradeId: upgrade.id, remaining: toTicks(upgrade.researchTime) });
+      return;
+    }
   }
+}
+
+/** Levels of an upgrade a player has, plus those waiting in any of their buildings' queues. */
+export function researchedOrQueued(world: World, playerId: string, upgradeId: string): number {
+  let levels = findPlayer(world, playerId)?.upgrades[upgradeId] ?? 0;
+  for (const entity of world.entities) {
+    if (entity.playerId !== playerId) continue;
+    for (const item of entity.queue)
+      if ("upgradeId" in item && item.upgradeId === upgradeId) levels += 1;
+  }
+  return levels;
 }
 
 /** Adding zero turns -0 into 0, which JSON would otherwise do on save. */

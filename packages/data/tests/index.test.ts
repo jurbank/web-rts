@@ -4,6 +4,7 @@ import mobaV3 from "./fixtures/moba-v3.json" with { type: "json" };
 import mobaV4 from "./fixtures/moba-v4.json" with { type: "json" };
 import autoChessV5 from "./fixtures/auto-chess-v5.json" with { type: "json" };
 import skirmishV6 from "./fixtures/skirmish-v6.json" with { type: "json" };
+import skirmishV7 from "./fixtures/skirmish-v7.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
@@ -123,9 +124,10 @@ test("format 6 adds the new movement commands to rules that kept units still", (
     { conditions },
   ];
   expect(loadScenario(v5).commandRules.map((rule) => rule.commands)).toEqual([
-    ["move", "produce", "patrol", "hold", "stop"],
+    // Format 8 then adds research wherever produce was refused.
+    ["move", "produce", "patrol", "hold", "stop", "research"],
     ["attack", "patrol"],
-    ["produce"],
+    ["produce", "research"],
     undefined,
   ]);
 });
@@ -156,6 +158,35 @@ test("a level-up names its entity, and granting experience names what it selects
     },
   ];
   expect(issues(scenario)).toEqual(['Unknown definition "dragon"']);
+});
+
+test("format 7 loads unchanged", () => {
+  const v7 = JSON.parse(JSON.stringify(skirmishV7));
+  expect(loadScenario(v7)).toEqual(loadScenario({ ...v7, formatVersion: FORMAT_VERSION }));
+});
+
+test("research and requirements name upgrades and definitions that exist", () => {
+  const scenario = fixture();
+  scenario.upgrades = [
+    {
+      id: "weapons",
+      name: "Weapons",
+      levels: 2,
+      definitionIds: ["dragon"],
+      modifiers: [{ stat: "damage", add: 1 }],
+    },
+  ];
+  scenario.definitions[0].researches = ["weapons", "shields"];
+  scenario.definitions[0].requires = [
+    { type: "upgrade", upgrade: "weapons", level: 3 },
+    { type: "owns", definitionIds: ["wyrm"] },
+  ];
+  expect(issues(scenario)).toEqual([
+    'Unknown definition "dragon"',
+    'Unknown upgrade "shields"',
+    '"weapons" has only 2 levels',
+    'Unknown definition "wyrm"',
+  ]);
 });
 
 test("offers and merging name definitions", () => {

@@ -4,6 +4,8 @@ import { useHud } from "./store.ts";
 
 const GROUP_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+const ACTION_VERBS = { produce: "Train", build: "Build", research: "Research" };
+
 const OUTCOMES = {
   won: "Victory",
   lost: "Defeat",
@@ -206,15 +208,17 @@ export function Hud({
             ))}
             {view.actions.map((action) => (
               <Button
-                key={action.kind + action.definitionId}
+                key={action.kind + action.id}
                 disabled={!action.enabled}
                 onClick={() =>
                   action.kind === "produce"
-                    ? game.current?.produce(action.definitionId)
-                    : game.current?.beginPlacement(action.definitionId)
+                    ? game.current?.produce(action.id)
+                    : action.kind === "research"
+                      ? game.current?.research(action.id)
+                      : game.current?.beginPlacement(action.id)
                 }
               >
-                {action.kind === "produce" ? "Train" : "Build"} {action.label} ({action.cost})
+                {ACTION_VERBS[action.kind]} {action.label} ({action.cost})
               </Button>
             ))}
           </div>

@@ -2,8 +2,9 @@ import type { CommandType, Definition, Scenario } from "data";
 import type { EntitySnapshot, Snapshot } from "sim";
 
 export interface HudAction {
-  kind: "produce" | "build";
-  definitionId: string;
+  kind: "produce" | "build" | "research";
+  /** A definition id, or an upgrade id for research. */
+  id: string;
   label: string;
   cost: number;
   enabled: boolean;
@@ -117,7 +118,9 @@ export function buildHudView(input: HudInput): HudView {
   );
   const definitionOf = (entity: EntitySnapshot) => definitions.get(entity.definitionId)!;
   const name = (id: string) => definitions.get(id)?.name ?? id;
-  const resources = snapshot.players.find((player) => player.id === localPlayerId)?.resources ?? 0;
+  const local = snapshot.players.find((player) => player.id === localPlayerId);
+  const resources = local?.resources ?? 0;
+  const isLocked = (id: string) => local?.locked.includes(id) ?? true;
   const selected = snapshot.entities.filter((entity) => input.selectedIds.includes(entity.id));
   const refused = (type: CommandType) => snapshot.refusedCommands.includes(type);
   const affordable = (id: string) => (definitions.get(id)?.cost ?? 0) <= resources;
@@ -125,10 +128,29 @@ export function buildHudView(input: HudInput): HudView {
     const cost = definitions.get(id)?.cost ?? 0;
     return {
       kind,
-      definitionId: id,
+      id,
       label: name(id),
       cost,
-      enabled: affordable(id) && !refused(kind),
+      enabled: affordable(id) && !isLocked(id) && !refused(kind),
+    };
+  };
+  /** The next level of an upgrade, counting levels waiting in the player's queues. */
+  const research = (id: string): HudAction => {
+    const upgrade = scenario.upgrades.find((each) => each.id === id)!;
+    let next = (local?.upgrades[id] ?? 0) + 1;
+    for (const entity of snapshot.entities) {
+      if (entity.playerId !== localPlayerId) continue;
+      next += entity.queue.filter((item) => item.upgradeId === id).length;
+    }
+    const done = next > upgrade.levels;
+    return {
+      kind: "research",
+      id,
+      label: done
+        ? `${upgrade.name} (done)`
+        : `${upgrade.name}${upgrade.levels > 1 ? ` ${next}` : ""}`,
+      cost: upgrade.cost,
+      enabled: !done && upgrade.cost <= resources && !isLocked(id) && !refused("research"),
     };
   };
   const store = snapshot.entities.find(
@@ -142,6 +164,9 @@ export function buildHudView(input: HudInput): HudView {
   if (actions.length === 0) {
     const buildable = new Set(selected.flatMap((entity) => definitionOf(entity).builds));
     actions = [...buildable].map((id) => action("build", id));
+  }
+  if (producer !== undefined && producer.playerId === localPlayerId) {
+    actions.push(...definitionOf(producer).researches.map(research));
   }
 
   const caster =
@@ -162,7 +187,6 @@ export function buildHudView(input: HudInput): HudView {
           ],
     );
   const abilities = caster === null ? [] : abilitiesOf(caster);
-  const local = snapshot.players.find((player) => player.id === localPlayerId);
 
   const movers = selected.filter(
     (entity) => entity.playerId === localPlayerId && definitionOf(entity).speed !== undefined,
@@ -206,7 +230,11 @@ export function buildHudView(input: HudInput): HudView {
     actions,
     abilities,
     queue: (producer?.queue ?? []).map((item) => ({
-      label: name(item.definitionId),
+      label:
+        item.upgradeId === undefined
+          ? name(item.definitionId!)
+          : (scenario.upgrades.find((upgrade) => upgrade.id === item.upgradeId)?.name ??
+            item.upgradeId),
       percent: Math.floor(item.progress * 20) * 5,
     })),
     orders:

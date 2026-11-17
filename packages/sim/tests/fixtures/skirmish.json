@@ -1,5 +1,5 @@
 {
-  "formatVersion": 7,
+  "formatVersion": 8,
   "map": {
     "width": 64,
     "height": 48
@@ -35,7 +35,8 @@
       },
       "builds": ["barracks"],
       "cost": 50,
-      "buildTime": 4
+      "buildTime": 4,
+      "tags": ["infantry"]
     },
     {
       "id": "soldier",
@@ -50,7 +51,8 @@
         "acquireRange": 9
       },
       "cost": 80,
-      "buildTime": 5
+      "buildTime": 5,
+      "tags": ["infantry"]
     },
     {
       "id": "hq",
@@ -67,7 +69,8 @@
       "maxHealth": 400,
       "cost": 150,
       "buildTime": 10,
-      "produces": ["soldier"]
+      "produces": ["soldier"],
+      "researches": ["weapons", "plating"]
     },
     {
       "id": "ore",
@@ -205,6 +208,46 @@
         {
           "type": "defeat",
           "playerId": "$triggering"
+        }
+      ]
+    }
+  ],
+  "upgrades": [
+    {
+      "id": "weapons",
+      "name": "Infantry Weapons",
+      "cost": 100,
+      "researchTime": 20,
+      "levels": 3,
+      "tags": ["infantry"],
+      "modifiers": [
+        {
+          "stat": "damage",
+          "add": 2
+        },
+        {
+          "stat": "cooldown",
+          "multiply": 0.9
+        }
+      ]
+    },
+    {
+      "id": "plating",
+      "name": "Infantry Armor",
+      "cost": 100,
+      "researchTime": 20,
+      "levels": 2,
+      "tags": ["infantry"],
+      "modifiers": [
+        {
+          "stat": "armor",
+          "add": 1
+        }
+      ],
+      "requires": [
+        {
+          "type": "upgrade",
+          "upgrade": "weapons"
         }
       ]
     }

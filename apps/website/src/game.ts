@@ -17,6 +17,8 @@ export interface GameElements {
 /** What the HUD can ask of a running game. */
 export interface Game {
   produce(definitionId: string): void;
+  /** Researches the next level of an upgrade in the one selected building. */
+  research(upgradeId: string): void;
   /** Buys the offer in a shop's slot, whatever is selected. */
   buy(buildingId: number, slot: number, definitionId: string): void;
   /** Uses an ability of an entity that needs no target, whatever is selected. */
@@ -310,6 +312,10 @@ export function createGame(
       const [building] = selected();
       if (building !== undefined)
         submit({ type: "produce", buildingId: building.id, definitionId });
+    },
+    research(upgradeId) {
+      const [building] = selected();
+      if (building !== undefined) submit({ type: "research", buildingId: building.id, upgradeId });
     },
     buy(buildingId, slot, definitionId) {
       submit({ type: "produce", buildingId, definitionId, slot });

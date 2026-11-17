@@ -1,0 +1,230 @@
+{
+  "formatVersion": 7,
+  "map": {
+    "width": 64,
+    "height": 48
+  },
+  "players": [
+    {
+      "id": "red",
+      "color": "#e5484d",
+      "controller": "human",
+      "resources": 200
+    },
+    {
+      "id": "blue",
+      "color": "#3e63dd",
+      "controller": "ai",
+      "resources": 200,
+      "ai": {
+        "workers": 5,
+        "attackSize": 5
+      }
+    }
+  ],
+  "definitions": [
+    {
+      "id": "worker",
+      "name": "Worker",
+      "radius": 0.5,
+      "maxHealth": 40,
+      "speed": 4,
+      "gatherer": {
+        "capacity": 10,
+        "gatherTime": 2
+      },
+      "builds": ["barracks"],
+      "cost": 50,
+      "buildTime": 4,
+      "experience": 10
+    },
+    {
+      "id": "soldier",
+      "name": "Soldier",
+      "radius": 0.6,
+      "maxHealth": 80,
+      "speed": 4.5,
+      "weapon": {
+        "damage": 8,
+        "range": 5,
+        "cooldown": 0.8,
+        "acquireRange": 9
+      },
+      "cost": 80,
+      "buildTime": 5,
+      "experience": 20,
+      "levels": {
+        "thresholds": [40, 80, 160],
+        "credit": "killer",
+        "perLevel": [
+          {
+            "stat": "damage",
+            "add": 2
+          },
+          {
+            "stat": "maxHealth",
+            "add": 15
+          }
+        ]
+      }
+    },
+    {
+      "id": "hq",
+      "name": "Headquarters",
+      "radius": 2.5,
+      "maxHealth": 1500,
+      "dropOff": true,
+      "produces": ["worker"],
+      "experience": 100
+    },
+    {
+      "id": "barracks",
+      "name": "Barracks",
+      "radius": 2,
+      "maxHealth": 400,
+      "cost": 150,
+      "buildTime": 10,
+      "produces": ["soldier"],
+      "experience": 40
+    },
+    {
+      "id": "ore",
+      "name": "Ore",
+      "radius": 1.2,
+      "color": "#d9a514",
+      "resource": {
+        "amount": 1500
+      }
+    },
+    {
+      "id": "rock",
+      "name": "Rock",
+      "radius": 1.5,
+      "color": "#6b7280"
+    }
+  ],
+  "placements": [
+    {
+      "definitionId": "hq",
+      "playerId": "red",
+      "x": 8,
+      "y": 24
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "red",
+      "x": 12,
+      "y": 22
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "red",
+      "x": 12,
+      "y": 24
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "red",
+      "x": 12,
+      "y": 26
+    },
+    {
+      "definitionId": "ore",
+      "x": 8,
+      "y": 14
+    },
+    {
+      "definitionId": "ore",
+      "x": 14,
+      "y": 34
+    },
+    {
+      "definitionId": "hq",
+      "playerId": "blue",
+      "x": 56,
+      "y": 24
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "blue",
+      "x": 52,
+      "y": 22
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "blue",
+      "x": 52,
+      "y": 24
+    },
+    {
+      "definitionId": "worker",
+      "playerId": "blue",
+      "x": 52,
+      "y": 26
+    },
+    {
+      "definitionId": "ore",
+      "x": 56,
+      "y": 34
+    },
+    {
+      "definitionId": "ore",
+      "x": 50,
+      "y": 14
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 16
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 19
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 22
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 26
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 29
+    },
+    {
+      "definitionId": "rock",
+      "x": 32,
+      "y": 32
+    }
+  ],
+  "triggers": [
+    {
+      "id": "victory",
+      "event": {
+        "type": "died",
+        "definitionIds": ["hq"]
+      },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "$triggering",
+          "definitionIds": ["hq"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "defeat",
+          "playerId": "$triggering"
+        }
+      ]
+    }
+  ]
+}

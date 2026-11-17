@@ -15,8 +15,8 @@ const triggeringSchema = z.literal(TRIGGERING);
 const playerRefSchema = z.union([idSchema, triggeringSchema]);
 const compareSchema = z.enum(["==", "!=", "<", "<=", ">", ">="]);
 
-/** The numbers a modifier can change. */
-export const statSchema = z.enum(["maxHealth", "speed", "damage"]);
+/** The numbers a modifier can change. `range`, `cooldown`, and `damage` are the weapon's. */
+export const statSchema = z.enum(["maxHealth", "speed", "damage", "range", "cooldown", "armor"]);
 
 /** The entities an action works on: those matching every field given. */
 const selectionShape = {
@@ -175,6 +175,7 @@ export const COMMAND_TYPES = [
   "build",
   "assist",
   "produce",
+  "research",
   "cast",
 ] as const;
 
