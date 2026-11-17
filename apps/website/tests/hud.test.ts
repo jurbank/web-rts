@@ -116,10 +116,31 @@ test("a selected hero shows its level and what it can cast", () => {
   });
   expect(hud.selection).toBe("Hero · level 1 · 300/300");
   expect(hud.abilities).toEqual([
-    { id: "bolt", label: "Bolt", seconds: 3, locked: null },
-    { id: "sprint", label: "Sprint", seconds: 0, locked: 2 },
+    { id: "bolt", label: "Bolt", seconds: 3, locked: null, cost: 0, enabled: false },
+    { id: "sprint", label: "Sprint", seconds: 0, locked: 2, cost: 0, enabled: false },
+    { id: "blade", label: "Blade", seconds: 0, locked: null, cost: 150, enabled: false },
+    { id: "boots", label: "Boots", seconds: 0, locked: null, cost: 100, enabled: false },
   ]);
   expect(hud.targeting).toBe("bolt");
+});
+
+test("a purchase is enabled only when the hero can pay and stands by its shop", () => {
+  const scenario = loadScenario(moba);
+  const world = createWorld(scenario, 1);
+  world.players[0].resources = 120;
+  const enabled = () =>
+    buildHudView({
+      scenario,
+      snapshot: takeSnapshot(world),
+      localPlayerId: "red",
+      selectedIds: [1],
+      placingId: null,
+      targetingId: null,
+      notice: null,
+    }).abilities.map((ability) => ability.enabled);
+  expect(enabled()).toEqual([true, false, false, true]);
+  world.entities[0].x = 20;
+  expect(enabled()).toEqual([true, false, false, false]);
 });
 
 test("a teammate's win is a win", () => {

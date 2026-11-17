@@ -201,3 +201,112 @@ test("a dead hero comes back at home with its id and level", () => {
   expect(world.entities.map((candidate) => candidate.id)).toEqual([RED_HERO, BLUE_HERO]);
   expect(entity(world, BLUE_HERO)).toMatchObject({ x: 20, y: 12, level: 3, health: 420 });
 });
+
+const SHOP_RANGE_X = 20;
+
+/** Both heroes at home beside their shops, with no waves, no income, and nobody deciding for blue. */
+function shopWorld(): World {
+  return mobaWorld((raw) => {
+    passiveBlue(raw);
+    raw.triggers = raw.triggers.filter((trigger: Raw) => trigger.id.endsWith("Falls"));
+  });
+}
+
+test("a purchase needs the money and the shop, and lasts through respawn", () => {
+  const world = shopWorld();
+  const hero = entity(world, RED_HERO);
+  const red = world.players[0];
+  run(world, 1, [cast("blade")]);
+  expect(hero.modifiers).toEqual([]);
+
+  red.resources = 200;
+  run(world, 1, [{ ...cast("blade"), tick: world.tick }]);
+  expect(hero.modifiers).toEqual([{ stat: "damage", add: 8, remaining: null }]);
+  expect(red.resources).toBe(50);
+  expect(takeSnapshot(world).entities[0].abilityUsable).toEqual([true, false, false, false]);
+
+  red.resources = 200;
+  hero.x = SHOP_RANGE_X;
+  run(world, TICK_RATE, [{ ...cast("blade"), tick: world.tick }]);
+  expect(hero.modifiers).toHaveLength(1);
+  expect(red.resources).toBe(200);
+
+  hero.health = 0;
+  run(world, 10 * TICK_RATE + 1);
+  expect(entity(world, RED_HERO)).toMatchObject({
+    x: 8,
+    modifiers: [{ stat: "damage", add: 8, remaining: null }],
+  });
+});
+
+test("a cast that reaches its target without the money ends", () => {
+  const world = mobaWorld((raw) => {
+    raw.definitions[0].abilities[0].cost = 50;
+    raw.players[1].controller = "human";
+    raw.placements = [
+      { definitionId: "hero", playerId: "red", x: 10, y: 12 },
+      { definitionId: "hero", playerId: "blue", x: 20, y: 12 },
+    ];
+    raw.triggers = [];
+  });
+  world.players[0].resources = 50;
+  run(world, 1, [cast("bolt", BLUE_HERO)]);
+  expect(entity(world, RED_HERO).order).toMatchObject({ type: "cast" });
+  world.players[0].resources = 0;
+  run(world, 2 * TICK_RATE);
+  expect(entity(world, RED_HERO).abilityCooldowns[0]).toBe(0);
+  expect(entity(world, BLUE_HERO).health).toBeGreaterThan(230);
+});
+
+test("a death pays its bounty to the enemy who dealt the last damage", () => {
+  const world = duel();
+  entity(world, BLUE_HERO).health = 10;
+  const events = run(world, 3 * TICK_RATE, [
+    { type: "attack", playerId: "red", tick: 0, unitIds: [RED_HERO], targetId: BLUE_HERO },
+  ]);
+  expect(events).toContainEqual(expect.objectContaining({ type: "died", id: BLUE_HERO }));
+  expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);
+
+  const red = entity(world, RED_HERO);
+  red.lastHit = { tick: world.tick, playerIds: ["redBase"] };
+  red.health = 0;
+  step(world);
+  expect(world.players.map((player) => player.resources)).toEqual([100, 0, 0, 0]);
+});
+
+test("a kill two players land on one tick goes to either by a seeded draw, not by seat", () => {
+  const winners = new Set<string>();
+  for (let seed = 1; seed <= 20; seed++) {
+    const raw: Raw = JSON.parse(JSON.stringify(moba));
+    raw.players[1].controller = "human";
+    raw.players.push({ id: "green", color: "#30a46c", controller: "human", team: "south" });
+    raw.placements = [
+      { definitionId: "hero", playerId: "red", x: 17, y: 12 },
+      // Just out of reach, so blue fires on arriving, after red's shot has killed.
+      { definitionId: "hero", playerId: "blue", x: 24.5, y: 12 },
+      { definitionId: "creep", playerId: "green", x: 20, y: 12 },
+    ];
+    raw.triggers = [];
+    const world = createWorld(loadScenario(raw), seed);
+    entity(world, 3).health = 10;
+    const events = step(world, [
+      { type: "attack", playerId: "red", tick: 0, unitIds: [RED_HERO], targetId: 3 },
+      { type: "attack", playerId: "blue", tick: 0, unitIds: [BLUE_HERO], targetId: 3 },
+    ]);
+    expect(events).toContainEqual(expect.objectContaining({ type: "died", id: 3 }));
+    expect(entity(world, RED_HERO).cooldown).toBeGreaterThan(0);
+    expect(entity(world, BLUE_HERO).cooldown).toBeGreaterThan(0);
+    const paid = world.players.filter((player) => player.resources === 15);
+    expect(paid).toHaveLength(1);
+    winners.add(paid[0].id);
+  }
+  expect([...winners].sort()).toEqual(["blue", "red"]);
+});
+
+test("the ai buys at its shop", () => {
+  const world = mobaWorld();
+  world.players[1].resources = 150;
+  step(world);
+  expect(entity(world, BLUE_HERO).modifiers).toEqual([{ stat: "damage", add: 8, remaining: null }]);
+  expect(world.players[1].resources).toBe(0);
+});

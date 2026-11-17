@@ -1,3 +1,4 @@
+import { usableAbilities } from "./systems.ts";
 import {
   definitionOf,
   statOf,
@@ -20,6 +21,8 @@ export interface EntitySnapshot {
   readonly level: number;
   /** Seconds until each ability is ready, in the definition's ability order. */
   readonly abilityCooldowns: readonly number[];
+  /** Whether `sim` would take each ability now, apart from its target. */
+  readonly abilityUsable: readonly boolean[];
   /** Construction progress from 0 to 1. */
   readonly built: number;
   readonly carrying: number;
@@ -62,6 +65,7 @@ export function takeSnapshot(world: World): Snapshot {
         maxHealth: statOf(world, entity, "maxHealth") ?? null,
         level: entity.level,
         abilityCooldowns: entity.abilityCooldowns.map((ticks) => ticks * TICK_SECONDS),
+        abilityUsable: usableAbilities(world, entity),
         built: 1 - entity.buildRemaining / toTicks(definitionOf(world, entity).buildTime),
         carrying: entity.carrying,
         amount: entity.amount,

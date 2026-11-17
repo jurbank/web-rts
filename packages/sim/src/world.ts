@@ -1,7 +1,7 @@
 import type { Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
 import type { Command } from "./commands.ts";
 import { hashState } from "./hash.ts";
-import { seedRandom } from "./rng.ts";
+import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
 
 export const TICK_RATE = 30;
 
@@ -31,8 +31,8 @@ export interface QueueItem {
 
 /** A modifier an ability left on an entity. */
 export interface ActiveModifier extends Modifier {
-  /** Ticks left. */
-  remaining: number;
+  /** Ticks left, or null for one that lasts for life and through respawn. */
+  remaining: number | null;
 }
 
 export interface Entity extends Point {
@@ -65,6 +65,8 @@ export interface Entity extends Point {
   modifiers: ActiveModifier[];
   /** Ticks until each ability is ready, in the definition's ability order. */
   abilityCooldowns: number[];
+  /** The players whose entities damaged it on the last tick anything did. Null for a neutral one. */
+  lastHit: { tick: number; playerIds: (string | null)[] } | null;
 }
 
 export interface PlayerState {
@@ -212,6 +214,7 @@ export function spawn(
     experience: 0,
     modifiers: [],
     abilityCooldowns: definition.abilities.map(() => 0),
+    lastHit: null,
   };
   world.nextEntityId += 1;
   world.entities.push(entity);
@@ -263,6 +266,12 @@ export function teamOf(world: World, playerId: string | null): string | null {
 
 export function findPlayer(world: World, id: string): PlayerState | undefined {
   return world.players.find((player) => player.id === id);
+}
+
+/** A whole number below `count` from the world's seeded generator. */
+export function drawIndex(world: World, count: number): number {
+  world.rngState = nextRandomState(world.rngState);
+  return Math.floor(randomUnit(world.rngState) * count);
 }
 
 /** Converts a duration from scenario data to whole ticks (C7). */

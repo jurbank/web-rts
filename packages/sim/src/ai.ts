@@ -1,5 +1,5 @@
 import type { Command } from "./commands.ts";
-import { isEnemy, nearest } from "./systems.ts";
+import { canUseAbility, isEnemy, nearest } from "./systems.ts";
 import { distance } from "./world.ts";
 import {
   canPlace,
@@ -95,12 +95,13 @@ export function think(world: World, player: PlayerState): Command[] {
   for (const unit of own) {
     const { abilities, radius } = definition(unit);
     if (unit.order?.type === "cast") continue;
-    // The first ability that is ready and has a use right now.
+    // The first ability that is usable and has a use right now. One with a cost is a purchase.
     for (const [index, ability] of abilities.entries()) {
-      if (unit.abilityCooldowns[index] > 0 || unit.level < ability.level) continue;
+      if (!canUseAbility(world, unit, index) || ability.cost > budget) continue;
       const cast = { ...base, type: "cast" as const, unitId: unit.id, abilityId: ability.id };
       if (ability.target === "self") {
-        if (unit.order?.type !== "attack") continue;
+        if (ability.cost === 0 && unit.order?.type !== "attack") continue;
+        budget -= ability.cost;
         commands.push(cast);
         break;
       }
@@ -112,6 +113,7 @@ export function think(world: World, player: PlayerState): Command[] {
           isEnemy(world, unit, other) && distance(unit, other) - definition(other).radius <= reach,
       );
       if (target === undefined) continue;
+      budget -= ability.cost;
       commands.push({ ...cast, targetId: target.id });
       break;
     }

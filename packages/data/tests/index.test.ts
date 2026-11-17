@@ -1,5 +1,6 @@
 import { expect, test } from "vite-plus/test";
 import { FORMAT_VERSION, loadScenario, scenarioSchema } from "../src/index.ts";
+import mobaV3 from "./fixtures/moba-v3.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
@@ -92,6 +93,30 @@ test("format 1 migrates its victory condition into a trigger", () => {
 
 test("format 2 loads unchanged", () => {
   expect(loadScenario(JSON.parse(JSON.stringify(skirmishV2)))).toEqual(loadScenario(fixture()));
+});
+
+test("format 3 loads unchanged", () => {
+  const v3 = JSON.parse(JSON.stringify(mobaV3));
+  expect(loadScenario(v3)).toEqual(loadScenario({ ...v3, formatVersion: FORMAT_VERSION }));
+});
+
+test("bounty, ability cost, and near default off, and near names definitions", () => {
+  const scenario = fixture();
+  const buy = {
+    id: "buy",
+    name: "Buy",
+    cooldown: 1,
+    target: "self",
+    effects: [{ type: "modify", stat: "damage", add: 2 }],
+  };
+  scenario.definitions[0].abilities = [buy];
+  const loaded = loadScenario(scenario);
+  expect(loaded.definitions[0].bounty).toBe(0);
+  expect(loaded.definitions[0].abilities[0].cost).toBe(0);
+  expect(loaded.definitions[0].abilities[0].near).toBeUndefined();
+
+  scenario.definitions[0].abilities = [{ ...buy, near: { definitionIds: ["shop"], range: 3 } }];
+  expect(issues(scenario)).toEqual(['Unknown definition "shop"']);
 });
 
 test("abilities need unique ids, and a range to target an enemy", () => {

@@ -16,6 +16,10 @@ test("a seed fixes the sequence", () => {
   expect(sequence(43, 100)).not.toEqual(sequence(42, 100));
 });
 
+test("small seeds do not start on small values", () => {
+  for (let seed = 1; seed <= 20; seed++) expect(sequence(seed, 1)[0]).toBeGreaterThan(0.01);
+});
+
 test("values stay in [0, 1) and a zero seed still produces a sequence", () => {
   const values = sequence(0, 1000);
   expect(values.every((value) => value >= 0 && value < 1)).toBe(true);

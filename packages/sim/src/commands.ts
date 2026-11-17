@@ -1,4 +1,4 @@
-import { isEnemy, useAbility } from "./systems.ts";
+import { canUseAbility, isEnemy, useAbility } from "./systems.ts";
 import {
   canPlace,
   definitionOf,
@@ -242,9 +242,8 @@ export function applyCommand(world: World, command: Command): void {
       if (unit === undefined || unit.playerId !== player.id || unit.buildRemaining > 0) return;
       const { abilities } = definitionOf(world, unit);
       const index = abilities.findIndex((ability) => ability.id === command.abilityId);
-      if (index < 0 || unit.abilityCooldowns[index] > 0) return;
+      if (index < 0 || !canUseAbility(world, unit, index)) return;
       const ability = abilities[index];
-      if (unit.level < ability.level) return;
       if (ability.target === "self") {
         useAbility(world, unit, index, unit);
         return;

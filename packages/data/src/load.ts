@@ -25,6 +25,8 @@ const migrations: Record<number, Migration> = {
   },
   /** Version 3 adds teams, levels, abilities, and respawn. Every addition is optional. */
   2: (document) => ({ ...document, formatVersion: 3 }),
+  /** Version 4 adds bounties, ability costs, lasting modifiers, and `near`. Every addition is optional. */
+  3: (document) => ({ ...document, formatVersion: 4 }),
 };
 
 export function migrateScenario(raw: unknown): unknown {
