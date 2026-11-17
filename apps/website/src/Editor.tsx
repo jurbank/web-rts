@@ -6,6 +6,7 @@ import {
   freshId,
   parseDocument,
   readVictory,
+  removeItem,
   serializeDocument,
   setItem,
   setVictory,
@@ -14,7 +15,7 @@ import {
 } from "editor";
 import { useEffect, useState } from "react";
 import { DefinitionPanel } from "./DefinitionPanel.tsx";
-import { FIELD, Panel, type Edit } from "./editorFields.tsx";
+import { FIELD, Panel, TextField, type Edit } from "./editorFields.tsx";
 import { createEditorView } from "./editorView.ts";
 import { examples } from "./examples.ts";
 import { GuidesPanel } from "./GuidesPanel.tsx";
@@ -28,6 +29,21 @@ const storage = createLocalStorage(localStorage);
 
 /** What a player gets when switched to ai, until the editor can edit these. */
 const DEFAULT_AI = { workers: 5, attackSize: 5 };
+/** Colors a new player takes, the first one nobody has yet. Enough for twelve seats. */
+const PLAYER_COLORS = [
+  "#e5484d",
+  "#3e63dd",
+  "#30a46c",
+  "#f76b15",
+  "#8e4ec6",
+  "#ffc53d",
+  "#12a594",
+  "#d6409f",
+  "#8d8d8d",
+  "#0090ff",
+  "#a18072",
+  "#bdee63",
+];
 const NEUTRAL = "-";
 const MIXED = "?";
 
@@ -136,6 +152,45 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
 
   function setPlayer(index: number, player: Player): void {
     edit(setItem("players", index, player));
+  }
+
+  /** Switching to the ai gives it settings. Other seats keep whatever they had. */
+  function setController(index: number, controller: Player["controller"]): void {
+    const player = { ...document.players[index], controller };
+    if (controller === "ai") player.ai ??= DEFAULT_AI;
+    setPlayer(index, player);
+  }
+
+  /** A human seat with ai settings gets the ai when no person takes it. */
+  function setFill(index: number, fill: boolean): void {
+    const player = { ...document.players[index] };
+    if (fill) player.ai ??= DEFAULT_AI;
+    else delete player.ai;
+    setPlayer(index, player);
+  }
+
+  function setTeam(index: number, team: string): void {
+    const player = { ...document.players[index] };
+    if (team === "") delete player.team;
+    else player.team = team;
+    setPlayer(index, player);
+  }
+
+  function addPlayer(): void {
+    const taken = new Set(document.players.map((player) => player.color.toLowerCase()));
+    const player: Player = {
+      id: freshId(document.players, "player"),
+      color: PLAYER_COLORS.find((color) => !taken.has(color)) ?? PLAYER_COLORS[0],
+      controller: "ai",
+      resources: 0,
+      ai: DEFAULT_AI,
+    };
+    edit(addItem("players", document.players.length, player));
+  }
+
+  /** Refused while anything still names the player, such as a placement or a trigger. */
+  function removePlayer(index: number): void {
+    if (edit(removeItem("players", index))) useEditor.setState({ tool: SELECT });
   }
 
   function chooseVictory(victory: Victory | null): void {
@@ -301,35 +356,58 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
             )}
             <Panel title="Players">
               {document.players.map((player, index) => (
-                <div key={player.id} className="flex items-center gap-1">
-                  <span className="size-3 rounded-full" style={{ background: player.color }} />
-                  <span className="flex-1 truncate">{player.id}</span>
-                  <select
-                    aria-label={`${player.id} controller`}
-                    className={FIELD}
-                    value={player.controller}
-                    onChange={(event) =>
-                      setPlayer(index, {
-                        ...player,
-                        controller: event.target.value as Player["controller"],
-                        ai: player.ai ?? DEFAULT_AI,
-                      })
-                    }
-                  >
-                    <option value="human">Human</option>
-                    <option value="ai">AI</option>
-                    <option value="none">Nobody</option>
-                  </select>
-                  <Button
-                    pressed={tool.kind === "start" && tool.playerId === player.id}
-                    onClick={() =>
-                      useEditor.setState({ tool: { kind: "start", playerId: player.id } })
-                    }
-                  >
-                    Start
-                  </Button>
+                <div key={player.id} className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1">
+                    <span className="size-3 rounded-full" style={{ background: player.color }} />
+                    <span className="flex-1 truncate">{player.id}</span>
+                    <Button
+                      disabled={document.players.length === 1}
+                      onClick={() => removePlayer(index)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <select
+                      aria-label={`${player.id} controller`}
+                      className={`${FIELD} flex-1`}
+                      value={player.controller}
+                      onChange={(event) =>
+                        setController(index, event.target.value as Player["controller"])
+                      }
+                    >
+                      <option value="human">Human</option>
+                      <option value="ai">AI</option>
+                      <option value="none">Nobody</option>
+                    </select>
+                    <Button
+                      pressed={tool.kind === "start" && tool.playerId === player.id}
+                      onClick={() =>
+                        useEditor.setState({ tool: { kind: "start", playerId: player.id } })
+                      }
+                    >
+                      Start
+                    </Button>
+                  </div>
+                  <TextField
+                    label="Team"
+                    value={player.team ?? ""}
+                    placeholder="Own team"
+                    onCommit={(team) => setTeam(index, team)}
+                  />
+                  {player.controller === "human" && (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={player.ai !== undefined}
+                        onChange={(event) => setFill(index, event.target.checked)}
+                      />
+                      AI plays if nobody takes it
+                    </label>
+                  )}
                 </div>
               ))}
+              <Button onClick={addPlayer}>Add player</Button>
             </Panel>
             <Panel title="Victory">
               <select

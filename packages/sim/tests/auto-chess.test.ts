@@ -69,7 +69,7 @@ const PLANNING = 20 * TICK_RATE;
 
 test("a player who buys nothing forfeits each round when combat starts", () => {
   const { world, events } = play(() => []);
-  expect(world.outcome).toEqual({ winnerId: "blue" });
+  expect(world.outcome).toEqual({ winningTeam: "blue" });
   expect(world.variables).toMatchObject({ round: 3, redLives: 0, blueLives: 3 });
   expect(events.some((event) => event.type === "died")).toBe(false);
   expect(world.tick).toBe(3 * PLANNING + 1);
@@ -77,7 +77,7 @@ test("a player who buys nothing forfeits each round when combat starts", () => {
 
 test("a player who keeps buying beats the ai, merging units on the way", () => {
   const { world, events } = play(buyer);
-  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(world.outcome).toEqual({ winningTeam: "red" });
   expect(world.variables).toMatchObject({ redLives: 3, blueLives: 0 });
   expect(events.some((event) => event.type === "died")).toBe(true);
   expect(events.filter((event) => event.type === "merged").length).toBeGreaterThan(0);

@@ -67,10 +67,10 @@ test("selected builders offer what they build, disabled when it costs too much",
 
 test("the outcome is reported from the local player's side", () => {
   const snapshot = takeSnapshot(createWorld(scenario, 1));
-  const outcome = (winnerId: string | null) =>
+  const outcome = (winningTeam: string | null) =>
     buildHudView({
       scenario,
-      snapshot: { ...snapshot, outcome: { winnerId } },
+      snapshot: { ...snapshot, outcome: { winningTeam } },
       localPlayerId: "red",
       selectedIds: [],
       placingId: null,
@@ -78,6 +78,29 @@ test("the outcome is reported from the local player's side", () => {
       notice: null,
     }).outcome;
   expect([outcome("red"), outcome("blue"), outcome(null)]).toEqual(["won", "lost", "draw"]);
+});
+
+test("a player out of a game that goes on is told whether their team plays on", () => {
+  const outcomeAfterRedConcedes = (extra: Record<string, unknown>) => {
+    const scenario = loadScenario({
+      ...moba,
+      players: [...moba.players, { color: "#30a46c", controller: "human", ...extra }],
+    });
+    const world = createWorld(scenario, 1);
+    step(world, [{ type: "concede", playerId: "red", tick: 0 }]);
+    expect(world.outcome).toBeNull();
+    return buildHudView({
+      scenario,
+      snapshot: takeSnapshot(world),
+      localPlayerId: "red",
+      selectedIds: [],
+      placingId: null,
+      targetingId: null,
+      notice: null,
+    }).outcome;
+  };
+  expect(outcomeAfterRedConcedes({ id: "green", team: "west" })).toBe("defeated");
+  expect(outcomeAfterRedConcedes({ id: "gold" })).toBe("out");
 });
 
 test("labelled scenario variables show as counters", () => {
@@ -151,14 +174,14 @@ test("a teammate's win is a win", () => {
   step(world);
   const hud = buildHudView({
     scenario,
-    snapshot: { ...takeSnapshot(world), outcome: { winnerId: "redBase" } },
+    snapshot: takeSnapshot(world),
     localPlayerId: "red",
     selectedIds: [],
     placingId: null,
     targetingId: null,
     notice: null,
   });
-  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(world.outcome).toEqual({ winningTeam: "west" });
   expect(hud.outcome).toBe("won");
 });
 

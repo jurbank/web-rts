@@ -27,7 +27,7 @@ export type SimEvent =
   /** `from` are the ids that became `id`. */
   | { type: "merged"; id: number; from: number[] }
   | { type: "defeated"; playerId: string }
-  | { type: "ended"; winnerId: string | null };
+  | { type: "ended"; winningTeam: string | null };
 
 /** How close a unit must get to something it works on, beyond the two footprints. */
 const WORK_MARGIN = 1.5;
@@ -687,21 +687,32 @@ export function defeatPlayer(world: World, playerId: string, events: SimEvent[])
   events.push({ type: "defeated", playerId });
 }
 
-export function endGame(world: World, winnerId: string | null, events: SimEvent[]): void {
+export function endGame(world: World, winningTeam: string | null, events: SimEvent[]): void {
   if (world.outcome !== null) return;
-  world.outcome = { winnerId };
-  events.push({ type: "ended", winnerId });
+  world.outcome = { winningTeam };
+  events.push({ type: "ended", winningTeam });
 }
 
 /**
- * Triggers decide who is defeated. The game ends when one team is left
- * standing, or when nobody is. The winner is the first player standing.
+ * Triggers and concessions decide who is defeated. The game ends when one
+ * team is left standing, which wins, or when nobody is.
  */
 export function checkEnd(world: World, events: SimEvent[]): void {
   const { players } = world;
+  // A team whose people and ai are all out is out, even with an unmanned base
+  // left. A team of `none` seats alone, such as creeps, stays.
+  for (const player of players) {
+    if (player.controller !== "none" || player.defeated) continue;
+    const seated = players.filter(
+      (other) => other.team === player.team && other.controller !== "none",
+    );
+    if (seated.length > 0 && seated.every((other) => other.defeated)) {
+      defeatPlayer(world, player.id, events);
+    }
+  }
   const standing = players.filter((player) => !player.defeated);
   const teams = (list: PlayerState[]) => new Set(list.map((player) => player.team)).size;
   if (standing.length === 0 ? players.length > 0 : teams(players) > 1 && teams(standing) === 1) {
-    endGame(world, standing[0]?.id ?? null, events);
+    endGame(world, standing[0]?.team ?? null, events);
   }
 }

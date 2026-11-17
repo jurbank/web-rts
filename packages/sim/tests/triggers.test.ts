@@ -44,7 +44,7 @@ test("the fixture's victory trigger defeats a player who loses their last hq", (
   expect(step(world)).toEqual([
     { type: "died", id: ids.blueHq, definitionId: "hq", playerId: "blue" },
     { type: "defeated", playerId: "blue" },
-    { type: "ended", winnerId: "red" },
+    { type: "ended", winningTeam: "red" },
   ]);
   expect(step(world)).toEqual([]);
   expect(world.tick).toBe(1);
@@ -62,7 +62,7 @@ test("without a definition filter, anything a player still owns keeps them in th
   expect(world.outcome).toBeNull();
   for (const id of ids.blueWorkers) kill(world, id);
   step(world);
-  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(world.outcome).toEqual({ winningTeam: "red" });
 });
 
 test("win defeats everyone else and ends the game", () => {
@@ -75,7 +75,7 @@ test("win defeats everyone else and ends the game", () => {
   });
   expect(step(world)).toEqual([
     { type: "defeated", playerId: "red" },
-    { type: "ended", winnerId: "foe" },
+    { type: "ended", winningTeam: "foe" },
   ]);
 });
 
@@ -170,7 +170,7 @@ test("a died event names the dead entity's owner", () => {
   expect(step(world)).toEqual([
     { type: "died", id: 2, definitionId: "runner", playerId: "foe" },
     { type: "defeated", playerId: "foe" },
-    { type: "ended", winnerId: "red" },
+    { type: "ended", winningTeam: "red" },
   ]);
 });
 

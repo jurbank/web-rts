@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createGame, type Game, type GameElements } from "./game.ts";
 import { emptyHudView } from "./hud.ts";
 import { Hud } from "./Hud.tsx";
+import { seatOnePerson } from "./seating.ts";
 import { useHud } from "./store.ts";
 import { Viewport } from "./Viewport.tsx";
 
@@ -14,7 +15,11 @@ export function Play({ scenario, onExit }: { scenario: Scenario; onExit: () => v
 
   const mount = useCallback(
     (elements: GameElements) => {
-      const created = createGame(scenario, elements, (view) => useHud.setState({ view }));
+      const created = createGame(scenario, elements, (view) => useHud.setState({ view }), {
+        ...seatOnePerson(scenario),
+        // A new draw for each game, so shops and other rolls differ between playtests.
+        seed: Math.floor(Math.random() * 0x7fffffff),
+      });
       created.setDebug(useHud.getState().debug);
       game.current = created;
       return () => {

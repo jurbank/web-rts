@@ -1,5 +1,5 @@
 import { expect, test } from "vite-plus/test";
-import { takeSnapshot, TICK_RATE } from "../src/index.ts";
+import { createCommandQueue, step, takeSnapshot, TICK_RATE } from "../src/index.ts";
 import { entity, ids, run, skirmishWorld } from "./helpers.ts";
 
 const [worker, second, third] = ids.redWorkers;
@@ -15,11 +15,13 @@ test("a unit travels at its definition's speed and stops at its target", () => {
   expect(unit).toMatchObject({ x: 24, y: 6, order: null, path: [] });
 });
 
-test("a command waits for its tick", () => {
+test("a queued command waits for its tick", () => {
   const world = skirmishWorld();
-  run(world, 10, [{ type: "move", playerId: "red", tick: 10, unitIds: [worker], x: 24, y: 22 }]);
+  const queue = createCommandQueue();
+  queue.add({ type: "move", playerId: "red", tick: 10, unitIds: [worker], x: 24, y: 22 }, 0);
+  for (let tick = 0; tick < 10; tick++) step(world, queue.take(world.tick));
   expect(entity(world, worker).x).toBe(12);
-  run(world, 1);
+  step(world, queue.take(world.tick));
   expect(entity(world, worker).x).toBeGreaterThan(12);
 });
 

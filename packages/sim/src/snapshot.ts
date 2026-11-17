@@ -49,7 +49,7 @@ export interface Snapshot {
   /** In id order. */
   readonly entities: readonly EntitySnapshot[];
   readonly players: readonly PlayerSnapshot[];
-  readonly outcome: { readonly winnerId: string | null } | null;
+  readonly outcome: { readonly winningTeam: string | null } | null;
   readonly variables: Readonly<Record<string, number>>;
   /** Seconds until each timer fires, or null when it is stopped. */
   readonly timers: Readonly<Record<string, number | null>>;
@@ -92,7 +92,7 @@ export function takeSnapshot(world: World): Snapshot {
       resources: player.resources,
       defeated: player.defeated,
     })),
-    outcome: world.outcome === null ? null : { winnerId: world.outcome.winnerId },
+    outcome: world.outcome === null ? null : { winningTeam: world.outcome.winningTeam },
     variables: { ...world.variables },
     timers: Object.fromEntries(
       world.timers.map((timer) => [

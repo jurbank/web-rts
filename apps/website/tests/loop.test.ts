@@ -37,3 +37,16 @@ test("a submitted command runs on the next step", () => {
   game.advance(1 / TICK_RATE);
   expect(game.current.entities[1].x).toBeGreaterThan(unit.x);
 });
+
+test("a command for a later tick waits for it, and a late one is refused", () => {
+  const game = loop();
+  const unit = game.current.entities[1];
+  const move = (tick: number) =>
+    game.submit({ type: "move", playerId: "red", tick, unitIds: [unit.id], x: 30, y: unit.y });
+  expect(move(game.tick + 2)).toBe(true);
+  game.advance(2 / TICK_RATE);
+  expect(game.current.entities[1].x).toBe(unit.x);
+  game.advance(1 / TICK_RATE);
+  expect(game.current.entities[1].x).toBeGreaterThan(unit.x);
+  expect(move(game.tick - 1)).toBe(false);
+});

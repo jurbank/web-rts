@@ -1,8 +1,14 @@
-import type { ReactNode, RefObject } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import type { Game } from "./game.ts";
 import { useHud } from "./store.ts";
 
-const OUTCOMES = { won: "Victory", lost: "Defeat", draw: "Draw" };
+const OUTCOMES = {
+  won: "Victory",
+  lost: "Defeat",
+  draw: "Draw",
+  defeated: "Defeated. Your team plays on",
+  out: "Defeated. The game goes on",
+};
 
 export function Button(props: {
   onClick: () => void;
@@ -35,6 +41,8 @@ export function Hud({
   const view = useHud((state) => state.view);
   const debug = useHud((state) => state.debug);
   const targeting = view.abilities.find((ability) => ability.id === view.targeting);
+  /** Conceding cannot be undone and costs teammates a player, so it takes a second tap. */
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-white">
@@ -145,6 +153,22 @@ export function Hud({
           <Button pressed={debug} onClick={() => useHud.setState({ debug: !debug })}>
             Debug
           </Button>
+          {view.outcome === null &&
+            (confirming ? (
+              <>
+                <Button
+                  onClick={() => {
+                    game.current?.concede();
+                    setConfirming(false);
+                  }}
+                >
+                  Yes, concede
+                </Button>
+                <Button onClick={() => setConfirming(false)}>Keep playing</Button>
+              </>
+            ) : (
+              <Button onClick={() => setConfirming(true)}>Concede</Button>
+            ))}
           <Button onClick={onExit}>Editor</Button>
         </div>
       </div>

@@ -48,7 +48,11 @@ export interface HudView {
   /** The id of the ability waiting for a target. */
   targeting: string | null;
   notice: string | null;
-  outcome: "won" | "lost" | "draw" | null;
+  /**
+   * While the game goes on without the local player, `defeated` when a
+   * teammate is still standing and `out` when none is.
+   */
+  outcome: "won" | "lost" | "draw" | "defeated" | "out" | null;
 }
 
 export const emptyHudView: HudView = {
@@ -128,7 +132,7 @@ export function buildHudView(input: HudInput): HudView {
           ],
     );
   const abilities = caster === null ? [] : abilitiesOf(caster);
-  const teamOf = (id: string) => snapshot.players.find((player) => player.id === id)?.team;
+  const local = snapshot.players.find((player) => player.id === localPlayerId);
 
   const { outcome } = snapshot;
   return {
@@ -171,13 +175,19 @@ export function buildHudView(input: HudInput): HudView {
     targeting: abilities.find((ability) => ability.id === input.targetingId)?.id ?? null,
     notice: input.notice,
     outcome:
-      outcome === null
-        ? null
-        : outcome.winnerId === null
+      outcome !== null
+        ? outcome.winningTeam === null
           ? "draw"
-          : teamOf(outcome.winnerId) === teamOf(localPlayerId)
+          : outcome.winningTeam === local?.team
             ? "won"
-            : "lost",
+            : "lost"
+        : local?.defeated !== true
+          ? null
+          : snapshot.players.some(
+                (player) => player !== local && player.team === local.team && !player.defeated,
+              )
+            ? "defeated"
+            : "out",
   };
 }
 

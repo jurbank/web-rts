@@ -1,12 +1,20 @@
-export type {
-  AssistCommand,
-  AttackCommand,
-  BuildCommand,
-  CastCommand,
-  Command,
-  GatherCommand,
-  MoveCommand,
-  ProduceCommand,
+export {
+  COMMAND_HORIZON,
+  createCommandQueue,
+  MAX_COMMANDS_PER_TICK,
+  MAX_UNIT_IDS,
+  type AssistCommand,
+  type AttackCommand,
+  type BuildCommand,
+  type CastCommand,
+  type Command,
+  type CommandQueue,
+  type ConcedeCommand,
+  type GatherCommand,
+  type MoveCommand,
+  type OrderCommand,
+  type ProduceCommand,
+  type SessionCommand,
 } from "./commands.ts";
 export { atan2, cos, PI, sin } from "./math.ts";
 export {
@@ -24,6 +32,7 @@ export {
   loadWorld,
   saveWorld,
   TICK_RATE,
+  type Seats,
   TICK_SECONDS,
   type Entity,
   type Order,

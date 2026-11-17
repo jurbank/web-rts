@@ -1,6 +1,7 @@
 import type { Definition } from "data";
 import {
   canPlace,
+  createCommandQueue,
   step,
   takeSnapshot,
   TICK_SECONDS,
@@ -17,7 +18,8 @@ export interface GameLoop {
   readonly current: Snapshot;
   /** The tick the next submitted command will run on. */
   readonly tick: number;
-  submit(command: Command): void;
+  /** Holds a command until its tick. Returns false when the queue refuses it. */
+  submit(command: Command): boolean;
   /** Steps the world to catch up with real time. Returns how far into the next tick we are, in [0, 1). */
   advance(elapsedSeconds: number): number;
   /** Whether the sim would accept a building here right now. */
@@ -28,7 +30,7 @@ export function createGameLoop(world: World): GameLoop {
   let previous = takeSnapshot(world);
   let current = previous;
   let accumulator = 0;
-  let pending: Command[] = [];
+  const queue = createCommandQueue();
 
   return {
     get previous() {
@@ -41,13 +43,12 @@ export function createGameLoop(world: World): GameLoop {
       return world.tick;
     },
     submit(command) {
-      pending.push(command);
+      return queue.add(command, world.tick);
     },
     advance(elapsedSeconds) {
       accumulator += Math.min(elapsedSeconds, MAX_FRAME_SECONDS);
       while (accumulator >= TICK_SECONDS) {
-        step(world, pending);
-        pending = [];
+        step(world, queue.take(world.tick));
         previous = current;
         current = takeSnapshot(world);
         accumulator -= TICK_SECONDS;

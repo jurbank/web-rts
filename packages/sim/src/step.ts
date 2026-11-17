@@ -1,5 +1,5 @@
 import { AI_INTERVAL, think } from "./ai.ts";
-import { applyCommand, enqueueCommand, type Command } from "./commands.ts";
+import { applyCommand, inSeatOrder, normalizeCommand, type Command } from "./commands.ts";
 import {
   checkEnd,
   removeDead,
@@ -15,24 +15,30 @@ import type { World } from "./world.ts";
 /**
  * Advances the world one tick and returns what happened. The only place
  * world state changes (S1). A decided game no longer advances.
+ *
+ * `commands` are this tick's. One stamped for a later tick is dropped, since
+ * the world does not hold commands. A `CommandQueue` holds them until their
+ * tick. One stamped for an earlier tick applies now.
  */
 export function step(world: World, commands: readonly Command[] = []): SimEvent[] {
   const events: SimEvent[] = [];
   if (world.outcome !== null) return events;
 
-  for (const command of commands) {
-    enqueueCommand(world, command);
-  }
+  const incoming = [...commands];
   if (world.tick % AI_INTERVAL === 0) {
     for (const player of world.players) {
       if (player.controller !== "ai" || player.defeated) continue;
-      for (const command of think(world, player)) {
-        enqueueCommand(world, command);
-      }
+      incoming.push(...think(world, player));
     }
   }
-  while (world.pendingCommands.length > 0 && world.pendingCommands[0].tick <= world.tick) {
-    applyCommand(world, world.pendingCommands.shift()!);
+  // The ai's commands are held to the same shape as everyone else's.
+  const due: Command[] = [];
+  for (const command of incoming) {
+    const clean = normalizeCommand(command);
+    if (clean !== null && clean.tick <= world.tick) due.push(clean);
+  }
+  for (const command of inSeatOrder(world, due)) {
+    applyCommand(world, command, events);
   }
 
   runRespawns(world, events);

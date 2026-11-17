@@ -1,4 +1,4 @@
-import { canUseAbility, isEnemy, useAbility } from "./systems.ts";
+import { canUseAbility, defeatPlayer, isEnemy, useAbility, type SimEvent } from "./systems.ts";
 import type { CommandType } from "data";
 import { refusedCommands } from "./triggers.ts";
 import {
@@ -9,6 +9,7 @@ import {
   findPlayer,
   spawn,
   toTicks,
+  TICK_RATE,
   type Entity,
   type World,
 } from "./world.ts";
@@ -73,7 +74,13 @@ export interface CastCommand extends CommandBase {
   targetId?: number;
 }
 
-export type Command =
+/** The player leaves the match and is defeated. Their team plays on. */
+export interface ConcedeCommand extends CommandBase {
+  type: "concede";
+}
+
+/** Orders for units and buildings. Command rules may refuse them. */
+export type OrderCommand =
   | CastCommand
   | MoveCommand
   | AttackCommand
@@ -82,13 +89,28 @@ export type Command =
   | AssistCommand
   | ProduceCommand;
 
-/** Command rules name command types in scenario data, so `data`'s list must match these exactly. */
+/** About the player's place in the match, not the game in it. Command rules never refuse them. */
+export type SessionCommand = ConcedeCommand;
+
+export type Command = OrderCommand | SessionCommand;
+
+/** Command rules name order types in scenario data, so `data`'s list must match these exactly. */
 type Exactly<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
-const commandTypesMatch: Exactly<Command["type"], CommandType> = true;
+const commandTypesMatch: Exactly<OrderCommand["type"], CommandType> = true;
 void commandTypesMatch;
 
+/** The most units one command may name. More is a malformed command. */
+export const MAX_UNIT_IDS = 1000;
+
+/** How far ahead of the current tick a command may be stamped, so nobody can fill the queue. */
+export const COMMAND_HORIZON = 10 * TICK_RATE;
+
+/** The most commands the queue holds for one player on one tick. */
+export const MAX_COMMANDS_PER_TICK = 32;
+
 const isId = (value: unknown): value is number => Number.isInteger(value);
-const isIds = (value: unknown): value is number[] => Array.isArray(value) && value.every(isId);
+const isIds = (value: unknown): value is number[] =>
+  Array.isArray(value) && value.length <= MAX_UNIT_IDS && value.every(isId);
 const isText = (value: unknown): value is string => typeof value === "string";
 const isFinite = (value: unknown): value is number => Number.isFinite(value);
 
@@ -103,7 +125,7 @@ export function normalizeCommand(input: Command): Command | null {
   const { unitId, abilityId, slot } = raw;
   if (!isText(playerId) || !isId(tick)) return null;
   const base = { playerId, tick: tick + 0 };
-  const ids = () => (unitIds as number[]).map((id) => id + 0);
+  const ids = () => [...new Set((unitIds as number[]).map((id) => id + 0))];
   switch (raw.type) {
     case "move":
       if (!isIds(unitIds) || !isFinite(x) || !isFinite(y)) return null;
@@ -139,37 +161,73 @@ export function normalizeCommand(input: Command): Command | null {
       if (targetId !== undefined) cast.targetId = targetId + 0;
       return cast;
     }
+    case "concede":
+      return { ...base, type: "concede" };
     default:
       return null;
   }
 }
 
 /**
- * Commands for one tick apply in player order, so every device that holds the
- * same commands applies them the same way, whatever order they arrived in.
- * A player's own commands keep the order that player sent them.
+ * Commands for one tick in player order, so every device that holds the same
+ * commands applies them the same way, whatever order they arrived in. A
+ * player's own commands keep the order that player sent them.
  */
-export function enqueueCommand(world: World, command: Command): void {
-  const clean = normalizeCommand(command);
-  if (clean === null) return;
-  const seat = (playerId: string) => world.players.findIndex((player) => player.id === playerId);
-  const cleanSeat = seat(clean.playerId);
-  const isLater = (queued: Command) =>
-    queued.tick > clean.tick || (queued.tick === clean.tick && seat(queued.playerId) > cleanSeat);
-  const queue = world.pendingCommands;
-  let index = queue.length;
-  while (index > 0 && isLater(queue[index - 1])) {
-    index -= 1;
-  }
-  queue.splice(index, 0, clean);
+export function inSeatOrder(world: World, commands: readonly Command[]): Command[] {
+  const seat = new Map(world.players.map((player, index) => [player.id, index]));
+  const seatOf = (command: Command) => seat.get(command.playerId) ?? world.players.length;
+  // `sort` is stable, so each player's commands keep their order.
+  return [...commands].sort((a, b) => seatOf(a) - seatOf(b));
+}
+
+/**
+ * Holds commands until their tick, outside the world, so commands that have
+ * arrived early never change a save or a hash. Lives with whoever runs `step`.
+ */
+export interface CommandQueue {
+  /**
+   * Holds a command for its tick. Refuses a malformed one, one for a tick
+   * before `currentTick`, one further ahead than `COMMAND_HORIZON`, and one past
+   * the player's `MAX_COMMANDS_PER_TICK`. `currentTick` is the match's tick,
+   * which is the local world's on a single device.
+   */
+  add(command: Command, currentTick: number): boolean;
+  /** Removes and returns the commands for a tick, in the order they were added. */
+  take(tick: number): Command[];
+}
+
+export function createCommandQueue(): CommandQueue {
+  const byTick = new Map<number, Command[]>();
+  return {
+    add(command, currentTick) {
+      const clean = normalizeCommand(command);
+      if (clean === null) return false;
+      if (clean.tick < currentTick || clean.tick > currentTick + COMMAND_HORIZON) return false;
+      const held = byTick.get(clean.tick);
+      if (held === undefined) {
+        byTick.set(clean.tick, [clean]);
+        return true;
+      }
+      const sent = held.filter((other) => other.playerId === clean.playerId).length;
+      if (sent >= MAX_COMMANDS_PER_TICK) return false;
+      held.push(clean);
+      return true;
+    },
+    take(tick) {
+      const held = byTick.get(tick) ?? [];
+      byTick.delete(tick);
+      return held;
+    },
+  };
 }
 
 /** The player's mobile units among `ids`, in id order. */
 function ownUnits(world: World, playerId: string, ids: readonly number[]): Entity[] {
+  const named = new Set(ids);
   return world.entities.filter(
     (entity) =>
       entity.playerId === playerId &&
-      ids.includes(entity.id) &&
+      named.has(entity.id) &&
       definitionOf(world, entity).speed !== undefined,
   );
 }
@@ -180,10 +238,14 @@ function giveOrder(entity: Entity, order: Entity["order"]): void {
   entity.pathGoal = null;
 }
 
-export function applyCommand(world: World, command: Command): void {
+export function applyCommand(world: World, command: Command, events: SimEvent[]): void {
   const player = findPlayer(world, command.playerId);
   // A `none` player is moved only by triggers.
   if (player === undefined || player.defeated || player.controller === "none") return;
+  if (command.type === "concede") {
+    defeatPlayer(world, player.id, events);
+    return;
+  }
   if (world.commandRules.length > 0 && refusedCommands(world).includes(command.type)) return;
 
   switch (command.type) {

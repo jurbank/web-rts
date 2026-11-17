@@ -5,6 +5,7 @@ import { scenarioGuides } from "./guides.ts";
 import { buildHudView, type HudView } from "./hud.ts";
 import { attachInput, showBox } from "./input.ts";
 import { createGameLoop } from "./loop.ts";
+import type { Seating } from "./seating.ts";
 
 export interface GameElements {
   battlefield: HTMLElement;
@@ -26,27 +27,25 @@ export interface Game {
   beginPlacement(definitionId: string): void;
   cancelPlacement(): void;
   deselect(): void;
+  /** Leaves the match. The local player is defeated and their team plays on. */
+  concede(): void;
   setDebug(debug: boolean): void;
   dispose(): void;
 }
 
-type OrderFields<T> = T extends Command ? Omit<T, "playerId" | "tick"> : never;
+type CommandFields<T> = T extends Command ? Omit<T, "playerId" | "tick"> : never;
 
 export function createGame(
   scenario: Scenario,
   elements: GameElements,
   onView: (view: HudView) => void,
+  { localPlayerId, seats, seed }: Seating & { seed: number },
 ): Game {
-  /** Until scenarios say which seat is ours, the first human player is. */
-  const localPlayer =
-    scenario.players.find((player) => player.controller === "human") ??
-    scenario.players.find((player) => player.controller !== "none") ??
-    scenario.players[0];
-  const localPlayerId = localPlayer.id;
+  const localPlayer = scenario.players.find((player) => player.id === localPlayerId)!;
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
-  const loop = createGameLoop(createWorld(scenario, 1));
+  const loop = createGameLoop(createWorld(scenario, seed, seats));
   const renderer = createRenderer(elements.scene, elements.overlay, scenario);
   const guides = scenarioGuides(scenario);
 
@@ -70,8 +69,8 @@ export function createGame(
     teams.get(entity.playerId) !== teams.get(localPlayerId);
   const selected = () => loop.current.entities.filter((entity) => selectedIds.includes(entity.id));
 
-  function submit(order: OrderFields<Command>): void {
-    loop.submit({ ...order, playerId: localPlayerId, tick: loop.tick } as Command);
+  function submit(fields: CommandFields<Command>): void {
+    loop.submit({ ...fields, playerId: localPlayerId, tick: loop.tick } as Command);
     notice = null;
   }
 
@@ -203,6 +202,9 @@ export function createGame(
   });
 
   return {
+    concede() {
+      submit({ type: "concede" });
+    },
     produce(definitionId) {
       const [building] = selected();
       if (building !== undefined)

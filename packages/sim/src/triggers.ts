@@ -264,12 +264,12 @@ function runAction(
     }
     case "win": {
       const winnerId = resolvePlayer(action.playerId, entity);
-      if (winnerId === null) return;
-      const team = findPlayer(world, winnerId)?.team;
+      const team = winnerId === null ? undefined : findPlayer(world, winnerId)?.team;
+      if (team === undefined) return;
       for (const player of world.players) {
         if (player.team !== team) defeatPlayer(world, player.id, events);
       }
-      endGame(world, winnerId, events);
+      endGame(world, team, events);
       return;
     }
   }

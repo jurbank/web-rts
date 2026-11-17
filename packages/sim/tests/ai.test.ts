@@ -10,7 +10,7 @@ test("the ai gathers, builds a barracks, trains soldiers, and defeats an idle op
   while (world.outcome === null && world.tick < LIMIT) {
     for (const event of step(world)) seen.add(event.type);
   }
-  expect(world.outcome).toEqual({ winnerId: "blue" });
+  expect(world.outcome).toEqual({ winningTeam: "blue" });
   expect([...seen].sort()).toEqual(["completed", "defeated", "died", "ended", "produced"]);
   expect(world.players.find((player) => player.id === "red")!.defeated).toBe(true);
   expect(world.entities.some((entity) => entity.id === ids.redHq)).toBe(false);

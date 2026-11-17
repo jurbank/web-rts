@@ -91,13 +91,13 @@ test("the scenario survives a save and a load", () => {
 
 test("an idle player loses the ancient, and the whole team with it", () => {
   const { world } = play(() => []);
-  expect(world.outcome).toEqual({ winnerId: "blue" });
+  expect(world.outcome).toEqual({ winningTeam: "east" });
   expect(world.players.map((player) => player.defeated)).toEqual([true, false, true, false]);
 });
 
 test("a hero that pushes with its creeps levels up and takes the enemy ancient", () => {
   const { world, events } = play(push, { edit: passiveBlue });
-  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(world.outcome).toEqual({ winningTeam: "west" });
   expect(world.players.map((player) => player.defeated)).toEqual([false, true, false, true]);
   expect(events).toContainEqual({ type: "leveled", id: RED_HERO, level: 2 });
 });

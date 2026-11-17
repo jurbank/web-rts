@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 6. Its trigger records, the tower defense, MOBA, and auto chess fixtures, and editing of guides and basic game data are done. The end-of-milestone multiplayer audit is next. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 7, not started. Milestone 6 is done, and the gaps its multiplayer audit found in the format and world state are settled. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -75,7 +75,7 @@ The standard RTS controls and the systems that make a match about scouting and t
 - Orders. An entity holds a queue of orders instead of one. Every unit command may be queued. `attack` takes a target or a point, and a point is attack-move. `patrol`, `stop`, and `hold` are new commands. Auto-acquire puts an attack at the front of the queue, which replaces the attack order's `resume`. The app keeps control groups. Touch gets an attack mode, a sticky queue toggle, and control group buttons, so a phone player can do everything a keyboard player can.
 - Veterancy. `levels` may give a kill's experience to the killer instead of everyone near.
 - Upgrades. Definitions carry tags. More stats can be modified, at least weapon range, weapon cooldown, sight, and armor. A player researches upgrades in a production queue, and an upgrade's modifiers apply to every matching entity that player owns, including ones made later. Definitions, abilities, and upgrades may require upgrades or buildings, which gives a tech tree.
-- Fog of war. A definition carries `sight`. `sim` keeps what each team sees and has explored, and remembers the buildings it last saw. Auto-acquire, attack orders, and the ai respect it. Triggers can reveal an area and ask whether something is visible. A snapshot is taken for one viewer and holds only what that viewer may know. A scenario turns fog on. Without it nothing changes.
+- Fog of war. A definition carries `sight`. `sim` keeps what each team sees and has explored, and remembers the buildings it last saw. Auto-acquire, attack orders, and the ai respect it. Triggers can reveal an area and ask whether something is visible. A snapshot is taken for one viewer and holds only what that viewer may know, including the fields of a visible enemy that only its owner should see, such as its queue, offers, route, and which abilities it can afford. A scenario turns fog on. Without it nothing changes.
 
 Done when the standard RTS fixture plays to a win or a loss with fog on, through a tech tree and an attack-moved army, every step works by touch, the other three fixtures still pass unchanged, and a test shows a viewer's snapshot holds nothing that viewer cannot see.
 
@@ -87,7 +87,9 @@ Not ordered and not committed.
 - Line of sight from terrain height, once terrain import exists (C8). Detection and cloaking.
 - Terrain imported from the external terrain editor (C8), real models and effects.
 - The rest of game data editing: gathering and resource fields, whatever the MOBA adds (abilities, stat modifiers, levels), and per-instance overrides.
-- Larger armies against the performance budgets.
+- Larger armies against the performance budgets. The milestone 6 audit measured 44 ms a tick for 1200 idle armed units in twelve seats on a desktop, over the 33 ms a tick has. Most of it is every idle unit looking at every entity for a target. A spatial grid, team lookup by seat, a per-tick budget for path searches, and staggered ai would answer it.
+- Phones on equal terms, from the milestone 6 audit: a zoom-out limit that shows the whole map on a portrait screen, HUD counters that wrap, and catching up after the page was hidden.
+- A twelve-seat determinism fixture with several teams, also run once in a WebKit browser against the hash from Node.
 - Campaigns, asset packs, and scenario sharing.
 - Multiplayer, after the ADR that picks a model.
 

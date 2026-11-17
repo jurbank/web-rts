@@ -1,5 +1,4 @@
 import type { CommandRule, Definition, Modifier, Player, Region, Scenario, Trigger } from "data";
-import type { Command } from "./commands.ts";
 import { hashState } from "./hash.ts";
 import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
 
@@ -107,10 +106,8 @@ export interface World {
   nextEntityId: number;
   /** Dead entities waiting to come back, in the order they died. Null ticks wait for a trigger. */
   respawns: { remaining: number | null; entity: Entity }[];
-  /** In tick order, then player order, then the order each player sent them. */
-  pendingCommands: Command[];
-  /** Set once the game is decided. A null winner is a draw. */
-  outcome: { winnerId: string | null } | null;
+  /** Set once the game is decided. A null winning team is a draw. */
+  outcome: { winningTeam: string | null } | null;
   variables: Record<string, number>;
   /** In scenario order, which is the order they fire in. */
   timers: TimerState[];
@@ -124,7 +121,14 @@ export interface World {
   commandRules: CommandRule[];
 }
 
-export function createWorld(scenario: Scenario, seed: number): World {
+/**
+ * Who sits in each seat, by player id, when it differs from the scenario. A
+ * scenario's `human` is a seat open to a person, and its `ai` and `none` say
+ * what sits there when nobody takes it. A `none` seat stays `none`.
+ */
+export type Seats = Readonly<Record<string, Player["controller"]>>;
+
+export function createWorld(scenario: Scenario, seed: number, seats: Seats = {}): World {
   const definitions: Record<string, Definition> = {};
   for (const definition of scenario.definitions) {
     definitions[definition.id] = copy(definition);
@@ -136,7 +140,10 @@ export function createWorld(scenario: Scenario, seed: number): World {
     definitions,
     players: scenario.players.map((player) => ({
       id: player.id,
-      controller: player.controller,
+      controller:
+        player.controller !== "none" && Object.hasOwn(seats, player.id)
+          ? seats[player.id]
+          : player.controller,
       team: player.team ?? player.id,
       resources: player.resources,
       defeated: false,
@@ -145,7 +152,6 @@ export function createWorld(scenario: Scenario, seed: number): World {
     entities: [],
     nextEntityId: 1,
     respawns: [],
-    pendingCommands: [],
     outcome: null,
     variables: {},
     timers: scenario.timers.map((timer) => ({
