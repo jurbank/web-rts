@@ -32,7 +32,7 @@ test("a depleted node disappears and its gatherer moves to the next one", () => 
     playerId: null,
   });
   expect(resources(world, "red")).toBeGreaterThan(220);
-  const order = entity(world, worker).order;
+  const [order] = entity(world, worker).orders;
   expect(order?.type === "gather" && order.nodeId !== ids.redOre).toBe(true);
 });
 
@@ -53,7 +53,7 @@ test("a builder pays for a building, constructs it over its build time, and it g
   events.push(...run(world, 2 * TICK_RATE));
   expect(events).toContainEqual({ type: "completed", id: barracks.id });
   expect(barracks.health).toBeCloseTo(400, 6);
-  expect(entity(world, worker).order).toBeNull();
+  expect(entity(world, worker).orders).toEqual([]);
 });
 
 test("two builders finish sooner than one", () => {

@@ -149,6 +149,9 @@ test("commands are refused during combat and allowed again in planning", () => {
   expect(takeSnapshot(world).refusedCommands).toEqual([
     "move",
     "attack",
+    "patrol",
+    "hold",
+    "stop",
     "gather",
     "build",
     "assist",
@@ -179,7 +182,7 @@ test("a unit walked into the middle during planning is sent home", () => {
     y: 10,
   };
   run(world, 5 * TICK_RATE, [move]);
-  expect(knight).toMatchObject({ x: home.x, y: home.y, order: null });
+  expect(knight).toMatchObject({ x: home.x, y: home.y, orders: [] });
 });
 
 test("after combat both boards come back where they stood, at full health", () => {

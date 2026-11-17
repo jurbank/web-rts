@@ -214,7 +214,7 @@ function runAction(
     case "walk":
       for (const selected of world.entities.filter(selects(action, entity))) {
         if (definitionOf(world, selected).speed === undefined) continue;
-        selected.order = { type: "path", pathId: action.path, next: 0 };
+        selected.orders = [{ type: "path", pathId: action.path, next: 0 }];
         selected.path = [];
         selected.pathGoal = null;
       }
@@ -241,7 +241,7 @@ function runAction(
       for (let i = 0; i < action.count; i++) {
         const spawned = spawn(world, action.definitionId, playerId, at.x, at.y);
         if (action.path !== undefined && definitionOf(world, spawned).speed !== undefined) {
-          spawned.order = { type: "path", pathId: action.path, next: 0 };
+          spawned.orders = [{ type: "path", pathId: action.path, next: 0 }];
         }
       }
       return;

@@ -139,7 +139,7 @@ test("spawned units walk a path, enter a region once, and can be removed by a tr
   expect(entity(world, runnerId)).toMatchObject({
     x: 2,
     y: 10,
-    order: { type: "path", pathId: "lane", next: 0 },
+    orders: [{ type: "path", pathId: "lane", next: 0 }],
   });
 
   let passedMiddle = false;
@@ -179,5 +179,5 @@ test("a player nobody controls ignores commands", () => {
     raw.placements.push({ definitionId: "runner", playerId: "foe", x: 5, y: 5 });
   });
   run(world, 10, [{ type: "move", playerId: "foe", tick: 0, unitIds: [2], x: 20, y: 5 }]);
-  expect(entity(world, 2)).toMatchObject({ x: 5, y: 5, order: null });
+  expect(entity(world, 2)).toMatchObject({ x: 5, y: 5, orders: [] });
 });

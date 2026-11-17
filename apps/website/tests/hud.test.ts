@@ -229,3 +229,25 @@ test("the shop is always on screen, with planning time left, and greys out in co
   expect(hud().shop!.offers.every((offer) => !offer.enabled)).toBe(true);
   expect(hud().shop!.abilities[0].enabled).toBe(false);
 });
+
+test("units that move get order buttons, and groups count the player's units left", () => {
+  expect(view([1]).orders).toBeNull();
+  // Workers move but carry no weapon.
+  expect(view([2, 3]).orders).toEqual({ attack: false, patrol: true, hold: true, stop: true });
+
+  const world = createWorld(scenario, 1);
+  const hud = buildHudView({
+    scenario,
+    snapshot: takeSnapshot(world),
+    localPlayerId: "red",
+    selectedIds: [],
+    placingId: null,
+    targetingId: null,
+    notice: null,
+    groups: [
+      { number: 1, ids: [2, 3, 8, 999] },
+      { number: 4, ids: [999] },
+    ],
+  });
+  expect(hud.groups).toEqual([{ number: 1, count: 2 }]);
+});

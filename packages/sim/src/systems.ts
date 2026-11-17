@@ -12,6 +12,7 @@ import {
   TICK_SECONDS,
   toTicks,
   type Entity,
+  type Order,
   type PlayerState,
   type Point,
   type World,
@@ -65,6 +66,12 @@ function clearPath(entity: Entity): void {
   entity.pathGoal = null;
 }
 
+/** Ends the order being carried out, so the next one starts. */
+function finishOrder(entity: Entity): void {
+  entity.orders.shift();
+  clearPath(entity);
+}
+
 function followPath(entity: Entity, speed: number): void {
   let budget = speed * TICK_SECONDS;
   while (budget > 0 && entity.path.length > 0) {
@@ -106,7 +113,7 @@ function workReach(world: World, entity: Entity, target: Entity): number {
 function runMove(world: World, entity: Entity, order: { x: number; y: number }): void {
   const speed = statOf(world, entity, "speed");
   if (speed === undefined) {
-    entity.order = null;
+    finishOrder(entity);
     return;
   }
   if (entity.pathGoal === null) {
@@ -114,9 +121,28 @@ function runMove(world: World, entity: Entity, order: { x: number; y: number }):
     entity.pathGoal = { x: order.x, y: order.y };
   }
   followPath(entity, speed);
+  if (entity.path.length === 0) finishOrder(entity);
+}
+
+function runPatrol(world: World, entity: Entity, order: { points: Point[]; next: number }): void {
+  const speed = statOf(world, entity, "speed");
+  if (speed === undefined) {
+    finishOrder(entity);
+    return;
+  }
+  if (order.next < 0) {
+    order.points.unshift({ x: entity.x, y: entity.y });
+    order.next = 1;
+  }
+  const goal = order.points[order.next];
+  if (entity.pathGoal === null) {
+    entity.path = findPath(world, entity, goal);
+    entity.pathGoal = { x: goal.x, y: goal.y };
+  }
+  followPath(entity, speed);
   if (entity.path.length === 0) {
-    entity.order = null;
     entity.pathGoal = null;
+    order.next = (order.next + 1) % order.points.length;
   }
 }
 
@@ -124,8 +150,7 @@ function runPath(world: World, entity: Entity, order: { pathId: string; next: nu
   const speed = statOf(world, entity, "speed");
   const waypoints = world.paths[order.pathId];
   if (speed === undefined || waypoints === undefined || order.next >= waypoints.length) {
-    entity.order = null;
-    clearPath(entity);
+    finishOrder(entity);
     return;
   }
   const goal = world.waypoints[waypoints[order.next]];
@@ -137,28 +162,24 @@ function runPath(world: World, entity: Entity, order: { pathId: string; next: nu
   if (entity.path.length === 0) {
     entity.pathGoal = null;
     order.next += 1;
-    if (order.next >= waypoints.length) entity.order = null;
+    if (order.next >= waypoints.length) finishOrder(entity);
   }
 }
 
-function runAttack(
-  world: World,
-  entity: Entity,
-  order: Extract<Entity["order"], { type: "attack" }>,
-): void {
+function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "attack" }>): void {
   const definition = definitionOf(world, entity);
   const { weapon } = definition;
   const target = findEntity(world, order.targetId);
-  const resume: Entity["order"] =
-    order.resume === undefined ? null : { type: "path", ...order.resume };
-  // A unit pulled off its path gives up on a target that gets out of sight.
+  const beneath = entity.orders[1];
+  const holding = beneath?.type === "hold";
+  // A target the unit picked over another order is dropped once it leaves sight.
   const lost =
     target !== undefined &&
-    order.resume !== undefined &&
-    distance(entity, target) - definitionOf(world, target).radius > sightOf(definition);
+    order.acquired === true &&
+    beneath !== undefined &&
+    distance(entity, target) - definitionOf(world, target).radius > sightOf(definition, holding);
   if (weapon === undefined || target === undefined || target.health === null || lost) {
-    entity.order = resume;
-    clearPath(entity);
+    finishOrder(entity);
     return;
   }
   const reach = weapon.range + definitionOf(world, target).radius;
@@ -166,13 +187,15 @@ function runAttack(
   // a ready shot from a unit in reach, or one that gets there this tick.
   const dead = target.health <= 0;
   if (dead && entity.cooldown > 0) {
-    entity.order = resume;
-    clearPath(entity);
+    finishOrder(entity);
     return;
   }
-  if (!approach(world, entity, target, reach)) {
-    if (dead || definition.speed === undefined) entity.order = resume;
-    if (dead) clearPath(entity);
+  // A unit holding its position fires only at what is already in reach.
+  const inReach = holding
+    ? distance(entity, target) <= reach
+    : approach(world, entity, target, reach);
+  if (!inReach) {
+    if (dead || holding || definition.speed === undefined) finishOrder(entity);
     return;
   }
   if (entity.cooldown === 0) {
@@ -286,11 +309,7 @@ export function useAbility(world: World, entity: Entity, index: number, target: 
   if (owner !== undefined) owner.resources -= ability.cost;
 }
 
-function runCast(
-  world: World,
-  entity: Entity,
-  order: Extract<Entity["order"], { type: "cast" }>,
-): void {
+function runCast(world: World, entity: Entity, order: Extract<Order, { type: "cast" }>): void {
   const ability = definitionOf(world, entity).abilities[order.ability];
   const target = findEntity(world, order.targetId);
   if (
@@ -298,27 +317,26 @@ function runCast(
     target.health === null ||
     entity.abilityCooldowns[order.ability] > 0
   ) {
-    entity.order = null;
-    clearPath(entity);
+    finishOrder(entity);
     return;
   }
   const reach = (ability.range ?? 0) + definitionOf(world, target).radius;
   const dead = target.health <= 0;
   if (!approach(world, entity, target, reach)) {
-    if (dead || definitionOf(world, entity).speed === undefined) entity.order = null;
-    if (dead) clearPath(entity);
+    if (dead || definitionOf(world, entity).speed === undefined) finishOrder(entity);
     return;
   }
   // The cost and `near` are checked where the effects land.
   if (!canUseAbility(world, entity, order.ability)) {
-    entity.order = null;
+    finishOrder(entity);
     return;
   }
   useAbility(world, entity, order.ability, target);
-  entity.order =
-    definitionOf(world, entity).weapon === undefined
-      ? null
-      : { type: "attack", targetId: target.id };
+  finishOrder(entity);
+  // With nothing else to do, it keeps fighting what it cast at.
+  if (entity.orders.length === 0 && definitionOf(world, entity).weapon !== undefined) {
+    entity.orders.push({ type: "attack", targetId: target.id });
+  }
 }
 
 function runGather(
@@ -329,7 +347,7 @@ function runGather(
   const { gatherer } = definitionOf(world, entity);
   const player = entity.playerId === null ? undefined : findPlayer(world, entity.playerId);
   if (gatherer === undefined || player === undefined) {
-    entity.order = null;
+    finishOrder(entity);
     return;
   }
 
@@ -343,8 +361,7 @@ function runGather(
         definitionOf(world, other).dropOff,
     );
     if (dropOff === undefined) {
-      entity.order = null;
-      clearPath(entity);
+      finishOrder(entity);
     } else if (approach(world, entity, dropOff, workReach(world, entity, dropOff))) {
       player.resources += entity.carrying;
       entity.carrying = 0;
@@ -358,9 +375,12 @@ function runGather(
     node = nearest(world, entity, (other) => other.amount > 0);
     order.progress = 0;
     if (node === undefined) {
-      if (entity.carrying > 0) order.returning = true;
-      else entity.order = null;
-      clearPath(entity);
+      if (entity.carrying > 0) {
+        order.returning = true;
+        clearPath(entity);
+      } else {
+        finishOrder(entity);
+      }
       return;
     }
     order.nodeId = node.id;
@@ -380,8 +400,7 @@ function runGather(
 function runBuild(world: World, entity: Entity, buildingId: number, events: SimEvent[]): void {
   const building = findEntity(world, buildingId);
   if (building === undefined || building.buildRemaining === 0) {
-    entity.order = null;
-    clearPath(entity);
+    finishOrder(entity);
     return;
   }
   if (!approach(world, entity, building, workReach(world, entity, building))) return;
@@ -393,24 +412,30 @@ function runBuild(world: World, entity: Entity, buildingId: number, events: SimE
   }
   if (building.buildRemaining === 0) {
     events.push({ type: "completed", id: building.id });
-    entity.order = null;
+    finishOrder(entity);
   }
 }
 
-/** How far an armed entity looks for a target. */
-function sightOf(definition: Definition): number {
+/** How far an armed entity looks for a target. One holding its position looks only as far as it shoots. */
+function sightOf(definition: Definition, holding = false): number {
   const { weapon } = definition;
   if (weapon === undefined) return 0;
-  return definition.speed === undefined ? weapon.range : (weapon.acquireRange ?? weapon.range);
+  if (holding || definition.speed === undefined) return weapon.range;
+  return weapon.acquireRange ?? weapon.range;
 }
 
+/** Orders under which an armed entity picks its own targets. */
+const ACQUIRING: ReadonlySet<Order["type"]> = new Set(["path", "attackMove", "patrol", "hold"]);
+
 /**
- * Armed entities that are idle or walking a path pick the nearest enemy they
- * can see. One on a path goes back to it afterward.
+ * Armed entities that are idle, walking, patrolling, or holding pick the
+ * nearest enemy they can see, and go back to what they were doing afterward.
  */
 function acquireTarget(world: World, entity: Entity, definition: Definition): void {
   if (definition.weapon === undefined || entity.buildRemaining > 0) return;
-  const sight = sightOf(definition);
+  const current = entity.orders[0];
+  if (current !== undefined && !ACQUIRING.has(current.type)) return;
+  const sight = sightOf(definition, current?.type === "hold");
   const target = nearest(
     world,
     entity,
@@ -419,11 +444,7 @@ function acquireTarget(world: World, entity: Entity, definition: Definition): vo
       distance(entity, other) - definitionOf(world, other).radius <= sight,
   );
   if (target === undefined) return;
-  const { order } = entity;
-  entity.order =
-    order?.type === "path"
-      ? { type: "attack", targetId: target.id, resume: { pathId: order.pathId, next: order.next } }
-      : { type: "attack", targetId: target.id };
+  entity.orders.unshift({ type: "attack", targetId: target.id, acquired: true });
   clearPath(entity);
 }
 
@@ -454,14 +475,19 @@ export function runOrders(world: World, events: SimEvent[]): void {
   for (let index = 0; index < count; index++) {
     const entity = world.entities[index];
     runTimers(world, entity);
-    if (entity.order === null || entity.order.type === "path") {
-      acquireTarget(world, entity, definitionOf(world, entity));
-    }
-    const { order } = entity;
-    if (order === null) continue;
+    acquireTarget(world, entity, definitionOf(world, entity));
+    const order = entity.orders[0];
+    if (order === undefined) continue;
     switch (order.type) {
       case "move":
+      case "attackMove":
         runMove(world, entity, order);
+        break;
+      case "patrol":
+        runPatrol(world, entity, order);
+        break;
+      case "hold":
+        clearPath(entity);
         break;
       case "attack":
         runAttack(world, entity, order);
@@ -623,7 +649,7 @@ export function bringBack(
 export function sendHome(world: World, entity: Entity): void {
   entity.x = entity.home.x;
   entity.y = entity.home.y;
-  entity.order = null;
+  entity.orders = [];
   clearPath(entity);
   entity.cooldown = 0;
   entity.abilityCooldowns = entity.abilityCooldowns.map(() => 0);

@@ -38,7 +38,7 @@ export function think(world: World, player: PlayerState): Command[] {
   let budget = player.resources;
 
   for (const unit of own) {
-    if (unit.order !== null || definition(unit).gatherer === undefined) continue;
+    if (unit.orders.length > 0 || definition(unit).gatherer === undefined) continue;
     const node = nearest(world, unit, (other) => other.amount > 0);
     if (node !== undefined) {
       commands.push({ ...base, type: "gather", unitIds: [unit.id], nodeId: node.id });
@@ -85,8 +85,8 @@ export function think(world: World, player: PlayerState): Command[] {
   }
   for (const building of own) {
     if (building.buildRemaining === 0) continue;
-    const tended = own.some(
-      (entity) => entity.order?.type === "build" && entity.order.buildingId === building.id,
+    const tended = own.some((entity) =>
+      entity.orders.some((order) => order.type === "build" && order.buildingId === building.id),
     );
     if (!tended && builder !== undefined) {
       commands.push({ ...base, type: "assist", unitIds: [builder.id], buildingId: building.id });
@@ -95,13 +95,13 @@ export function think(world: World, player: PlayerState): Command[] {
 
   for (const unit of own) {
     const { abilities, radius } = definition(unit);
-    if (unit.order?.type === "cast") continue;
+    if (unit.orders[0]?.type === "cast") continue;
     // The first ability that is usable and has a use right now. One with a cost is a purchase.
     for (const [index, ability] of abilities.entries()) {
       if (!canUseAbility(world, unit, index) || ability.cost > budget) continue;
       const cast = { ...base, type: "cast" as const, unitId: unit.id, abilityId: ability.id };
       if (ability.target === "self") {
-        if (ability.cost === 0 && unit.order?.type !== "attack") continue;
+        if (ability.cost === 0 && unit.orders[0]?.type !== "attack") continue;
         budget -= ability.cost;
         commands.push(cast);
         break;
@@ -122,7 +122,7 @@ export function think(world: World, player: PlayerState): Command[] {
 
   const army = own.filter(
     (entity) =>
-      entity.order === null &&
+      entity.orders.length === 0 &&
       definition(entity).weapon !== undefined &&
       definition(entity).speed !== undefined,
   );

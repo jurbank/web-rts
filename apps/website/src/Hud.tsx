@@ -2,6 +2,8 @@ import { useState, type ReactNode, type RefObject } from "react";
 import type { Game } from "./game.ts";
 import { useHud } from "./store.ts";
 
+const GROUP_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
 const OUTCOMES = {
   won: "Victory",
   lost: "Defeat",
@@ -55,13 +57,17 @@ export function Hud({
             </span>
           ))}
         </div>
-        {(view.placing !== null || view.targeting !== null) && (
+        {(view.placing !== null || view.targeting !== null || view.mode !== null) && (
           <div className="flex items-center gap-2 rounded-lg bg-slate-900/85 py-1 pr-1 pl-3">
             <span>
               {view.notice ??
                 (view.placing !== null
                   ? `Tap the ground to place ${view.placing}`
-                  : `Tap an enemy to use ${targeting?.label}`)}
+                  : view.mode === "attack"
+                    ? "Tap an enemy, or the ground to attack along the way"
+                    : view.mode === "patrol"
+                      ? "Tap the ground to patrol to"
+                      : `Tap an enemy to use ${targeting?.label}`)}
             </span>
             <Button onClick={() => game.current?.cancelPlacement()}>Cancel</Button>
           </div>
@@ -112,6 +118,73 @@ export function Hud({
                   {ability.cost > 0 && ` (${ability.cost})`}
                 </Button>
               ))}
+            </div>
+          )}
+          {view.orders !== null && (
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={!view.orders.attack}
+                pressed={view.mode === "attack"}
+                onClick={() => game.current?.shortcut({ kind: "attack" })}
+              >
+                Attack
+              </Button>
+              <Button
+                disabled={!view.orders.patrol}
+                pressed={view.mode === "patrol"}
+                onClick={() => game.current?.shortcut({ kind: "patrol" })}
+              >
+                Patrol
+              </Button>
+              <Button
+                disabled={!view.orders.hold}
+                onClick={() => game.current?.shortcut({ kind: "hold" })}
+              >
+                Hold
+              </Button>
+              <Button
+                disabled={!view.orders.stop}
+                onClick={() => game.current?.shortcut({ kind: "stop" })}
+              >
+                Stop
+              </Button>
+              <Button
+                pressed={view.queueing}
+                onClick={() => game.current?.setQueueing(!view.queueing)}
+              >
+                Queue
+              </Button>
+            </div>
+          )}
+          {(view.groups.length > 0 || view.orders !== null) && (
+            <div className="flex flex-wrap gap-2">
+              {view.settingGroup
+                ? GROUP_NUMBERS.map((number) => (
+                    <Button
+                      key={number}
+                      onClick={() => game.current?.shortcut({ kind: "setGroup", number })}
+                    >
+                      {number}
+                    </Button>
+                  ))
+                : view.groups.map((group) => (
+                    <Button
+                      key={group.number}
+                      onClick={() =>
+                        game.current?.shortcut({ kind: "selectGroup", number: group.number })
+                      }
+                    >
+                      {group.number}: {group.count}
+                    </Button>
+                  ))}
+              {view.orders !== null && (
+                <Button
+                  pressed={view.settingGroup}
+                  onClick={() => game.current?.setGroupMode(!view.settingGroup)}
+                >
+                  Set group
+                </Button>
+              )}
             </div>
           )}
           <div className="flex flex-wrap gap-2">

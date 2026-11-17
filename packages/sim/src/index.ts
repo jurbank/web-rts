@@ -2,6 +2,7 @@ export {
   COMMAND_HORIZON,
   createCommandQueue,
   MAX_COMMANDS_PER_TICK,
+  MAX_ORDERS,
   MAX_UNIT_IDS,
   type AssistCommand,
   type AttackCommand,

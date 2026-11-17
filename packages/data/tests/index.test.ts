@@ -2,6 +2,7 @@ import { expect, test } from "vite-plus/test";
 import { FORMAT_VERSION, loadScenario, scenarioSchema } from "../src/index.ts";
 import mobaV3 from "./fixtures/moba-v3.json" with { type: "json" };
 import mobaV4 from "./fixtures/moba-v4.json" with { type: "json" };
+import autoChessV5 from "./fixtures/auto-chess-v5.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
@@ -104,6 +105,28 @@ test("format 3 loads unchanged", () => {
 test("format 4 loads unchanged", () => {
   const v4 = JSON.parse(JSON.stringify(mobaV4));
   expect(loadScenario(v4)).toEqual(loadScenario({ ...v4, formatVersion: FORMAT_VERSION }));
+});
+
+test("format 5 loads unchanged", () => {
+  const v5 = JSON.parse(JSON.stringify(autoChessV5));
+  expect(loadScenario(v5)).toEqual(loadScenario({ ...v5, formatVersion: FORMAT_VERSION }));
+});
+
+test("format 6 adds the new movement commands to rules that kept units still", () => {
+  const v5 = JSON.parse(JSON.stringify(autoChessV5));
+  const conditions = v5.commandRules[0].conditions;
+  v5.commandRules = [
+    { commands: ["move", "produce"], conditions },
+    { commands: ["attack"], conditions },
+    { commands: ["produce"], conditions },
+    { conditions },
+  ];
+  expect(loadScenario(v5).commandRules.map((rule) => rule.commands)).toEqual([
+    ["move", "produce", "patrol", "hold", "stop"],
+    ["attack", "patrol"],
+    ["produce"],
+    undefined,
+  ]);
 });
 
 test("offers and merging name definitions", () => {

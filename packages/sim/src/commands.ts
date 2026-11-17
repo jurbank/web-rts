@@ -11,6 +11,8 @@ import {
   toTicks,
   TICK_RATE,
   type Entity,
+  type Order,
+  type Point,
   type World,
 } from "./world.ts";
 
@@ -20,38 +22,61 @@ interface CommandBase {
   tick: number;
 }
 
-export interface MoveCommand extends CommandBase {
-  type: "move";
+/** A command that orders units. */
+interface UnitCommand extends CommandBase {
   unitIds: number[];
+  /** Adds the order after the ones the units already have, instead of replacing them. */
+  queued?: boolean;
+}
+
+export interface MoveCommand extends UnitCommand {
+  type: "move";
   x: number;
   y: number;
 }
 
-export interface AttackCommand extends CommandBase {
+/** Attacks `targetId`, or, given a point instead, moves there fighting what it meets. */
+export interface AttackCommand extends UnitCommand {
   type: "attack";
-  unitIds: number[];
-  targetId: number;
+  targetId?: number;
+  x?: number;
+  y?: number;
 }
 
-export interface GatherCommand extends CommandBase {
-  type: "gather";
+/** Walks between where each unit is and the point, fighting what it meets, until told otherwise. */
+export interface PatrolCommand extends UnitCommand {
+  type: "patrol";
+  x: number;
+  y: number;
+}
+
+/** Stays put, firing at enemies in weapon range, until told otherwise. */
+export interface HoldCommand extends UnitCommand {
+  type: "hold";
+}
+
+/** Drops every order the units have. */
+export interface StopCommand extends CommandBase {
+  type: "stop";
   unitIds: number[];
+}
+
+export interface GatherCommand extends UnitCommand {
+  type: "gather";
   nodeId: number;
 }
 
 /** Starts a new building and sends the units to construct it. */
-export interface BuildCommand extends CommandBase {
+export interface BuildCommand extends UnitCommand {
   type: "build";
-  unitIds: number[];
   definitionId: string;
   x: number;
   y: number;
 }
 
 /** Sends units to work on a building that is already under construction. */
-export interface AssistCommand extends CommandBase {
+export interface AssistCommand extends UnitCommand {
   type: "assist";
-  unitIds: number[];
   buildingId: number;
 }
 
@@ -72,6 +97,8 @@ export interface CastCommand extends CommandBase {
   unitId: number;
   abilityId: string;
   targetId?: number;
+  /** Adds the cast after the unit's other orders. One that targets the caster applies at once. */
+  queued?: boolean;
 }
 
 /** The player leaves the match and is defeated. Their team plays on. */
@@ -84,6 +111,9 @@ export type OrderCommand =
   | CastCommand
   | MoveCommand
   | AttackCommand
+  | PatrolCommand
+  | HoldCommand
+  | StopCommand
   | GatherCommand
   | BuildCommand
   | AssistCommand
@@ -108,6 +138,9 @@ export const COMMAND_HORIZON = 10 * TICK_RATE;
 /** The most commands the queue holds for one player on one tick. */
 export const MAX_COMMANDS_PER_TICK = 32;
 
+/** The most orders one entity holds, and the most points one patrol visits. */
+export const MAX_ORDERS = 16;
+
 const isId = (value: unknown): value is number => Number.isInteger(value);
 const isIds = (value: unknown): value is number[] =>
   Array.isArray(value) && value.length <= MAX_UNIT_IDS && value.every(isId);
@@ -122,26 +155,44 @@ const isFinite = (value: unknown): value is number => Number.isFinite(value);
 export function normalizeCommand(input: Command): Command | null {
   const raw = input as unknown as Record<string, unknown>;
   const { playerId, tick, unitIds, x, y, targetId, nodeId, buildingId, definitionId } = raw;
-  const { unitId, abilityId, slot } = raw;
+  const { unitId, abilityId, slot, queued } = raw;
   if (!isText(playerId) || !isId(tick)) return null;
+  if (queued !== undefined && typeof queued !== "boolean") return null;
   const base = { playerId, tick: tick + 0 };
+  // Only a queued command carries the field, so an unqueued one hashes as before.
+  const queue = queued === true ? { queued: true } : {};
   const ids = () => [...new Set((unitIds as number[]).map((id) => id + 0))];
+  const isPoint = isFinite(x) && isFinite(y);
   switch (raw.type) {
     case "move":
-      if (!isIds(unitIds) || !isFinite(x) || !isFinite(y)) return null;
-      return { ...base, type: "move", unitIds: ids(), x: x + 0, y: y + 0 };
+      if (!isIds(unitIds) || !isPoint) return null;
+      return { ...base, ...queue, type: "move", unitIds: ids(), x: x + 0, y: y + 0 };
     case "attack":
-      if (!isIds(unitIds) || !isId(targetId)) return null;
-      return { ...base, type: "attack", unitIds: ids(), targetId: targetId + 0 };
+      if (!isIds(unitIds)) return null;
+      if (targetId !== undefined) {
+        if (!isId(targetId) || x !== undefined || y !== undefined) return null;
+        return { ...base, ...queue, type: "attack", unitIds: ids(), targetId: targetId + 0 };
+      }
+      if (!isPoint) return null;
+      return { ...base, ...queue, type: "attack", unitIds: ids(), x: x + 0, y: y + 0 };
+    case "patrol":
+      if (!isIds(unitIds) || !isPoint) return null;
+      return { ...base, ...queue, type: "patrol", unitIds: ids(), x: x + 0, y: y + 0 };
+    case "hold":
+      if (!isIds(unitIds)) return null;
+      return { ...base, ...queue, type: "hold", unitIds: ids() };
+    case "stop":
+      if (!isIds(unitIds)) return null;
+      return { ...base, type: "stop", unitIds: ids() };
     case "gather":
       if (!isIds(unitIds) || !isId(nodeId)) return null;
-      return { ...base, type: "gather", unitIds: ids(), nodeId: nodeId + 0 };
+      return { ...base, ...queue, type: "gather", unitIds: ids(), nodeId: nodeId + 0 };
     case "build":
-      if (!isIds(unitIds) || !isText(definitionId) || !isFinite(x) || !isFinite(y)) return null;
-      return { ...base, type: "build", unitIds: ids(), definitionId, x: x + 0, y: y + 0 };
+      if (!isIds(unitIds) || !isText(definitionId) || !isPoint) return null;
+      return { ...base, ...queue, type: "build", unitIds: ids(), definitionId, x: x + 0, y: y + 0 };
     case "assist":
       if (!isIds(unitIds) || !isId(buildingId)) return null;
-      return { ...base, type: "assist", unitIds: ids(), buildingId: buildingId + 0 };
+      return { ...base, ...queue, type: "assist", unitIds: ids(), buildingId: buildingId + 0 };
     case "produce": {
       if (!isId(buildingId) || !isText(definitionId)) return null;
       if (slot !== undefined && !isId(slot)) return null;
@@ -157,7 +208,7 @@ export function normalizeCommand(input: Command): Command | null {
     case "cast": {
       if (!isId(unitId) || !isText(abilityId)) return null;
       if (targetId !== undefined && !isId(targetId)) return null;
-      const cast: CastCommand = { ...base, type: "cast", unitId: unitId + 0, abilityId };
+      const cast: CastCommand = { ...base, ...queue, type: "cast", unitId: unitId + 0, abilityId };
       if (targetId !== undefined) cast.targetId = targetId + 0;
       return cast;
     }
@@ -232,10 +283,39 @@ function ownUnits(world: World, playerId: string, ids: readonly number[]): Entit
   );
 }
 
-function giveOrder(entity: Entity, order: Entity["order"]): void {
-  entity.order = order;
+/**
+ * Replaces the entity's orders, or adds one after them when `queued`. A queued
+ * order is dropped when the queue is full or ends in a hold or patrol, which
+ * last until replaced, so it would never start.
+ */
+function giveOrder(entity: Entity, order: Order, queued = false): void {
+  const last = entity.orders[entity.orders.length - 1];
+  if (queued && last !== undefined) {
+    const lasting = last.type === "hold" || last.type === "patrol";
+    if (!lasting && entity.orders.length < MAX_ORDERS) entity.orders.push(order);
+    return;
+  }
+  entity.orders = [order];
   entity.path = [];
   entity.pathGoal = null;
+}
+
+/** Spots around a point, one per unit in a square grid, so a group does not stack. */
+function formation(world: World, units: Entity[], x: number, y: number): Point[] {
+  const columns = Math.ceil(Math.sqrt(units.length));
+  const rows = Math.ceil(units.length / columns);
+  let spacing = 0;
+  for (const unit of units) {
+    spacing = Math.max(spacing, definitionOf(world, unit).radius * 2 + 0.4);
+  }
+  return units.map((_, index) => {
+    const column = index % columns;
+    const row = (index - column) / columns;
+    return {
+      x: clamp(x + (column - (columns - 1) / 2) * spacing, 0, world.map.width),
+      y: clamp(y + (row - (rows - 1) / 2) * spacing, 0, world.map.height),
+    };
+  });
 }
 
 export function applyCommand(world: World, command: Command, events: SimEvent[]): void {
@@ -246,44 +326,76 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
     defeatPlayer(world, player.id, events);
     return;
   }
-  if (world.commandRules.length > 0 && refusedCommands(world).includes(command.type)) return;
+  if (world.commandRules.length > 0) {
+    const refused = refusedCommands(world);
+    if (refused.includes(command.type)) return;
+    // An attack-move moves, so a rule that keeps units still refuses it too.
+    const attackMove = command.type === "attack" && command.targetId === undefined;
+    if (attackMove && refused.includes("move")) return;
+  }
 
   switch (command.type) {
     case "move": {
       const units = ownUnits(world, player.id, command.unitIds);
-      const columns = Math.ceil(Math.sqrt(units.length));
-      const rows = Math.ceil(units.length / columns);
-      let spacing = 0;
-      for (const unit of units) {
-        spacing = Math.max(spacing, definitionOf(world, unit).radius * 2 + 0.4);
-      }
+      const spots = formation(world, units, command.x, command.y);
       units.forEach((unit, index) => {
-        const column = index % columns;
-        const row = (index - column) / columns;
-        giveOrder(unit, {
-          type: "move",
-          x: clamp(command.x + (column - (columns - 1) / 2) * spacing, 0, world.map.width),
-          y: clamp(command.y + (row - (rows - 1) / 2) * spacing, 0, world.map.height),
-        });
+        giveOrder(unit, { type: "move", ...spots[index] }, command.queued);
       });
       return;
     }
     case "attack": {
+      if (command.targetId === undefined) {
+        const units = ownUnits(world, player.id, command.unitIds);
+        const spots = formation(world, units, command.x!, command.y!);
+        units.forEach((unit, index) => {
+          giveOrder(unit, { type: "attackMove", ...spots[index] }, command.queued);
+        });
+        return;
+      }
       const target = findEntity(world, command.targetId);
       if (target === undefined) return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
         if (definitionOf(world, unit).weapon !== undefined && isEnemy(world, unit, target)) {
-          giveOrder(unit, { type: "attack", targetId: target.id });
+          giveOrder(unit, { type: "attack", targetId: target.id }, command.queued);
         }
       }
       return;
     }
+    case "patrol": {
+      const units = ownUnits(world, player.id, command.unitIds);
+      const spots = formation(world, units, command.x, command.y);
+      units.forEach((unit, index) => {
+        // A queued patrol after another adds a point to that loop.
+        const last = unit.orders[unit.orders.length - 1];
+        if (command.queued === true && last?.type === "patrol") {
+          if (last.points.length < MAX_ORDERS) last.points.push(spots[index]);
+        } else
+          giveOrder(unit, { type: "patrol", points: [spots[index]], next: -1 }, command.queued);
+      });
+      return;
+    }
+    case "hold":
+      for (const unit of ownUnits(world, player.id, command.unitIds)) {
+        giveOrder(unit, { type: "hold" }, command.queued);
+      }
+      return;
+    case "stop":
+      for (const unit of ownUnits(world, player.id, command.unitIds)) {
+        unit.orders = [];
+        unit.path = [];
+        unit.pathGoal = null;
+      }
+      return;
     case "gather": {
       const node = findEntity(world, command.nodeId);
       if (node === undefined || definitionOf(world, node).resource === undefined) return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
         if (definitionOf(world, unit).gatherer !== undefined) {
-          giveOrder(unit, { type: "gather", nodeId: node.id, returning: false, progress: 0 });
+          giveOrder(
+            unit,
+            { type: "gather", nodeId: node.id, returning: false, progress: 0 },
+            command.queued,
+          );
         }
       }
       return;
@@ -301,7 +413,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       building.buildRemaining = toTicks(definition.buildTime);
       if (building.health !== null) building.health /= building.buildRemaining;
       for (const builder of builders) {
-        giveOrder(builder, { type: "build", buildingId: building.id });
+        giveOrder(builder, { type: "build", buildingId: building.id }, command.queued);
       }
       // The new footprint may cut through routes computed before it existed.
       for (const entity of world.entities) {
@@ -316,7 +428,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       if (building.buildRemaining === 0) return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
         if (definitionOf(world, unit).builds.includes(building.definitionId)) {
-          giveOrder(unit, { type: "build", buildingId: building.id });
+          giveOrder(unit, { type: "build", buildingId: building.id }, command.queued);
         }
       }
       return;
@@ -335,7 +447,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       const target =
         command.targetId === undefined ? undefined : findEntity(world, command.targetId);
       if (target === undefined || !isEnemy(world, unit, target)) return;
-      giveOrder(unit, { type: "cast", ability: index, targetId: target.id });
+      giveOrder(unit, { type: "cast", ability: index, targetId: target.id }, command.queued);
       return;
     }
     case "produce": {

@@ -33,7 +33,7 @@ test("an attack order closes to weapon range, deals damage on cooldown, and kill
     playerId: "blue",
   });
   expect(world.entities.some((candidate) => candidate.id === victim)).toBe(false);
-  expect(attacker.order).toBeNull();
+  expect(attacker.orders).toEqual([]);
 });
 
 test("damage arrives once per cooldown", () => {
@@ -51,11 +51,13 @@ test("damage arrives once per cooldown", () => {
 test("an idle armed unit attacks an enemy that comes within its acquire range", () => {
   const near = duel(28);
   run(near, 1);
-  expect(entity(near, soldier).order).toEqual({ type: "attack", targetId: victim });
+  expect(entity(near, soldier).orders).toEqual([
+    { type: "attack", targetId: victim, acquired: true },
+  ]);
 
   const far = duel(31);
   run(far, TICK_RATE);
-  expect(entity(far, soldier).order).toBeNull();
+  expect(entity(far, soldier).orders).toEqual([]);
 });
 
 test("units cannot attack their own side or things without health", () => {
@@ -64,5 +66,5 @@ test("units cannot attack their own side or things without health", () => {
     { type: "attack", playerId: "red", tick: 0, unitIds: [soldier], targetId: ids.redHq },
     { type: "attack", playerId: "red", tick: 0, unitIds: [soldier], targetId: ids.rocks[0] },
   ]);
-  expect(entity(world, soldier).order).toBeNull();
+  expect(entity(world, soldier).orders).toEqual([]);
 });

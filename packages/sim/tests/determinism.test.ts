@@ -38,6 +38,12 @@ const script: Command[] = [
     x: 40.5,
     y: 7.25,
   },
+  // Two workers leave their work for queued orders, a patrol, and a hold, so
+  // later saves land with those in the world.
+  { type: "move", playerId: "red", tick: 300, unitIds: [second], x: 20, y: 30 },
+  { type: "patrol", playerId: "red", tick: 301, unitIds: [second], x: 24, y: 30, queued: true },
+  { type: "attack", playerId: "red", tick: 302, unitIds: [third], x: 26, y: 26 },
+  { type: "hold", playerId: "red", tick: 303, unitIds: [third], queued: true },
   {
     type: "attack",
     playerId: "red",
@@ -65,9 +71,25 @@ test("the same scenario, seed, and commands produce the same hash", () => {
   expect(play()).toBe(play());
 });
 
+test("the script leaves units with queued orders, patrols, and holds to save", () => {
+  const world = skirmishWorld({ ai: true });
+  const kinds = new Set<string>();
+  for (let tick = 0; tick < 3200; tick++) {
+    step(
+      world,
+      script.filter((command) => command.tick === tick),
+    );
+    for (const unit of world.entities) {
+      if (unit.orders.length > 1) kinds.add("queued");
+      for (const order of unit.orders) kinds.add(order.type);
+    }
+  }
+  expect([...kinds]).toEqual(expect.arrayContaining(["queued", "patrol", "attackMove", "hold"]));
+});
+
 test("a save and load partway through does not change the hash", () => {
   const expected = play();
-  for (const saveAt of [3, 700, 2600, 3500]) {
+  for (const saveAt of [3, 700, 2600, 2800, 3000, 3500]) {
     expect(play(saveAt)).toBe(expected);
   }
 });
@@ -93,7 +115,7 @@ test("malformed commands are dropped and cannot make a save diverge", () => {
   ] as unknown as Command[];
   const world = skirmishWorld();
   step(world, malformed);
-  expect(entity(world, worker)).toMatchObject({ x: 12, y: 22, order: null });
+  expect(entity(world, worker)).toMatchObject({ x: 12, y: 22, orders: [] });
   expect(hashWorld(loadWorld(saveWorld(world)))).toBe(hashWorld(world));
 });
 
@@ -146,7 +168,7 @@ test("commands for a later tick never enter the world", () => {
   step(quiet);
   expect(hashWorld(world)).toBe(hashWorld(quiet));
   for (let tick = 1; tick < 10; tick++) step(world);
-  expect(entity(world, worker)).toMatchObject({ x: 12, y: 22, order: null });
+  expect(entity(world, worker)).toMatchObject({ x: 12, y: 22, orders: [] });
 });
 
 test("commands from two players for one tick apply the same way in either arrival order", () => {
@@ -198,6 +220,6 @@ test("one player's commands for a tick apply in the order sent, after earlier se
   });
   const world = skirmishWorld();
   step(world, [move("blue", 30), move("red", 10), move("red", 14)]);
-  expect(entity(world, worker).order).toMatchObject({ type: "move", x: 14 });
-  expect(entity(world, ids.blueWorkers[0]).order).toMatchObject({ type: "move", x: 30 });
+  expect(entity(world, worker).orders[0]).toMatchObject({ type: "move", x: 14 });
+  expect(entity(world, ids.blueWorkers[0]).orders[0]).toMatchObject({ type: "move", x: 30 });
 });

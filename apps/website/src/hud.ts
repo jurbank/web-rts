@@ -31,6 +31,17 @@ export interface HudOffer {
   enabled: boolean;
 }
 
+/** The unit orders the HUD offers, and whether `sim` would take each now. */
+export interface HudOrders {
+  attack: boolean;
+  patrol: boolean;
+  hold: boolean;
+  stop: boolean;
+}
+
+/** An order waiting for a tap on the battlefield. */
+export type OrderMode = "attack" | "patrol";
+
 /** Everything the HUD shows. It changes only when one of these values does (U3). */
 export interface HudView {
   resources: number;
@@ -43,6 +54,15 @@ export interface HudView {
   /** What the one selected unit can cast. */
   abilities: HudAbility[];
   queue: { label: string; percent: number }[];
+  /** Orders for the selected units that move, or null when none is selected. */
+  orders: HudOrders | null;
+  mode: OrderMode | null;
+  /** Whether new orders go after the ones units already have. */
+  queueing: boolean;
+  /** Whether the next group tap puts the selection in that group. */
+  settingGroup: boolean;
+  /** Control groups in number order, with how many of the player's units each still holds. */
+  groups: { number: number; count: number }[];
   /** The name of the building waiting to be placed. */
   placing: string | null;
   /** The id of the ability waiting for a target. */
@@ -63,6 +83,11 @@ export const emptyHudView: HudView = {
   actions: [],
   abilities: [],
   queue: [],
+  orders: null,
+  mode: null,
+  queueing: false,
+  settingGroup: false,
+  groups: [],
   placing: null,
   targeting: null,
   notice: null,
@@ -78,6 +103,11 @@ export interface HudInput {
   /** The ability of the selected unit that is waiting for a target. */
   targetingId: string | null;
   notice: string | null;
+  mode?: OrderMode | null;
+  queueing?: boolean;
+  settingGroup?: boolean;
+  /** Control groups by number. */
+  groups?: readonly { number: number; ids: readonly number[] }[];
 }
 
 export function buildHudView(input: HudInput): HudView {
@@ -134,6 +164,14 @@ export function buildHudView(input: HudInput): HudView {
   const abilities = caster === null ? [] : abilitiesOf(caster);
   const local = snapshot.players.find((player) => player.id === localPlayerId);
 
+  const movers = selected.filter(
+    (entity) => entity.playerId === localPlayerId && definitionOf(entity).speed !== undefined,
+  );
+  const armed = movers.some((entity) => definitionOf(entity).weapon !== undefined);
+  const own = new Set(
+    snapshot.entities.filter((entity) => entity.playerId === localPlayerId).map(({ id }) => id),
+  );
+
   const { outcome } = snapshot;
   return {
     resources,
@@ -171,6 +209,22 @@ export function buildHudView(input: HudInput): HudView {
       label: name(item.definitionId),
       percent: Math.floor(item.progress * 20) * 5,
     })),
+    orders:
+      movers.length === 0
+        ? null
+        : {
+            attack: armed && !refused("attack"),
+            patrol: !refused("patrol"),
+            hold: !refused("hold"),
+            stop: !refused("stop"),
+          },
+    mode: input.mode ?? null,
+    queueing: input.queueing ?? false,
+    settingGroup: input.settingGroup ?? false,
+    groups: (input.groups ?? []).flatMap((group) => {
+      const count = group.ids.filter((id) => own.has(id)).length;
+      return count === 0 ? [] : { number: group.number, count };
+    }),
     placing: placingId === null ? null : name(placingId),
     targeting: abilities.find((ability) => ability.id === input.targetingId)?.id ?? null,
     notice: input.notice,

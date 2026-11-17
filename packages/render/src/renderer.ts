@@ -74,6 +74,7 @@ interface DrawnEntity extends Point {
   health: number | null;
   selected: boolean;
   target: Readonly<Point> | null;
+  waypoints: readonly Readonly<Point>[];
 }
 
 interface EntityView {
@@ -237,6 +238,27 @@ export function createRenderer(
       context.fillStyle = "#ffffff";
       context.fillText(marker.label, at.x + 14, at.y + 18);
     }
+    // Where selected units are headed, in the order they will get there.
+    context.lineWidth = 1.5;
+    context.setLineDash([4, 4]);
+    context.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    context.fillStyle = "rgba(255, 255, 255, 0.8)";
+    for (const entity of drawn) {
+      if (!entity.selected || entity.waypoints.length === 0) continue;
+      const at = rig.project(entity);
+      context.beginPath();
+      context.moveTo(at.x, at.y);
+      for (const waypoint of entity.waypoints) {
+        const to = rig.project(waypoint);
+        context.lineTo(to.x, to.y);
+      }
+      context.stroke();
+      for (const waypoint of entity.waypoints) {
+        const to = rig.project(waypoint);
+        context.fillRect(to.x - 2, to.y - 2, 4, 4);
+      }
+    }
+    context.setLineDash([]);
     context.lineWidth = 1;
     context.strokeStyle = "#ffd60a";
     for (const entity of drawn) {
@@ -312,6 +334,7 @@ export function createRenderer(
               : entity.health / entity.maxHealth,
           selected,
           target: entity.target,
+          waypoints: entity.waypoints,
         });
       }
       removeStaleViews();

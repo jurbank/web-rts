@@ -154,6 +154,9 @@ export const triggerSchema = z.object({
 export const COMMAND_TYPES = [
   "move",
   "attack",
+  "patrol",
+  "hold",
+  "stop",
   "gather",
   "build",
   "assist",

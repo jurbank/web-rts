@@ -1,5 +1,30 @@
 import type { ScreenPoint } from "render";
 
+/** An action with a key of its own. Each is also a HUD button, so keys only speed things up (U2). */
+export type Shortcut =
+  | { kind: "attack" }
+  | { kind: "patrol" }
+  | { kind: "hold" }
+  | { kind: "stop" }
+  | { kind: "selectGroup"; number: number }
+  | { kind: "setGroup"; number: number };
+
+const KEYS: Readonly<Record<string, Shortcut>> = {
+  a: { kind: "attack" },
+  p: { kind: "patrol" },
+  h: { kind: "hold" },
+  s: { kind: "stop" },
+};
+
+/** A digit selects that control group, and with Ctrl sets it. */
+function shortcutFor(key: string, ctrl: boolean): Shortcut | null {
+  if (/^[1-9]$/.test(key)) {
+    return { kind: ctrl ? "setGroup" : "selectGroup", number: Number(key) };
+  }
+  if (ctrl || !Object.hasOwn(KEYS, key)) return null;
+  return KEYS[key];
+}
+
 /** What the player means, whichever device said it (U1). */
 export interface Intents {
   /** A press and release in place. `slop` is how far off a unit it may land, in pixels. */
@@ -17,6 +42,9 @@ export interface Intents {
   pan(from: ScreenPoint, to: ScreenPoint): void;
   zoom(factor: number, at: ScreenPoint): void;
   cancel(): void;
+  /** Whether the key that queues orders is held. Touch has a toggle on the HUD instead. */
+  queueHeld?(held: boolean): void;
+  shortcut?(shortcut: Shortcut): void;
 }
 
 type Gesture =
@@ -170,7 +198,29 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
   }
 
   function onKeyDown(event: KeyboardEvent): void {
-    if (event.key === "Escape") intents.cancel();
+    if (event.key === "Escape") {
+      intents.cancel();
+      return;
+    }
+    if (event.key === "Shift") {
+      intents.queueHeld?.(true);
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, textarea, select") || event.altKey || event.metaKey) return;
+    const shortcut = shortcutFor(event.key.toLowerCase(), event.ctrlKey);
+    if (shortcut === null || intents.shortcut === undefined) return;
+    event.preventDefault();
+    intents.shortcut(shortcut);
+  }
+
+  function onKeyUp(event: KeyboardEvent): void {
+    if (event.key === "Shift") intents.queueHeld?.(false);
+  }
+
+  /** A key released while the page was in the background never reports it. */
+  function onBlur(): void {
+    intents.queueHeld?.(false);
   }
 
   function onContextMenu(event: Event): void {
@@ -184,6 +234,8 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
   element.addEventListener("wheel", onWheel, { passive: false });
   element.addEventListener("contextmenu", onContextMenu);
   window.addEventListener("keydown", onKeyDown);
+  window.addEventListener("keyup", onKeyUp);
+  window.addEventListener("blur", onBlur);
 
   return () => {
     reset();
@@ -194,6 +246,8 @@ export function attachInput(element: HTMLElement, intents: Intents): () => void 
     element.removeEventListener("wheel", onWheel);
     element.removeEventListener("contextmenu", onContextMenu);
     window.removeEventListener("keydown", onKeyDown);
+    window.removeEventListener("keyup", onKeyUp);
+    window.removeEventListener("blur", onBlur);
   };
 }
 

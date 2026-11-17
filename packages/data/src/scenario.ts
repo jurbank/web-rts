@@ -14,7 +14,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 5;
+export const FORMAT_VERSION = 6;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 

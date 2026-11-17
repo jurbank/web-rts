@@ -29,7 +29,29 @@ const migrations: Record<number, Migration> = {
   3: (document) => ({ ...document, formatVersion: 4 }),
   /** Version 5 adds offers, merging, selections, command rules, and timer labels. Every addition is optional. */
   4: (document) => ({ ...document, formatVersion: 5 }),
+  /**
+   * Version 6 adds the `patrol`, `hold`, and `stop` commands. A command rule
+   * that listed `move` meant to keep units still, so it now lists all three
+   * too, and one that listed only `attack` also lists `patrol`.
+   */
+  5: ({ commandRules, ...rest }) => ({
+    ...rest,
+    formatVersion: 6,
+    ...(Array.isArray(commandRules) ? { commandRules: commandRules.map(addMovingCommands) } : {}),
+  }),
 };
+
+function addMovingCommands(rule: unknown): unknown {
+  if (typeof rule !== "object" || rule === null) return rule;
+  const { commands } = rule as { commands?: unknown };
+  if (!Array.isArray(commands)) return rule;
+  const added = commands.includes("move")
+    ? ["patrol", "hold", "stop"]
+    : commands.includes("attack")
+      ? ["patrol"]
+      : [];
+  return { ...rule, commands: [...commands, ...added.filter((type) => !commands.includes(type))] };
+}
 
 export function migrateScenario(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null) {

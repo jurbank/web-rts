@@ -195,3 +195,22 @@ The audit found no single-player assumption that blocks either model. It found f
 - Variables and timers are public. Every viewer will see every variable and timer until the per-seat scope decision (auto chess ADR) also gives each an audience.
 
 Left for later, in the roadmap: the tick cost of large armies in twelve seats, the owner-only fields of a visible enemy (with fog), the phone camera and HUD width, catching up after a hidden page, and a twelve-seat determinism fixture checked in WebKit.
+
+## 2026-11-17 Orders are a queue, and touch gets the same controls as keys
+
+The first milestone 7 step, as the milestone 7 entry planned.
+
+- An entity holds `orders`. The first is carried out, and finishing it starts the next. A command that orders units may carry `queued`, which adds after the orders already there. Without it the new order replaces them. `stop` empties them. A queue holds at most 16 orders, and nothing queues behind a hold or a patrol, which last until replaced and so would hold orders that never start. A patrol visits at most 16 points. A queued `build` still places the building and takes its cost at once, and only the walk waits. Paying when the builder arrives was considered, and would let a spot be taken in the meantime.
+- `attack` takes a target or a point. A point gives an `attackMove` order, which walks there and fights what it sees. An unarmed unit just walks. A plain `move` ignores enemies, as in StarCraft 2.
+- `patrol` loops between where the order starts and its point. A queued patrol after another adds a point to that loop. `hold` never moves and fires at what is in weapon range. It also only looks that far. Patrol and hold last until replaced.
+- Armed entities pick their own target when idle, walking a path, attack-moving, patrolling, or holding. The target goes on the front of the queue, and the order under it carries on once it is gone. One picked over another order is dropped when it leaves sight, as path walkers did before. One picked while idle is chased, as before. This replaces the attack order's `resume`. After a cast lands, the caster attacks that target only when nothing else is queued.
+- Format 6 adds `patrol`, `hold`, and `stop` to the command types. The migration adds all three to a command rule that refused `move`, and `patrol` to one that refused `attack` without `move`, so rules keep meaning what they meant. An attack-move is an `attack`, so a rule that refuses `attack` refuses it. It also moves, so `sim` refuses it while `move` is refused, and a targeted attack stays allowed. A separate rule name for attack-move was considered and would be one more type for authors to list. `auto-chess-v5.json` checks that a version 5 file loads to the same result.
+- The snapshot carries each entity's `waypoints`, the points of its move, attack-move, and patrol orders, and the renderer draws them for selected units. That shows a phone player that queueing worked. With fog these become owner-only, like the other fields the milestone 6 audit named.
+- The app keeps control groups 1 to 9 (U4). The HUD offers Attack, Patrol, Hold, Stop, a Queue toggle that stays on until turned off, a button for each group, and New group. Set group shows every number, and tapping one puts the selection there, so touch can set any group as Ctrl with a digit does. Keys map to the same named shortcuts the buttons send (U1, U2): A, P, H, S, Shift to queue while held, a digit to select a group, and Ctrl with a digit to set one. While queueing, by Shift or the toggle, attack and patrol mode stay on, so each further point is one tap on either device.
+
+Left open:
+
+- Auto-acquire now also scans for every attack-moving, patrolling, and holding unit, which widens the tick cost the milestone 6 audit measured. A spatial grid keeps results the same. Staggering the scans would change outcomes, so it has to be chosen before replays are kept.
+- A player's commands for one tick apply in the order sent, which now decides the order of queued waypoints. The model ADR must require ordered delivery for each seat or give commands a sequence number.
+- Browsers on Windows and Linux may keep Ctrl with a digit for switching tabs, which a page cannot stop. Set group covers it on every device. Another key may be needed.
+- Centering the camera on a group, a formation that keeps its shape on queued points, and the width of the group buttons on a small phone.

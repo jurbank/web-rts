@@ -29,7 +29,10 @@ export interface EntitySnapshot {
   readonly built: number;
   readonly carrying: number;
   readonly amount: number;
+  /** What it is doing now. */
   readonly order: Order["type"] | null;
+  /** The points of its move, attack-move, and patrol orders in the order it will reach them, for drawing. */
+  readonly waypoints: readonly Readonly<Point>[];
   /** Where its current route ends. */
   readonly target: Readonly<Point> | null;
   readonly queue: readonly { readonly definitionId: string; readonly progress: number }[];
@@ -77,7 +80,14 @@ export function takeSnapshot(world: World): Snapshot {
         built: 1 - entity.buildRemaining / toTicks(definitionOf(world, entity).buildTime),
         carrying: entity.carrying,
         amount: entity.amount,
-        order: entity.order?.type ?? null,
+        order: entity.orders[0]?.type ?? null,
+        waypoints: entity.orders.flatMap((order) =>
+          order.type === "move" || order.type === "attackMove"
+            ? [{ x: order.x, y: order.y }]
+            : order.type === "patrol"
+              ? order.points.map((point) => ({ x: point.x, y: point.y }))
+              : [],
+        ),
         target: end === undefined ? null : { x: end.x, y: end.y },
         queue: entity.queue.map((item) => ({
           definitionId: item.definitionId,

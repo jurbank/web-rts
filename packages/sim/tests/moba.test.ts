@@ -60,7 +60,7 @@ function push(world: World): Command[] {
   if (hero.abilityCooldowns[0] === 0 && Math.hypot(near.x - hero.x, near.y - hero.y) < 8) {
     return [{ ...base, type: "cast", unitId: RED_HERO, abilityId: "bolt", targetId: near.id }];
   }
-  return hero.order === null
+  return hero.orders.length === 0
     ? [{ ...base, type: "attack", unitIds: [RED_HERO], targetId: near.id }]
     : [];
 }
@@ -123,7 +123,7 @@ test("teammates do not fight, and cannot be ordered to", () => {
   run(world, 30, [
     { type: "attack", playerId: "red", tick: 0, unitIds: [RED_HERO], targetId: ancient.id },
   ]);
-  expect(entity(world, RED_HERO).order).toBeNull();
+  expect(entity(world, RED_HERO).orders).toEqual([]);
   expect(ancient.health).toBe(800);
 });
 
@@ -135,8 +135,9 @@ test("creeps on a path fight what they meet and then walk on", () => {
     step(world);
     for (const creep of world.entities) {
       if (creep.definitionId !== "creep") continue;
-      if (creep.order?.type === "attack" && creep.order.resume !== undefined) fought.add(creep.id);
-      else if (creep.order?.type === "path" && fought.has(creep.id)) resumed.add(creep.id);
+      const [current, beneath] = creep.orders;
+      if (current?.type === "attack" && beneath?.type === "path") fought.add(creep.id);
+      else if (current?.type === "path" && fought.has(creep.id)) resumed.add(creep.id);
     }
   }
   expect(fought.size).toBeGreaterThan(0);
@@ -146,18 +147,18 @@ test("creeps on a path fight what they meet and then walk on", () => {
 test("an ability is cast from range, then has to cool down", () => {
   const world = duel();
   run(world, 1, [cast("bolt", BLUE_HERO)]);
-  expect(entity(world, RED_HERO).order).toMatchObject({ type: "cast" });
+  expect(entity(world, RED_HERO).orders[0]).toMatchObject({ type: "cast" });
   while (entity(world, BLUE_HERO).health === 300) step(world);
 
   const hero = entity(world, RED_HERO);
   expect(entity(world, BLUE_HERO).health).toBe(230);
   expect(20 - hero.x).toBeCloseTo(6.6, 0);
   expect(hero.abilityCooldowns[0]).toBe(6 * TICK_RATE);
-  expect(hero.order).toEqual({ type: "attack", targetId: BLUE_HERO });
+  expect(hero.orders[0]).toEqual({ type: "attack", targetId: BLUE_HERO });
   expect(takeSnapshot(world).entities[0].abilityCooldowns[0]).toBe(6);
 
   run(world, 1, [{ ...cast("bolt", BLUE_HERO), tick: world.tick }]);
-  expect(hero.order).toEqual({ type: "attack", targetId: BLUE_HERO });
+  expect(hero.orders[0]).toEqual({ type: "attack", targetId: BLUE_HERO });
 });
 
 test("an ability needs its level, and its modifier wears off", () => {
@@ -251,7 +252,7 @@ test("a cast that reaches its target without the money ends", () => {
   });
   world.players[0].resources = 50;
   run(world, 1, [cast("bolt", BLUE_HERO)]);
-  expect(entity(world, RED_HERO).order).toMatchObject({ type: "cast" });
+  expect(entity(world, RED_HERO).orders[0]).toMatchObject({ type: "cast" });
   world.players[0].resources = 0;
   run(world, 2 * TICK_RATE);
   expect(entity(world, RED_HERO).abilityCooldowns[0]).toBe(0);

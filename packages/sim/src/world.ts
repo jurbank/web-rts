@@ -13,8 +13,20 @@ export interface Point {
 
 export type Order =
   | { type: "move"; x: number; y: number }
-  /** `resume` is the path order an enemy on the way interrupted. */
-  | { type: "attack"; targetId: number; resume?: { pathId: string; next: number } }
+  /** Moves to the point, fighting enemies it sees on the way. */
+  | { type: "attackMove"; x: number; y: number }
+  /**
+   * Walks between points in a loop, fighting enemies it sees. `next` is -1
+   * until the order starts, when the spot it starts from becomes the first point.
+   */
+  | { type: "patrol"; points: Point[]; next: number }
+  /** Stays where it is and fires at enemies in weapon range. Lasts until replaced. */
+  | { type: "hold" }
+  /**
+   * `acquired` when the unit picked the target itself. An acquired attack on
+   * top of another order gives up on a target that leaves its sight.
+   */
+  | { type: "attack"; targetId: number; acquired?: boolean }
   /** Walks into range of the target and uses the ability at this index in its definition. */
   | { type: "cast"; ability: number; targetId: number }
   | { type: "gather"; nodeId: number; returning: boolean; progress: number }
@@ -41,7 +53,8 @@ export interface Entity extends Point {
   playerId: string | null;
   /** Null when it cannot be damaged. */
   health: number | null;
-  order: Order | null;
+  /** The first is being carried out. The rest wait their turn. */
+  orders: Order[];
   /** Waypoints still to visit. */
   path: Point[];
   /** Where `path` was computed to lead, or null when there is no path. */
@@ -211,7 +224,7 @@ export function spawn(
     x: x + 0,
     y: y + 0,
     health: definition.maxHealth ?? null,
-    order: null,
+    orders: [],
     path: [],
     pathGoal: null,
     cooldown: 0,

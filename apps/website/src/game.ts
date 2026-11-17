@@ -2,8 +2,8 @@ import type { Scenario } from "data";
 import { createRenderer, type ScreenPoint } from "render";
 import { createWorld, type Command, type EntitySnapshot } from "sim";
 import { scenarioGuides } from "./guides.ts";
-import { buildHudView, type HudView } from "./hud.ts";
-import { attachInput, showBox } from "./input.ts";
+import { buildHudView, type HudView, type OrderMode } from "./hud.ts";
+import { attachInput, showBox, type Shortcut } from "./input.ts";
 import { createGameLoop } from "./loop.ts";
 import type { Seating } from "./seating.ts";
 
@@ -26,6 +26,12 @@ export interface Game {
   /** The next tap on the ground places this building. */
   beginPlacement(definitionId: string): void;
   cancelPlacement(): void;
+  /** Attack and patrol wait for a tap. The rest act on the selection now. */
+  shortcut(shortcut: Shortcut): void;
+  /** While on, new orders go after the ones units already have. */
+  setQueueing(on: boolean): void;
+  /** While on, the HUD offers every group number to put the selection in. */
+  setGroupMode(on: boolean): void;
   deselect(): void;
   /** Leaves the match. The local player is defeated and their team plays on. */
   concede(): void;
@@ -56,6 +62,13 @@ export function createGame(
   let selectedIds: number[] = [];
   let placingId: string | null = null;
   let targetingId: string | null = null;
+  let mode: OrderMode | null = null;
+  /** The HUD's queue toggle, and the key that queues while held (Shift). */
+  let queueToggle = false;
+  let queueHeld = false;
+  let settingGroup = false;
+  /** Control groups by number, 1 to 9. App state, not world state (U4). */
+  const groups = new Map<number, number[]>();
   let notice: string | null = null;
   let debug = false;
   let lastView = "";
@@ -74,11 +87,44 @@ export function createGame(
     notice = null;
   }
 
+  const queueing = () => queueToggle || queueHeld;
+
+  /** Submits an order for units, after their current ones while queueing. */
+  function order(fields: CommandFields<Extract<Command, { queued?: boolean }>>): void {
+    submit(queueing() ? { ...fields, queued: true } : fields);
+  }
+
   function select(ids: number[]): void {
     selectedIds = ids;
     placingId = null;
     targetingId = null;
+    mode = null;
+    settingGroup = false;
     notice = null;
+  }
+
+  /** The selected units the local player owns that can move. */
+  const movers = () =>
+    selected().filter((unit) => isOwn(unit) && definitionOf(unit).speed !== undefined);
+
+  function beginMode(next: OrderMode): void {
+    if (movers().length === 0) return;
+    placingId = null;
+    targetingId = null;
+    mode = next;
+    notice = null;
+  }
+
+  function assignGroup(number: number): void {
+    const ids = selected()
+      .filter(isOwn)
+      .map((entity) => entity.id);
+    if (ids.length > 0) groups.set(number, ids);
+  }
+
+  function selectGroup(number: number): void {
+    const alive = new Set(loop.current.entities.map((entity) => entity.id));
+    select((groups.get(number) ?? []).filter((id) => alive.has(id)));
   }
 
   function place(at: ScreenPoint): void {
@@ -88,7 +134,7 @@ export function createGame(
       notice = `${definition.name} does not fit there`;
       return;
     }
-    submit({ type: "build", unitIds: selectedIds, definitionId: definition.id, ...ground });
+    order({ type: "build", unitIds: selectedIds, definitionId: definition.id, ...ground });
     placingId = null;
   }
 
@@ -105,21 +151,35 @@ export function createGame(
         notice = "That is not an enemy";
         return;
       }
-      submit({ type: "cast", unitId: selectedIds[0], abilityId: targetingId, targetId: entity.id });
+      order({ type: "cast", unitId: selectedIds[0], abilityId: targetingId, targetId: entity.id });
       targetingId = null;
       return;
     }
-    const units = selected().filter(
-      (unit) => isOwn(unit) && definitionOf(unit).speed !== undefined,
-    );
+    const units = movers();
     const unitIds = units.map((unit) => unit.id);
+
+    if (mode !== null) {
+      const ground = renderer.pickGround(at);
+      if (mode === "attack" && entity !== undefined && isHostile(entity)) {
+        order({ type: "attack", unitIds, targetId: entity.id });
+      } else if (mode === "attack" && loop.current.refusedCommands.includes("move")) {
+        // `sim` refuses an attack-move while moving is refused.
+        notice = "Units cannot move now. Tap an enemy";
+        return;
+      } else if (ground !== null) {
+        order({ type: mode, unitIds, ...ground });
+      }
+      // While queueing the mode stays, so several points take one tap each.
+      if (!queueing()) mode = null;
+      return;
+    }
 
     if (entity !== undefined && isOwn(entity)) {
       const canAssist =
         entity.built < 1 &&
         units.some((unit) => definitionOf(unit).builds.includes(entity.definitionId));
       if (canAssist) {
-        submit({ type: "assist", unitIds, buildingId: entity.id });
+        order({ type: "assist", unitIds, buildingId: entity.id });
         return;
       }
       if (maySelect && !selectedIds.includes(entity.id)) {
@@ -129,12 +189,12 @@ export function createGame(
     }
     if (unitIds.length === 0) return;
     if (entity !== undefined && isHostile(entity)) {
-      submit({ type: "attack", unitIds, targetId: entity.id });
+      order({ type: "attack", unitIds, targetId: entity.id });
     } else if (entity !== undefined && definitionOf(entity).resource !== undefined) {
-      submit({ type: "gather", unitIds, nodeId: entity.id });
+      order({ type: "gather", unitIds, nodeId: entity.id });
     } else {
       const ground = renderer.pickGround(at);
-      if (ground !== null) submit({ type: "move", unitIds, ...ground });
+      if (ground !== null) order({ type: "move", unitIds, ...ground });
     }
   }
 
@@ -158,10 +218,47 @@ export function createGame(
     pan: (from, to) => renderer.pan(from, to),
     zoom: (factor, at) => renderer.zoom(factor, at),
     cancel() {
-      if (placingId !== null || targetingId !== null) select(selectedIds);
+      if (placingId !== null || targetingId !== null || mode !== null) select(selectedIds);
       else select([]);
     },
+    queueHeld(held) {
+      queueHeld = held;
+    },
+    shortcut: run,
   });
+
+  function run(shortcut: Shortcut): void {
+    switch (shortcut.kind) {
+      case "attack":
+      case "patrol":
+        beginMode(shortcut.kind);
+        return;
+      case "hold":
+        hold();
+        return;
+      case "stop":
+        stop();
+        return;
+      case "selectGroup":
+        selectGroup(shortcut.number);
+        return;
+      case "setGroup":
+        assignGroup(shortcut.number);
+        settingGroup = false;
+        return;
+    }
+  }
+
+  function hold(): void {
+    const unitIds = movers().map((unit) => unit.id);
+    if (unitIds.length > 0) order({ type: "hold", unitIds });
+  }
+
+  function stop(): void {
+    const unitIds = movers().map((unit) => unit.id);
+    if (unitIds.length > 0) submit({ type: "stop", unitIds });
+    mode = null;
+  }
 
   function resize(): void {
     const { clientWidth, clientHeight } = elements.battlefield;
@@ -184,6 +281,10 @@ export function createGame(
       placingId,
       targetingId,
       notice,
+      mode,
+      queueing: queueing(),
+      settingGroup,
+      groups: [...groups].sort(([a], [b]) => a - b).map(([number, ids]) => ({ number, ids })),
     });
     const serialized = JSON.stringify(view);
     if (serialized !== lastView) {
@@ -231,6 +332,13 @@ export function createGame(
     },
     cancelPlacement() {
       select(selectedIds);
+    },
+    shortcut: run,
+    setQueueing(on) {
+      queueToggle = on;
+    },
+    setGroupMode(on) {
+      settingGroup = on;
     },
     deselect() {
       select([]);

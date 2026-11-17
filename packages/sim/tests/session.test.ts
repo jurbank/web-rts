@@ -34,7 +34,7 @@ test("a team plays on when one of its players concedes", () => {
   expect(world.players.find((player) => player.id === "red")!.defeated).toBe(true);
   expect(world.outcome).toBeNull();
   step(world, [{ type: "move", playerId: "red", tick: 1, unitIds: [1], x: 5, y: 5 }]);
-  expect(world.entities.find((entity) => entity.id === 1)!.order).toBeNull();
+  expect(world.entities.find((entity) => entity.id === 1)!.orders).toEqual([]);
 });
 
 test("a team whose only person concedes falls, though its unmanned base stands", () => {
