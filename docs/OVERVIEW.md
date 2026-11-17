@@ -25,7 +25,7 @@ Feel free to study these projects for design patterns; don't assume their code, 
 The game and editor are **equally important parts of one platform**:
 
 - **Play:** Responsive RTS controls, economy, construction, production, tactical combat, AI, and scenario-defined objectives.
-- **Create:** Build maps and scenarios ranging from standard skirmishes to campaigns, survival modes, scripted missions, and custom rule sets.
+- **Create:** Build maps and scenarios ranging from standard skirmishes to campaigns, survival modes, scripted missions, custom rule sets, and other genres such as tower defense, MOBA, and auto chess.
 - **Iterate:** Switch quickly between editing and playtesting without losing changes to the authoring document.
 
 "Any scenario" is the long-term flexibility goal; new mechanics may still require extending the available systems.
@@ -43,11 +43,11 @@ The game and editor are **equally important parts of one platform**:
 
 The editor is a **first-class product feature**, not an internal debug tool.
 
-- **Terrain:** Create maps; sculpt elevation; paint materials; add roads, water, cliffs, vegetation, and obstacles.
+- **Terrain:** Import terrain meshes made in a separate, external terrain editor; sculpting and painting do not live in this project. Place obstacles and props on top.
 - **Placement:** Add, move, duplicate, organize, and configure units, buildings, resources, props, zones, and waypoints.
 - **Game data:** Edit or derive unit, building, weapon, ability, upgrade, and faction definitions; support per-instance overrides.
 - **Scenario setup:** Configure players, teams, starting positions, resources, diplomacy, AI, and win/loss rules.
-- **Logic:** Visual event → condition → action triggers, variables, timers, objectives, waves, and scripted events; consider restricted advanced scripting later.
+- **Logic:** Event → condition → action triggers, variables, timers, objectives, waves, and scripted events, stored as data. Agents author them first; a visual trigger editor comes later. No end-user scripting language for now.
 - **Workflow:** Viewport, hierarchy, inspector, asset browser, search, snapping, undo/redo, validation, import/export, save/load, and one-click playtest.
 - **Later:** Asset packs, campaign tools, community scenario sharing, and creator-friendly extensions.
 
@@ -81,7 +81,7 @@ Build one simple map, one prototype faction, basic resources, a few buildings an
 
 **Editor requirements:**
 
-- Create/load a map; edit basic terrain and obstacles.
+- Create/load a map; place obstacles. Terrain stays a flat plane until terrain import arrives.
 - Place/select/move/delete objects; set teams, start points, and a victory condition.
 - Undo/redo, save/reload, and launch a playtest.
 

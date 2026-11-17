@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "data": "workspace:*",
+    "editor": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:",
     "render": "workspace:*",

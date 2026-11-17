@@ -1,4 +1,4 @@
-import type { Definition } from "data";
+import type { Ability, Definition } from "data";
 import { findPath } from "./nav.ts";
 import {
   definitionOf,
@@ -6,9 +6,12 @@ import {
   findEntity,
   findPlayer,
   spawn,
+  statOf,
+  teamOf,
   TICK_SECONDS,
   toTicks,
   type Entity,
+  type PlayerState,
   type Point,
   type World,
 } from "./world.ts";
@@ -18,14 +21,22 @@ export type SimEvent =
   | { type: "died"; id: number; definitionId: string; playerId: string | null }
   | { type: "completed"; id: number }
   | { type: "produced"; id: number; buildingId: number }
+  | { type: "leveled"; id: number; level: number }
+  | { type: "respawned"; id: number }
   | { type: "defeated"; playerId: string }
   | { type: "ended"; winnerId: string | null };
 
 /** How close a unit must get to something it works on, beyond the two footprints. */
 const WORK_MARGIN = 1.5;
 
-export function isEnemy(entity: Entity, other: Entity): boolean {
-  return other.playerId !== null && other.playerId !== entity.playerId && other.health !== null;
+/** Whether `other` is something `entity` fights: owned, damageable, and on another team. */
+export function isEnemy(world: World, entity: Entity, other: Entity): boolean {
+  return (
+    other.playerId !== null &&
+    other.playerId !== entity.playerId &&
+    other.health !== null &&
+    teamOf(world, other.playerId) !== teamOf(world, entity.playerId)
+  );
 }
 
 export function nearest(
@@ -75,7 +86,7 @@ function approach(world: World, entity: Entity, goal: Point, reach: number): boo
     clearPath(entity);
     return true;
   }
-  const { speed } = definitionOf(world, entity);
+  const speed = statOf(world, entity, "speed");
   if (speed === undefined) return false;
   if (entity.pathGoal === null || distance(entity.pathGoal, goal) > 1) {
     entity.path = findPath(world, entity, goal);
@@ -90,7 +101,7 @@ function workReach(world: World, entity: Entity, target: Entity): number {
 }
 
 function runMove(world: World, entity: Entity, order: { x: number; y: number }): void {
-  const { speed } = definitionOf(world, entity);
+  const speed = statOf(world, entity, "speed");
   if (speed === undefined) {
     entity.order = null;
     return;
@@ -106,28 +117,109 @@ function runMove(world: World, entity: Entity, order: { x: number; y: number }):
   }
 }
 
-function runAttack(world: World, entity: Entity, targetId: number): void {
-  const { weapon, speed } = definitionOf(world, entity);
-  const target = findEntity(world, targetId);
+function runPath(world: World, entity: Entity, order: { pathId: string; next: number }): void {
+  const speed = statOf(world, entity, "speed");
+  const waypoints = world.paths[order.pathId];
+  if (speed === undefined || waypoints === undefined || order.next >= waypoints.length) {
+    entity.order = null;
+    clearPath(entity);
+    return;
+  }
+  const goal = world.waypoints[waypoints[order.next]];
+  if (entity.pathGoal === null) {
+    entity.path = findPath(world, entity, goal);
+    entity.pathGoal = { x: goal.x, y: goal.y };
+  }
+  followPath(entity, speed);
+  if (entity.path.length === 0) {
+    entity.pathGoal = null;
+    order.next += 1;
+    if (order.next >= waypoints.length) entity.order = null;
+  }
+}
+
+function runAttack(
+  world: World,
+  entity: Entity,
+  order: Extract<Entity["order"], { type: "attack" }>,
+): void {
+  const definition = definitionOf(world, entity);
+  const { weapon } = definition;
+  const target = findEntity(world, order.targetId);
+  const resume: Entity["order"] =
+    order.resume === undefined ? null : { type: "path", ...order.resume };
+  // A unit pulled off its path gives up on a target that gets out of sight.
+  const lost =
+    target !== undefined &&
+    order.resume !== undefined &&
+    distance(entity, target) - definitionOf(world, target).radius > sightOf(definition);
   if (
     weapon === undefined ||
     target === undefined ||
     target.health === null ||
-    target.health <= 0
+    target.health <= 0 ||
+    lost
   ) {
-    entity.order = null;
+    entity.order = resume;
     clearPath(entity);
     return;
   }
   const reach = weapon.range + definitionOf(world, target).radius;
   if (!approach(world, entity, target, reach)) {
-    if (speed === undefined) entity.order = null;
+    if (definition.speed === undefined) entity.order = resume;
     return;
   }
   if (entity.cooldown === 0) {
-    target.health -= weapon.damage;
+    target.health -= statOf(world, entity, "damage") ?? 0;
     entity.cooldown = toTicks(weapon.cooldown);
   }
+}
+
+function applyEffects(world: World, ability: Ability, target: Entity): void {
+  for (const effect of ability.effects) {
+    if (effect.type === "damage") {
+      if (target.health !== null) target.health -= effect.amount;
+    } else {
+      const { stat, add, seconds } = effect;
+      target.modifiers.push({ stat, add, remaining: toTicks(seconds) });
+    }
+  }
+}
+
+/** Uses an ability whose cooldown has run out, on the caster itself or on `target`. */
+export function useAbility(world: World, entity: Entity, index: number, target: Entity): void {
+  const ability = definitionOf(world, entity).abilities[index];
+  applyEffects(world, ability, target);
+  entity.abilityCooldowns[index] = toTicks(ability.cooldown);
+}
+
+function runCast(
+  world: World,
+  entity: Entity,
+  order: Extract<Entity["order"], { type: "cast" }>,
+): void {
+  const ability = definitionOf(world, entity).abilities[order.ability];
+  const target = findEntity(world, order.targetId);
+  if (
+    target === undefined ||
+    target.health === null ||
+    target.health <= 0 ||
+    entity.abilityCooldowns[order.ability] > 0
+  ) {
+    entity.order = null;
+    clearPath(entity);
+    return;
+  }
+  const reach = (ability.range ?? 0) + definitionOf(world, target).radius;
+  if (!approach(world, entity, target, reach)) {
+    if (definitionOf(world, entity).speed === undefined) entity.order = null;
+    return;
+  }
+  useAbility(world, entity, order.ability, target);
+  entity.order =
+    definitionOf(world, entity).weapon === undefined
+      ? null
+      : { type: "attack", targetId: target.id };
 }
 
 function runGather(
@@ -206,28 +298,59 @@ function runBuild(world: World, entity: Entity, buildingId: number, events: SimE
   }
 }
 
-/** Idle armed entities pick the nearest enemy they can see. */
-function acquireTarget(world: World, entity: Entity, definition: Definition): void {
+/** How far an armed entity looks for a target. */
+function sightOf(definition: Definition): number {
   const { weapon } = definition;
-  if (weapon === undefined || entity.buildRemaining > 0) return;
-  const sight =
-    definition.speed === undefined ? weapon.range : (weapon.acquireRange ?? weapon.range);
+  if (weapon === undefined) return 0;
+  return definition.speed === undefined ? weapon.range : (weapon.acquireRange ?? weapon.range);
+}
+
+/**
+ * Armed entities that are idle or walking a path pick the nearest enemy they
+ * can see. One on a path goes back to it afterward.
+ */
+function acquireTarget(world: World, entity: Entity, definition: Definition): void {
+  if (definition.weapon === undefined || entity.buildRemaining > 0) return;
+  const sight = sightOf(definition);
   const target = nearest(
     world,
     entity,
     (other) =>
-      isEnemy(entity, other) &&
+      isEnemy(world, entity, other) &&
       distance(entity, other) - definitionOf(world, other).radius <= sight,
   );
-  if (target !== undefined) entity.order = { type: "attack", targetId: target.id };
+  if (target === undefined) return;
+  const { order } = entity;
+  entity.order =
+    order?.type === "path"
+      ? { type: "attack", targetId: target.id, resume: { pathId: order.pathId, next: order.next } }
+      : { type: "attack", targetId: target.id };
+  clearPath(entity);
+}
+
+/** Wears modifiers and ability cooldowns down by one tick. */
+function runTimers(world: World, entity: Entity): void {
+  if (entity.cooldown > 0) entity.cooldown -= 1;
+  for (let index = 0; index < entity.abilityCooldowns.length; index++) {
+    if (entity.abilityCooldowns[index] > 0) entity.abilityCooldowns[index] -= 1;
+  }
+  if (entity.modifiers.length === 0) return;
+  for (const modifier of entity.modifiers) modifier.remaining -= 1;
+  entity.modifiers = entity.modifiers.filter((modifier) => modifier.remaining > 0);
+  const maxHealth = statOf(world, entity, "maxHealth");
+  if (entity.health !== null && maxHealth !== undefined && entity.health > maxHealth) {
+    entity.health = maxHealth;
+  }
 }
 
 export function runOrders(world: World, events: SimEvent[]): void {
   const count = world.entities.length;
   for (let index = 0; index < count; index++) {
     const entity = world.entities[index];
-    if (entity.cooldown > 0) entity.cooldown -= 1;
-    if (entity.order === null) acquireTarget(world, entity, definitionOf(world, entity));
+    runTimers(world, entity);
+    if (entity.order === null || entity.order.type === "path") {
+      acquireTarget(world, entity, definitionOf(world, entity));
+    }
     const { order } = entity;
     if (order === null) continue;
     switch (order.type) {
@@ -235,13 +358,19 @@ export function runOrders(world: World, events: SimEvent[]): void {
         runMove(world, entity, order);
         break;
       case "attack":
-        runAttack(world, entity, order.targetId);
+        runAttack(world, entity, order);
+        break;
+      case "cast":
+        runCast(world, entity, order);
         break;
       case "gather":
         runGather(world, entity, order);
         break;
       case "build":
         runBuild(world, entity, order.buildingId, events);
+        break;
+      case "path":
+        runPath(world, entity, order);
         break;
     }
   }
@@ -299,38 +428,92 @@ export function removeDead(world: World, events: SimEvent[]): void {
     (entity.health !== null && entity.health <= 0) ||
     (entity.amount <= 0 && definitionOf(world, entity).resource !== undefined);
   if (!world.entities.some(gone)) return;
-  for (const entity of world.entities) {
-    if (gone(entity)) {
-      events.push({
-        type: "died",
-        id: entity.id,
-        definitionId: entity.definitionId,
-        playerId: entity.playerId,
-      });
+  const dead = world.entities.filter(gone);
+  world.entities = world.entities.filter((entity) => !gone(entity));
+  for (const entity of dead) {
+    events.push({
+      type: "died",
+      id: entity.id,
+      definitionId: entity.definitionId,
+      playerId: entity.playerId,
+    });
+    const { experience, respawn } = definitionOf(world, entity);
+    if (experience > 0) shareExperience(world, entity, experience, events);
+    if (respawn !== undefined) {
+      world.respawns.push({ remaining: toTicks(respawn.seconds), entity });
     }
   }
-  world.entities = world.entities.filter((entity) => !gone(entity));
 }
 
-export function checkVictory(world: World, events: SimEvent[]): void {
-  const { victory } = world;
-  for (const player of world.players) {
-    if (player.defeated) continue;
-    const alive = world.entities.some(
-      (entity) =>
-        entity.playerId === player.id &&
-        (victory.type === "destroyAll"
-          ? entity.health !== null
-          : victory.definitionIds.includes(entity.definitionId)),
-    );
-    if (!alive) {
-      player.defeated = true;
-      events.push({ type: "defeated", playerId: player.id });
+/** Every living enemy with levels that is near enough to a death gains its full experience. */
+function shareExperience(world: World, dead: Entity, experience: number, events: SimEvent[]): void {
+  for (const entity of world.entities) {
+    const { levels } = definitionOf(world, entity);
+    if (levels === undefined || !isEnemy(world, dead, entity)) continue;
+    if (distance(entity, dead) > levels.range) continue;
+    entity.experience += experience;
+    while (
+      entity.level <= levels.thresholds.length &&
+      entity.experience >= levels.thresholds[entity.level - 1]
+    ) {
+      const before = statOf(world, entity, "maxHealth") ?? 0;
+      entity.experience -= levels.thresholds[entity.level - 1];
+      entity.level += 1;
+      if (entity.health !== null) {
+        entity.health += (statOf(world, entity, "maxHealth") ?? 0) - before;
+      }
+      events.push({ type: "leveled", id: entity.id, level: entity.level });
     }
   }
-  const standing = world.players.filter((player) => !player.defeated);
-  if (world.players.length > 1 && standing.length <= 1) {
-    world.outcome = { winnerId: standing[0]?.id ?? null };
-    events.push({ type: "ended", winnerId: world.outcome.winnerId });
+}
+
+/** Brings back the dead whose wait is over, at home and at full health, with their level. */
+export function runRespawns(world: World, events: SimEvent[]): void {
+  if (world.respawns.length === 0) return;
+  for (const waiting of world.respawns) waiting.remaining -= 1;
+  const due = world.respawns.filter((waiting) => waiting.remaining <= 0);
+  if (due.length === 0) return;
+  world.respawns = world.respawns.filter((waiting) => waiting.remaining > 0);
+  for (const { entity } of due) {
+    entity.x = entity.home.x;
+    entity.y = entity.home.y;
+    entity.order = null;
+    clearPath(entity);
+    entity.cooldown = 0;
+    entity.abilityCooldowns = entity.abilityCooldowns.map(() => 0);
+    entity.buildRemaining = 0;
+    entity.queue = [];
+    entity.carrying = 0;
+    entity.modifiers = [];
+    entity.health = statOf(world, entity, "maxHealth") ?? null;
+    world.entities.push(entity);
+    events.push({ type: "respawned", id: entity.id });
+  }
+  world.entities.sort((a, b) => a.id - b.id);
+}
+
+export function defeatPlayer(world: World, playerId: string, events: SimEvent[]): void {
+  const player = findPlayer(world, playerId);
+  if (player === undefined || player.defeated) return;
+  player.defeated = true;
+  events.push({ type: "defeated", playerId });
+}
+
+export function endGame(world: World, winnerId: string | null, events: SimEvent[]): void {
+  if (world.outcome !== null) return;
+  world.outcome = { winnerId };
+  events.push({ type: "ended", winnerId });
+}
+
+/**
+ * Triggers decide who is defeated. The game ends when one team is left
+ * standing, or when nobody is. The winner is the first player standing.
+ */
+export function checkEnd(world: World, events: SimEvent[]): void {
+  const { players } = world;
+  const standing = players.filter((player) => !player.defeated);
+  const teams = (list: PlayerState[]) => new Set(list.map((player) => player.team)).size;
+  if (standing.length === 0 ? players.length > 0 : teams(players) > 1 && teams(standing) === 1) {
+    endGame(world, standing[0]?.id ?? null, events);
   }
 }

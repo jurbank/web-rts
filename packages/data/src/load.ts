@@ -3,7 +3,29 @@ import { FORMAT_VERSION, scenarioSchema, type Scenario } from "./scenario.ts";
 type Migration = (document: Record<string, unknown>) => Record<string, unknown>;
 
 /** Keyed by the version a migration reads. Each returns the next version. */
-const migrations: Record<number, Migration> = {};
+const migrations: Record<number, Migration> = {
+  /**
+   * Version 2 moves the victory condition into a trigger. A player is defeated
+   * when an entity of theirs dies and they have none of the listed definitions
+   * left, or nothing at all for `destroyAll`.
+   */
+  1: ({ victory, ...rest }) => {
+    if (typeof victory !== "object" || victory === null) {
+      throw new Error("Scenario format 1 has no victory condition");
+    }
+    const { type, definitionIds } = victory as { type: unknown; definitionIds?: unknown };
+    const filter = type === "destroyDefinitions" ? { definitionIds } : {};
+    const trigger = {
+      id: "victory",
+      event: { type: "died", ...filter },
+      conditions: [{ type: "count", playerId: "$triggering", ...filter, op: "==", value: 0 }],
+      actions: [{ type: "defeat", playerId: "$triggering" }],
+    };
+    return { ...rest, formatVersion: 2, triggers: [trigger] };
+  },
+  /** Version 3 adds teams, levels, abilities, and respawn. Every addition is optional. */
+  2: (document) => ({ ...document, formatVersion: 3 }),
+};
 
 export function migrateScenario(raw: unknown): unknown {
   if (typeof raw !== "object" || raw === null) {

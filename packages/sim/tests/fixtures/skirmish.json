@@ -1,5 +1,5 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 3,
   "map": { "width": 64, "height": 48 },
   "players": [
     { "id": "red", "color": "#e5484d", "controller": "human", "resources": 200 },
@@ -79,5 +79,20 @@
     { "definitionId": "rock", "x": 32, "y": 29 },
     { "definitionId": "rock", "x": 32, "y": 32 }
   ],
-  "victory": { "type": "destroyDefinitions", "definitionIds": ["hq"] }
+  "triggers": [
+    {
+      "id": "victory",
+      "event": { "type": "died", "definitionIds": ["hq"] },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "$triggering",
+          "definitionIds": ["hq"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [{ "type": "defeat", "playerId": "$triggering" }]
+    }
+  ]
 }

@@ -1,5 +1,6 @@
 import type { Command } from "./commands.ts";
 import { isEnemy, nearest } from "./systems.ts";
+import { distance } from "./world.ts";
 import {
   canPlace,
   definitionOf,
@@ -91,6 +92,31 @@ export function think(world: World, player: PlayerState): Command[] {
     }
   }
 
+  for (const unit of own) {
+    const { abilities, radius } = definition(unit);
+    if (unit.order?.type === "cast") continue;
+    // The first ability that is ready and has a use right now.
+    for (const [index, ability] of abilities.entries()) {
+      if (unit.abilityCooldowns[index] > 0 || unit.level < ability.level) continue;
+      const cast = { ...base, type: "cast" as const, unitId: unit.id, abilityId: ability.id };
+      if (ability.target === "self") {
+        if (unit.order?.type !== "attack") continue;
+        commands.push(cast);
+        break;
+      }
+      const reach = (ability.range ?? 0) + radius;
+      const target = nearest(
+        world,
+        unit,
+        (other) =>
+          isEnemy(world, unit, other) && distance(unit, other) - definition(other).radius <= reach,
+      );
+      if (target === undefined) continue;
+      commands.push({ ...cast, targetId: target.id });
+      break;
+    }
+  }
+
   const army = own.filter(
     (entity) =>
       entity.order === null &&
@@ -98,7 +124,7 @@ export function think(world: World, player: PlayerState): Command[] {
       definition(entity).speed !== undefined,
   );
   if (army.length >= settings.attackSize) {
-    const target = nearest(world, army[0], (other) => isEnemy(army[0], other));
+    const target = nearest(world, army[0], (other) => isEnemy(world, army[0], other));
     if (target !== undefined) {
       commands.push({
         ...base,

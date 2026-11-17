@@ -51,3 +51,83 @@ Paths come from A* on a grid of unit cells built from everything that does not m
 ## 2026-11-15 S4 allows `%` and integer bit operators
 
 The grid navigation and the entity lookup use `%`, `>>`, and `>>>`. The language specifies them exactly, so they are safe for determinism. S4 now lists them.
+
+## 2026-11-15 Scenario logic is trigger data that agents write
+
+End users get no scripting language for now. Scenario logic is trigger records validated by Zod (C4, C5). Agents write them today, and a visual trigger editor later reads and writes the same records. Validation errors give an agent exact paths to fix, and the data stays serializable, hashable, and safe without a sandbox. A mechanic triggers cannot express lands as a TypeScript mechanism in `sim` with data fields that turn it on (C6), not as code inside a scenario. A text scripting language was considered. It needs a deterministic interpreter with a step budget inside `step`. Revisit only if triggers plus a small expression language prove too limited.
+
+## 2026-11-15 Trigger actions run inside step
+
+C5 said scripting goes through S2. Trigger actions such as spawning units, granting resources, and setting variables are things no player command can do. They are part of the scenario, not input, so `sim` runs them inside `step` like any other system. Commands stay the only input (S2). C5 now says so.
+
+## 2026-11-15 Genre fixtures test the scenario logic
+
+Four fixture scenarios check that `sim` holds mechanisms and not one game: standard RTS, tower defense, MOBA, and auto chess. Each is data only and plays start to finish in a headless test. A mechanism (waves, regions, modifiers, abilities, phases) is added when a fixture needs it, not before. The order is tower defense, then MOBA, then auto chess, from the smallest addition to the largest.
+
+## 2026-11-15 Terrain comes from an external editor
+
+Terrain meshes are made in a separate terrain editor and imported. This project's editor does not sculpt or paint terrain. A scenario references the terrain asset and carries the grids `sim` needs, such as pathing, and heights if gameplay ever depends on them. `sim` never reads the mesh (D3, S9), and `render` draws it. The import format and how the pathing grid is derived from the mesh are open (C8).
+
+## 2026-11-15 The scenario format is frozen at version 1
+
+The editor saves scenarios to the user's browser, so the format freezes as the earlier entry said it would. Version 1 is the schema as of this date, including the optional player `start` point added for the editor. Every later schema change bumps `FORMAT_VERSION` and ships a migration with a fixture (C3).
+
+## 2026-11-15 The editor document is an immutable scenario
+
+The document is a `Scenario` value and every operation returns a new one plus its inverse (E1, E2). History is two stacks of inverses. Immutability makes a drag preview and a dirty check a reference comparison and lets React read the document without copying it. Placements have no ids, so operations address them by index and a batch that removes several goes highest first. Stable placement ids were considered and wait until something outside the editor needs to refer to a placement, such as a trigger.
+
+## 2026-11-15 A start point is where a player's view begins
+
+A player may carry a `start` point. The game centers that player's camera there and falls back to something they own. It spawns nothing. Scenarios place every starting unit explicitly, so a start point that created a base would be a second way to say the same thing.
+
+## 2026-11-15 The app holds the one document, and opening replaces it
+
+`editor` is stateless, so something has to hold the current `History`. The app's session does, as a single reference React subscribes to. It is not a Zustand store and nothing copies it. U4 now says so. Opening a saved scenario and creating a new map replace the document and reset the history. They are not operations (E2), because there is no earlier document to undo back to. Map size has no operation yet, so resizing means starting a new map.
+
+## 2026-11-15 A new world has one entity per placement, in order
+
+The editor viewport draws a tick-zero world and maps each entity back to its placement by position. `createWorld` therefore guarantees one entity per placement in placement order, and a `sim` test holds it. When triggers spawn entities at tick zero or the editor needs to name a placement elsewhere, placements get stable ids and this goes away.
+
+## 2026-11-16 Format 2 moves victory into triggers
+
+`victory` is gone. A scenario carries `variables`, `timers`, `regions`, `waypoints`, `paths`, and `triggers`, all defaulting to empty. The migration from version 1 turns the old condition into one trigger with id `victory`: on a death, if the dead entity's owner has none of the listed definitions left (or nothing, for `destroyAll`), defeat them. The editor's victory control reads and writes that trigger and shows "Custom trigger" when it says anything else. A blank map keeps only that trigger, since others may name the old map's regions and waypoints. Two behaviors changed. `destroyAll` used to count only entities with health and now counts everything a player owns, so an owned entity that cannot be damaged keeps its owner in the game. And a player who starts with nothing is no longer defeated on the first tick, because no death fires the trigger.
+
+## 2026-11-16 How triggers run
+
+A trigger is one event, conditions that must all hold, and actions run in order. `sim` runs them after deaths are removed and before the end check. Events fire in a fixed order: start, deaths, region entries, timers, then the tick. Each event runs the matching triggers in scenario order, and later triggers see what earlier ones changed. `died` and `entered` events carry a triggering entity, which data names as `$triggering`. It cannot collide with an id, and validation rejects it on other events. Entities placed inside a region never entered it. `remove` is not a death, so it fires no `died` triggers. Every reference is validated with its exact path so an agent can fix it. Values are plain numbers. Expressions wait until a fixture needs them. The `tick` event is for checking conditions every tick and acting when they first hold. An action that repeats every tick happens at a rate set by the tick rate, which C7 forbids content to depend on, so repeating work uses a timer.
+
+## 2026-11-16 Triggers defeat players, `sim` ends the game
+
+`defeat` and `win` are actions. The rule that the game ends when one player is left standing, or none, stays in `sim` as a mechanism, and C6 now says so. `win` defeats everyone else and ends the game, which also covers a scenario with one player. A player with controller `none` has no ai, and `sim` drops commands from it. The app never seats the local player as a `none` player while another seat exists. Only triggers act for it, as the creeps do in tower defense.
+
+## 2026-11-16 Tower defense needs no wave mechanism
+
+Waves, spawning, leaks, bounties, lives, and survive-N-waves victory are all trigger data in the fixture: two repeating timers, three variables, a region, and a path. The only additions to `sim` are the `path` order that walks waypoints in sequence and the `none` controller. A wave spawner mechanism was considered and is not needed yet.
+
+## 2026-11-16 Labelled variables show in the HUD
+
+A variable may carry a `label`. The snapshot copies the variables, and the HUD shows each labelled one next to resources, in scenario order. That is enough for tower defense lives and waves. Richer HUD elements driven by data wait for auto chess. The field joins format 2 before any format 2 file has been saved, so it needs no version bump. The app draws a scenario's paths and regions over the ground in play and in the editor, and the editor also marks waypoints. They are overlays the app builds from the scenario (R1). Skirmish and tower defense ship as examples in the editor's Load menu and go through the same load as a saved file.
+
+## 2026-11-16 One operation shape for every list, and edits that would not load are refused
+
+Operations were one type per list and action. With definitions, waypoints, paths, and regions now editable, they are `add`, `remove`, and `set` on a named list, plus `batch`. E2 holds as before. Deleting or renaming can leave a reference that names nothing, and the editor view builds a world from the document on every change, so the app's session refuses any edit whose result fails the `data` schema and shows the schema's messages. That makes the schema the one place that knows what refers to what. Renaming a waypoint, path, or region rewrites the paths and triggers that name it. A definition's id cannot be edited, since its `name` is what people see. The renderer was built for a scenario whose definitions and players never change, so it now has `setContent`, which the editor view calls when either list changes. Editing a definition changes every placement of it, and per-instance overrides wait for a format change. The definition editor covers only fields that have survived two genres. Gathering fields and what the MOBA adds come later.
+
+## 2026-11-16 Format 3 adds what a MOBA needs, all optional
+
+A player may name a `team`. A definition may carry `experience`, `levels`, `respawn`, and `abilities`. Nothing existing changes meaning, so the migration from version 2 only raises the number, and `skirmish-v2.json` checks that a version 2 file loads to the same result. The version still goes up, as C3 requires once users have saved files. The editor's definition panel does not edit the new fields yet.
+
+## 2026-11-16 The MOBA is five mechanisms and some triggers
+
+Creep waves and victory are trigger data, as in tower defense. Five things could not be said with triggers and are mechanisms in `sim`, each usable outside a MOBA.
+
+- Teams. Players on one team do not fight and cannot be ordered to. The lane creeps, towers, and ancient belong to a `none` player on the hero's team, so a human sees allies they cannot command. `win` defeats every other team, and the game ends when one team is left. The winner is the first player of that team still standing.
+- Levels. A death gives its `experience` in full to every enemy with levels inside that enemy's `levels.range`. There is no split and no last-hit rule yet. A neutral death gives experience to every team in range. Each level applies the definition's `perLevel` modifiers once.
+- Modifiers. A stat is the definition's number, plus the level gains, plus whatever abilities left on the entity. Only `maxHealth`, `speed`, and `damage` can be modified, and only by adding.
+- Abilities. A `cast` command uses one by id. One that targets the caster applies at once. One that targets an enemy becomes an order that walks into range first, then leaves the caster attacking. Effects are damage and timed modifiers. Point targets and areas wait for a fixture that needs them.
+- Respawn. A dead entity with `respawn` waits in `world.respawns` and returns at the spot it first appeared, with the same id, its level, and full health. It still fires `died` when it dies. While it waits it is not in the world, so a trigger that counts a player's entities does not count it. Only something with health may respawn.
+
+Armed units walking a path now fight enemies they see and then resume the path, giving up on a target that leaves their sight. Tower defense creeps are unarmed and behave as before. The ai casts any ready ability at an enemy in range, and a self ability while attacking. It does not retreat. Gold bounties and items are not built.
+
+## 2026-11-16 Multiplayer targets twelve humans, and a guardian watches for gaps
+
+The size to plan for is six against six, all human, on any mix of phones, tablets, and desktops in one match. The match must be the same on each device and fair to each. The model is still open and nothing gets built for it yet. The multiplayer-guardian agent reviews changes for single-player assumptions that would be costly to undo, and sorts them by that cost. It runs on changes to commands, mechanics, triggers, players and teams, the loop, and snapshots, and over the whole workspace at the end of each milestone. It holds code to both models until one is chosen.

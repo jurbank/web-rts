@@ -2,7 +2,9 @@ import { loadScenario } from "data";
 import { createWorld, step, takeSnapshot, type Command } from "sim";
 import { expect, test } from "vite-plus/test";
 import { buildHudView } from "../src/hud.ts";
+import moba from "../src/scenarios/moba.json";
 import skirmish from "../src/scenarios/skirmish.json";
+import towerDefense from "../src/scenarios/tower-defense.json";
 
 const scenario = loadScenario(skirmish);
 
@@ -16,6 +18,7 @@ function view(selectedIds: number[], commands: Command[] = [], ticks = 1) {
     localPlayerId: "red",
     selectedIds,
     placingId: null,
+    targetingId: null,
     notice: null,
   });
 }
@@ -70,7 +73,69 @@ test("the outcome is reported from the local player's side", () => {
       localPlayerId: "red",
       selectedIds: [],
       placingId: null,
+      targetingId: null,
       notice: null,
     }).outcome;
   expect([outcome("red"), outcome("blue"), outcome(null)]).toEqual(["won", "lost", "draw"]);
+});
+
+test("labelled scenario variables show as counters", () => {
+  const defense = loadScenario(towerDefense);
+  const world = createWorld(defense, 1);
+  step(world);
+  const hud = buildHudView({
+    scenario: defense,
+    snapshot: takeSnapshot(world),
+    localPlayerId: "red",
+    selectedIds: [],
+    placingId: null,
+    targetingId: null,
+    notice: null,
+  });
+  expect(hud.counters).toEqual([
+    { label: "Lives", value: 10 },
+    { label: "Wave", value: 0 },
+  ]);
+});
+
+test("a selected hero shows its level and what it can cast", () => {
+  const scenario = loadScenario(moba);
+  const world = createWorld(scenario, 1);
+  step(world, [
+    { type: "cast", playerId: "red", tick: 0, unitId: 1, abilityId: "bolt", targetId: 2 },
+  ]);
+  world.entities[0].abilityCooldowns[0] = 75;
+  const hud = buildHudView({
+    scenario,
+    snapshot: takeSnapshot(world),
+    localPlayerId: "red",
+    selectedIds: [1],
+    placingId: null,
+    targetingId: "bolt",
+    notice: null,
+  });
+  expect(hud.selection).toBe("Hero · level 1 · 300/300");
+  expect(hud.abilities).toEqual([
+    { id: "bolt", label: "Bolt", seconds: 3, locked: null },
+    { id: "sprint", label: "Sprint", seconds: 0, locked: 2 },
+  ]);
+  expect(hud.targeting).toBe("bolt");
+});
+
+test("a teammate's win is a win", () => {
+  const scenario = loadScenario(moba);
+  const world = createWorld(scenario, 1);
+  world.entities.find((entity) => entity.playerId === "blueBase")!.health = 0;
+  step(world);
+  const hud = buildHudView({
+    scenario,
+    snapshot: { ...takeSnapshot(world), outcome: { winnerId: "redBase" } },
+    localPlayerId: "red",
+    selectedIds: [],
+    placingId: null,
+    targetingId: null,
+    notice: null,
+  });
+  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(hud.outcome).toBe("won");
 });

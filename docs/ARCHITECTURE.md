@@ -1,6 +1,6 @@
 # Architecture
 
-`data`, `sim`, `render`, and the app exist in their first form. `editor` is not built yet. This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
+`data`, `sim`, `editor`, `render`, and the app exist in their first form. This document sets the boundaries the first slice gets built inside. [OVERVIEW.md](OVERVIEW.md) says what we are building and why.
 
 Rule ids (D1, S3, ...) are stable. The architecture-guardian agent cites them. A removed rule leaves a gap. To change a rule, add an entry to [ADRs.md](ADRs.md) and edit this file in the same change.
 
@@ -55,11 +55,12 @@ Entity storage is one plain table in id order with systems as functions. Navigat
 
 - **C1.** One scenario format. The editor saves it, the game loads it, and no second format exists for either.
 - **C2.** Definitions and instances are separate. A definition describes a kind of unit, building, weapon, or ability. A placement references a definition by id and may carry overrides. Scenarios can add or override definitions.
-- **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file. Until milestone 5 lets users save scenarios the format is not frozen, and fields change without a version bump or a migration.
+- **C3.** Every scenario file carries `formatVersion`. A migration is a pure function from version N to N+1. Loading always runs migrate, then validate. Nothing else reads an unvalidated file. The format is frozen now that users save scenarios. Every schema change bumps the version and ships a migration with a fixture.
 - **C4.** Zod schemas are the source of truth. TypeScript types are inferred from them, not written beside them.
-- **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs in a sandbox with a step budget and goes through S2 like everything else.
-- **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game.
+- **C5.** Scenario logic is data. Triggers are event, condition, action records that `sim` interprets inside `step`. Actions may change state in ways no command can, such as spawning units or granting resources, because they are part of the scenario and not input. No `eval`, no `new Function`, no user code running in the page. If scripting arrives later it runs inside `step` in a sandbox with a step budget and changes the world only through trigger actions.
+- **C6.** No hardcoded scenario content. Unit stats, faction rules, and victory conditions come from data. `sim` contains mechanisms, not a particular game. Triggers decide who is defeated or wins. Ending the game once one team or none is left standing is a mechanism in `sim`.
 - **C7.** Scenario data states speeds and durations in seconds, never in ticks. `sim` converts using its tick constant, so the tick rate can change without rewriting content.
+- **C8.** Terrain is an imported asset made in an external terrain editor. The scenario references it and carries the grids `sim` needs, such as pathing. `sim` never reads the mesh. Only `render` does.
 
 ## Editor
 
@@ -84,7 +85,7 @@ The renderer is Three.js from the start. The first version is a tilted perspecti
 - **U1.** Device input becomes intents, then commands. Mouse, keyboard, and touch handlers live in the app and map to the same intents (select, box select, order at point, pan, zoom). Nothing below the app knows which device produced a command.
 - **U2.** Every action works by touch. No feature depends on hover, right click, or a keyboard. Hotkeys are accelerators.
 - **U3.** React does not render the battlefield and does not re-render per tick. HUD components subscribe to derived view models that update when their values change.
-- **U4.** Zustand holds UI state. World state lives in `sim` and the scenario document lives in `editor`. Neither is copied into a store.
+- **U4.** Zustand holds UI state. World state lives in `sim`. The scenario document is an `editor` history value that the app holds in one place. Neither is copied into a store.
 - **U5.** Storage is behind one interface in the app. `data` and `editor` produce and accept serialized scenarios and do not know where they are kept.
 
 ## Flows
@@ -107,6 +108,8 @@ Edit, playtest, edit:
 
 Not in the first slice. The rules above keep two models open. In lockstep, clients exchange commands and each runs `sim`. With an authoritative server, `sim` runs in Node and clients predict. Both need S1 through S7, and both use the state hash to detect divergence. The choice is an open decision.
 
+The target is twelve human players in one match, six against six, on any mix of phones, tablets, and desktops. The match is the same on every device and fair to each, so the UI is responsive and no device is a second-class seat. Nothing gets built for it yet. The multiplayer-guardian agent reviews changes for choices that would make it harder to reach, such as code that assumes one human, two players, commands that apply the moment they are sent, or an action that is quick with a mouse and slow by touch.
+
 ## Tests
 
 These exist from the first slice and run under `vp test` with no browser.
@@ -124,3 +127,4 @@ Each of these needs an ADR before the code that depends on it.
 
 1. Multiplayer model, lockstep or authoritative server.
 2. Save games. Whether a saved world carries a version and is validated on load, or is disposable across format versions.
+3. Terrain import. The mesh file format, and how the pathing grid is derived from the mesh (C8).

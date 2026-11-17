@@ -1,0 +1,127 @@
+import { z } from "zod";
+
+/** Starts with a letter, so an id is never a special object key such as `__proto__`. */
+export const idSchema = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]*$/);
+
+/**
+ * Stands for the entity that set off a `died` or `entered` event, or for its
+ * owner where a player is expected. It cannot be an id, since ids start with a letter.
+ */
+export const TRIGGERING = "$triggering";
+
+const triggeringSchema = z.literal(TRIGGERING);
+/** A player id, or the owner of the triggering entity. */
+const playerRefSchema = z.union([idSchema, triggeringSchema]);
+const compareSchema = z.enum(["==", "!=", "<", "<=", ">", ">="]);
+
+/** A number the scenario keeps and triggers read and change. */
+export const variableSchema = z.object({
+  id: idSchema,
+  value: z.number().default(0),
+  /** Players see a labelled variable in the HUD. */
+  label: z.string().min(1).optional(),
+});
+
+/** Counts down once started, and fires a `timer` event when it reaches zero. */
+export const timerSchema = z.object({
+  id: idSchema,
+  seconds: z.number().positive(),
+  /** Starts again each time it fires. */
+  repeat: z.boolean().default(false),
+});
+
+/** A rectangle on the ground, from its low corner. */
+export const regionSchema = z.object({
+  id: idSchema,
+  x: z.number(),
+  y: z.number(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
+export const waypointSchema = z.object({ id: idSchema, x: z.number(), y: z.number() });
+
+/** Waypoints visited in order. */
+export const pathSchema = z.object({ id: idSchema, waypoints: z.array(idSchema).min(1) });
+
+/** What a trigger waits for. Only `died` and `entered` have a triggering entity. */
+export const eventSchema = z.discriminatedUnion("type", [
+  /** The first tick. */
+  z.object({ type: z.literal("start") }),
+  /** Every tick. */
+  z.object({ type: z.literal("tick") }),
+  z.object({ type: z.literal("timer"), timer: idSchema }),
+  z.object({
+    type: z.literal("died"),
+    playerId: idSchema.optional(),
+    definitionIds: z.array(idSchema).min(1).optional(),
+  }),
+  /** An entity moved into the region. Entities placed inside it do not count. */
+  z.object({
+    type: z.literal("entered"),
+    region: idSchema,
+    playerId: idSchema.optional(),
+    definitionIds: z.array(idSchema).min(1).optional(),
+  }),
+]);
+
+/** Every condition must hold for the actions to run. */
+export const conditionSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("variable"),
+    variable: idSchema,
+    op: compareSchema,
+    value: z.number(),
+  }),
+  /** Entities matching every field given. */
+  z.object({
+    type: z.literal("count"),
+    playerId: playerRefSchema.optional(),
+    definitionIds: z.array(idSchema).min(1).optional(),
+    op: compareSchema,
+    value: z.number(),
+  }),
+]);
+
+export const actionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("setVariable"), variable: idSchema, value: z.number() }),
+  z.object({ type: z.literal("addVariable"), variable: idSchema, value: z.number() }),
+  /** Starts the timer, or starts it over. */
+  z.object({ type: z.literal("startTimer"), timer: idSchema }),
+  z.object({
+    type: z.literal("spawn"),
+    definitionId: idSchema,
+    /** Null for neutral entities. */
+    playerId: playerRefSchema.nullable(),
+    /** A waypoint. */
+    at: idSchema,
+    count: z.int().positive().default(1),
+    /** Units that can move walk it to the end. */
+    path: idSchema.optional(),
+  }),
+  /** Takes the entity out of the world. It does not count as dying. */
+  z.object({ type: z.literal("remove"), entity: triggeringSchema }),
+  /** A negative amount takes resources away, down to zero. */
+  z.object({ type: z.literal("grantResources"), playerId: playerRefSchema, amount: z.number() }),
+  z.object({ type: z.literal("defeat"), playerId: playerRefSchema }),
+  /** Defeats every other player and ends the game. */
+  z.object({ type: z.literal("win"), playerId: playerRefSchema }),
+]);
+
+/** When the event happens and every condition holds, the actions run in order (C5). */
+export const triggerSchema = z.object({
+  id: idSchema,
+  event: eventSchema,
+  conditions: z.array(conditionSchema).default([]),
+  actions: z.array(actionSchema).min(1),
+});
+
+export type Variable = z.infer<typeof variableSchema>;
+export type Timer = z.infer<typeof timerSchema>;
+export type Region = z.infer<typeof regionSchema>;
+export type Waypoint = z.infer<typeof waypointSchema>;
+export type Path = z.infer<typeof pathSchema>;
+export type TriggerEvent = z.infer<typeof eventSchema>;
+export type Condition = z.infer<typeof conditionSchema>;
+export type Action = z.infer<typeof actionSchema>;
+export type Trigger = z.infer<typeof triggerSchema>;

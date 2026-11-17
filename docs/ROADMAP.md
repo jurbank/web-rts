@@ -2,7 +2,7 @@
 
 The simulation comes first. Each milestone ends with something that runs and a test that proves it. Milestones 1 through 5 together deliver the first milestone in [OVERVIEW.md](OVERVIEW.md), the playable creator loop. Rule ids refer to [ARCHITECTURE.md](ARCHITECTURE.md).
 
-Current: milestone 5, not started. Milestones 1, 2, and 4 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
+Current: milestone 6. Its trigger records, the tower defense and MOBA fixtures, and editing of guides and basic game data are done, and auto chess is next. Milestones 1, 2, 4, and 5 are done. Milestone 3 is built and checked on desktop. Its iPhone check and the performance budgets remain.
 
 ## 1. Foundation
 
@@ -48,7 +48,7 @@ Done when a fixture scenario plays from start to a win or a loss against the AI,
 ## 5. Creator loop
 
 - `packages/editor`: the document, operations with inverses, and history.
-- Editor UI: create and load a map, edit basic terrain and obstacles, place, select, move, and delete objects, set teams, start points, and a victory condition.
+- Editor UI: create and load a map on a flat plane, place obstacles, place, select, move, and delete objects, set teams, start points, and a victory condition.
 - Save and reload through the storage interface (U5).
 - Playtest and return to editing (E3).
 
@@ -56,15 +56,27 @@ Done when a user builds a scenario, saves it, reloads it, plays it, and returns 
 
 The editor follows the rules because the simulation is the priority and the hardest part to change later. The cost is that scenarios stay hand-written for three milestones. That exercises the format before a UI depends on it.
 
+## 6. Scenario logic
+
+Triggers as data (C5), written by agents against the schema. The visual trigger editor comes later and edits the same records. Each step adds only what its genre fixture needs.
+
+- Trigger records, variables, timers, regions, and waypoints. The milestone 4 fixture moves its victory condition into triggers. Done in format 2.
+- Tower defense: wave spawners, paths, a lives counter, and survive-N-waves victory. Done, as trigger data with no wave mechanism in `sim`.
+- Editor: add, move, rename, and delete waypoints, paths, and regions, and edit the settled definition fields (name, color, size, health, speed, cost, build time, weapon, what it trains and builds). Done. Pulled forward from Later so the genre fixtures can be opened and tuned by hand.
+- MOBA: one hero per player, abilities, stat modifiers, experience and levels, respawn, and lane creeps. Done in format 3. Teams, levels, modifiers, abilities, and respawn are mechanisms in `sim`. Creep waves and victory are trigger data.
+- Auto chess: round phases, commands limited per phase, a shop rolled from the seeded generator, unit merging, count-based synergies, and HUD elements driven by data.
+
+Done when the standard RTS, tower defense, MOBA, and auto chess fixtures each play start to finish in a headless test, with no genre-specific code in `sim` (C6).
+
 ## Later
 
 Not ordered and not committed.
 
-- Triggers, variables, timers, objectives, and waves (C5).
+- A visual trigger editor over the milestone 6 records.
 - Fog of war and visibility.
-- Abilities, upgrades, veterancy, patrol, attack-move, queued orders, control groups.
-- Terrain elevation, a tilted camera, real models and effects.
-- Game data editing in the editor, with per-instance overrides.
+- Upgrades, veterancy, patrol, attack-move, queued orders, control groups.
+- Terrain imported from the external terrain editor (C8), real models and effects.
+- The rest of game data editing: gathering and resource fields, whatever the MOBA adds (abilities, stat modifiers, levels), and per-instance overrides.
 - Larger armies against the performance budgets.
 - Campaigns, asset packs, and scenario sharing.
 - Multiplayer, after the ADR that picks a model.

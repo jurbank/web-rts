@@ -33,3 +33,4 @@ release. Add a tool name to select part of the graph. For example, run
 - `docs/ROADMAP.md` orders the work and names the current milestone.
 - `docs/ADRs.md` records decisions. Changing an architecture rule needs an entry there.
 - Run the `architecture-guardian` agent (`.agents/agents/architecture-guardian.md`) on changes that cross package boundaries.
+- Run the `multiplayer-guardian` agent (`.agents/agents/multiplayer-guardian.md`) on changes that add a command, a mechanic, a trigger event or action, or a player or team field, or that touch the game loop, the local player, input, the HUD, or snapshots. It also checks that a match stays the same and fair across phones, tablets, and desktops. Run it over the whole workspace at the end of each milestone.

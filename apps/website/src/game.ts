@@ -1,8 +1,9 @@
 import type { Scenario } from "data";
 import { createRenderer, type ScreenPoint } from "render";
 import { createWorld, type Command, type EntitySnapshot } from "sim";
+import { scenarioGuides } from "./guides.ts";
 import { buildHudView, type HudView } from "./hud.ts";
-import { attachInput } from "./input.ts";
+import { attachInput, showBox } from "./input.ts";
 import { createGameLoop } from "./loop.ts";
 
 export interface GameElements {
@@ -15,6 +16,8 @@ export interface GameElements {
 /** What the HUD can ask of a running game. */
 export interface Game {
   produce(definitionId: string): void;
+  /** Uses an ability of the selected unit. One that needs an enemy waits for the next tap. */
+  cast(abilityId: string): void;
   /** The next tap on the ground places this building. */
   beginPlacement(definitionId: string): void;
   cancelPlacement(): void;
@@ -31,26 +34,36 @@ export function createGame(
   onView: (view: HudView) => void,
 ): Game {
   /** Until scenarios say which seat is ours, the first human player is. */
-  const localPlayerId = (
-    scenario.players.find((player) => player.controller === "human") ?? scenario.players[0]
-  ).id;
+  const localPlayer =
+    scenario.players.find((player) => player.controller === "human") ??
+    scenario.players.find((player) => player.controller !== "none") ??
+    scenario.players[0];
+  const localPlayerId = localPlayer.id;
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
   const loop = createGameLoop(createWorld(scenario, 1));
   const renderer = createRenderer(elements.scene, elements.overlay, scenario);
+  const guides = scenarioGuides(scenario);
 
-  const home = loop.current.entities.find((entity) => entity.playerId === localPlayerId);
+  const home =
+    localPlayer.start ?? loop.current.entities.find((entity) => entity.playerId === localPlayerId);
   if (home !== undefined) renderer.focus(home);
 
   let selectedIds: number[] = [];
   let placingId: string | null = null;
+  let targetingId: string | null = null;
   let notice: string | null = null;
   let debug = false;
   let lastView = "";
 
   const definitionOf = (entity: EntitySnapshot) => definitions.get(entity.definitionId)!;
   const isOwn = (entity: EntitySnapshot) => entity.playerId === localPlayerId;
+  const teams = new Map(loop.current.players.map((player) => [player.id, player.team]));
+  const isHostile = (entity: EntitySnapshot) =>
+    entity.playerId !== null &&
+    entity.health !== null &&
+    teams.get(entity.playerId) !== teams.get(localPlayerId);
   const selected = () => loop.current.entities.filter((entity) => selectedIds.includes(entity.id));
 
   function submit(order: OrderFields<Command>): void {
@@ -61,6 +74,7 @@ export function createGame(
   function select(ids: number[]): void {
     selectedIds = ids;
     placingId = null;
+    targetingId = null;
     notice = null;
   }
 
@@ -83,6 +97,15 @@ export function createGame(
     }
     const id = renderer.pickEntity(at, slop);
     const entity = loop.current.entities.find((candidate) => candidate.id === id);
+    if (targetingId !== null) {
+      if (entity === undefined || !isHostile(entity)) {
+        notice = "That is not an enemy";
+        return;
+      }
+      submit({ type: "cast", unitId: selectedIds[0], abilityId: targetingId, targetId: entity.id });
+      targetingId = null;
+      return;
+    }
     const units = selected().filter(
       (unit) => isOwn(unit) && definitionOf(unit).speed !== undefined,
     );
@@ -102,12 +125,7 @@ export function createGame(
       }
     }
     if (unitIds.length === 0) return;
-    if (
-      entity !== undefined &&
-      !isOwn(entity) &&
-      entity.playerId !== null &&
-      entity.health !== null
-    ) {
+    if (entity !== undefined && isHostile(entity)) {
       submit({ type: "attack", unitIds, targetId: entity.id });
     } else if (entity !== undefined && definitionOf(entity).resource !== undefined) {
       submit({ type: "gather", unitIds, nodeId: entity.id });
@@ -120,14 +138,7 @@ export function createGame(
   const detachInput = attachInput(elements.battlefield, {
     tap: (at, slop) => act(at, slop, true),
     order: (at) => act(at, 0, false),
-    boxPreview(a, b) {
-      elements.box.hidden = a === null || b === null;
-      if (a === null || b === null) return;
-      elements.box.style.left = `${Math.min(a.x, b.x)}px`;
-      elements.box.style.top = `${Math.min(a.y, b.y)}px`;
-      elements.box.style.width = `${Math.abs(a.x - b.x)}px`;
-      elements.box.style.height = `${Math.abs(a.y - b.y)}px`;
-    },
+    boxPreview: (a, b) => showBox(elements.box, a, b),
     boxSelect(a, b) {
       const inside = renderer.entitiesInRect(a, b);
       select(
@@ -144,7 +155,7 @@ export function createGame(
     pan: (from, to) => renderer.pan(from, to),
     zoom: (factor, at) => renderer.zoom(factor, at),
     cancel() {
-      if (placingId !== null) placingId = null;
+      if (placingId !== null || targetingId !== null) select(selectedIds);
       else select([]);
     },
   });
@@ -168,6 +179,7 @@ export function createGame(
       localPlayerId,
       selectedIds,
       placingId,
+      targetingId,
       notice,
     });
     const serialized = JSON.stringify(view);
@@ -182,7 +194,7 @@ export function createGame(
     const alpha = loop.advance((time - lastTime) / 1000);
     lastTime = time;
     publishView();
-    renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug });
+    renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug, ...guides });
     frameId = requestAnimationFrame(frame);
   });
 
@@ -192,13 +204,21 @@ export function createGame(
       if (building !== undefined)
         submit({ type: "produce", buildingId: building.id, definitionId });
     },
+    cast(abilityId) {
+      const [caster] = selected();
+      if (caster === undefined || !isOwn(caster)) return;
+      const ability = definitionOf(caster).abilities.find(({ id }) => id === abilityId);
+      if (ability === undefined) return;
+      select(selectedIds);
+      if (ability.target === "self") submit({ type: "cast", unitId: caster.id, abilityId });
+      else targetingId = abilityId;
+    },
     beginPlacement(definitionId) {
       placingId = definitionId;
       notice = null;
     },
     cancelPlacement() {
-      placingId = null;
-      notice = null;
+      select(selectedIds);
     },
     deselect() {
       select([]);

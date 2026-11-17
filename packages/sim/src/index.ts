@@ -2,6 +2,7 @@ export type {
   AssistCommand,
   AttackCommand,
   BuildCommand,
+  CastCommand,
   Command,
   GatherCommand,
   MoveCommand,

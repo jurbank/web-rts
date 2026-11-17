@@ -1,0 +1,203 @@
+import { loadScenario } from "data";
+import { expect, test } from "vite-plus/test";
+import {
+  createWorld,
+  hashWorld,
+  loadWorld,
+  saveWorld,
+  step,
+  takeSnapshot,
+  TICK_RATE,
+  type Command,
+  type SimEvent,
+  type World,
+} from "../src/index.ts";
+import { entity, run } from "./helpers.ts";
+import moba from "./fixtures/moba.json" with { type: "json" };
+
+const LIMIT = 10 * 60 * TICK_RATE;
+const RED_HERO = 1;
+const BLUE_HERO = 2;
+
+type Raw = Record<string, any>;
+
+function mobaWorld(edit?: (raw: Raw) => void): World {
+  const raw: Raw = JSON.parse(JSON.stringify(moba));
+  edit?.(raw);
+  return createWorld(loadScenario(raw), 1);
+}
+
+/** Two heroes out of each other's sight, with nothing else on the map and nobody deciding for blue. */
+function duel(): World {
+  return mobaWorld((raw) => {
+    raw.players[1].controller = "human";
+    raw.placements = [
+      { definitionId: "hero", playerId: "red", x: 10, y: 12 },
+      { definitionId: "hero", playerId: "blue", x: 20, y: 12 },
+    ];
+    raw.triggers = [];
+  });
+}
+
+function cast(abilityId: string, targetId?: number): Command {
+  return { type: "cast", playerId: "red", tick: 0, unitId: RED_HERO, abilityId, targetId };
+}
+
+/** Red's hero bolts the nearest enemy whenever it can, and otherwise attacks it. */
+function push(world: World): Command[] {
+  const hero = world.entities.find((candidate) => candidate.id === RED_HERO);
+  if (hero === undefined) return [];
+  let near: World["entities"][number] | undefined;
+  for (const other of world.entities) {
+    if (other.playerId !== "blue" && other.playerId !== "blueBase") continue;
+    const closer =
+      near === undefined ||
+      Math.hypot(other.x - hero.x, other.y - hero.y) < Math.hypot(near.x - hero.x, near.y - hero.y);
+    if (closer) near = other;
+  }
+  if (near === undefined) return [];
+  const base = { playerId: "red", tick: world.tick };
+  if (hero.abilityCooldowns[0] === 0 && Math.hypot(near.x - hero.x, near.y - hero.y) < 8) {
+    return [{ ...base, type: "cast", unitId: RED_HERO, abilityId: "bolt", targetId: near.id }];
+  }
+  return hero.order === null
+    ? [{ ...base, type: "attack", unitIds: [RED_HERO], targetId: near.id }]
+    : [];
+}
+
+/** Nobody decides for blue, so its hero only defends itself. */
+function passiveBlue(raw: Raw): void {
+  raw.players[1].controller = "human";
+}
+
+function play(
+  policy: (world: World) => Command[],
+  options: { saveAt?: number; edit?: (raw: Raw) => void } = {},
+): { world: World; events: SimEvent[] } {
+  const { saveAt } = options;
+  let world = mobaWorld(options.edit);
+  const events: SimEvent[] = [];
+  while (world.outcome === null && world.tick < LIMIT) {
+    if (world.tick === saveAt) world = loadWorld(saveWorld(world));
+    events.push(...step(world, world.tick % 15 === 0 ? policy(world) : []));
+  }
+  return { world, events };
+}
+
+test("the scenario survives a save and a load", () => {
+  const scenario = loadScenario(moba);
+  expect(loadScenario(JSON.parse(JSON.stringify(scenario)))).toEqual(scenario);
+});
+
+test("an idle player loses the ancient, and the whole team with it", () => {
+  const { world } = play(() => []);
+  expect(world.outcome).toEqual({ winnerId: "blue" });
+  expect(world.players.map((player) => player.defeated)).toEqual([true, false, true, false]);
+});
+
+test("a hero that pushes with its creeps levels up and takes the enemy ancient", () => {
+  const { world, events } = play(push, { edit: passiveBlue });
+  expect(world.outcome).toEqual({ winnerId: "red" });
+  expect(world.players.map((player) => player.defeated)).toEqual([false, true, false, true]);
+  expect(events).toContainEqual({ type: "leveled", id: RED_HERO, level: 2 });
+});
+
+test("two heroes that fight each other die, respawn, and level", () => {
+  const { events } = play(push);
+  for (const id of [RED_HERO, BLUE_HERO]) {
+    expect(events).toContainEqual({ type: "respawned", id });
+    expect(events).toContainEqual({ type: "leveled", id, level: 5 });
+  }
+});
+
+test("a save and load partway through does not change the result", () => {
+  const expected = hashWorld(play(push).world);
+  for (const saveAt of [1, 30 * TICK_RATE + 7, 120 * TICK_RATE]) {
+    expect(hashWorld(play(push, { saveAt }).world)).toBe(expected);
+  }
+});
+
+test("teammates do not fight, and cannot be ordered to", () => {
+  const world = mobaWorld();
+  const ancient = world.entities.find((candidate) => candidate.playerId === "redBase")!;
+  run(world, 30, [
+    { type: "attack", playerId: "red", tick: 0, unitIds: [RED_HERO], targetId: ancient.id },
+  ]);
+  expect(entity(world, RED_HERO).order).toBeNull();
+  expect(ancient.health).toBe(800);
+});
+
+test("creeps on a path fight what they meet and then walk on", () => {
+  const world = mobaWorld(passiveBlue);
+  const resumed = new Set<number>();
+  const fought = new Set<number>();
+  for (let tick = 0; tick < 60 * TICK_RATE; tick++) {
+    step(world);
+    for (const creep of world.entities) {
+      if (creep.definitionId !== "creep") continue;
+      if (creep.order?.type === "attack" && creep.order.resume !== undefined) fought.add(creep.id);
+      else if (creep.order?.type === "path" && fought.has(creep.id)) resumed.add(creep.id);
+    }
+  }
+  expect(fought.size).toBeGreaterThan(0);
+  expect(resumed.size).toBeGreaterThan(0);
+});
+
+test("an ability is cast from range, then has to cool down", () => {
+  const world = duel();
+  run(world, 1, [cast("bolt", BLUE_HERO)]);
+  expect(entity(world, RED_HERO).order).toMatchObject({ type: "cast" });
+  while (entity(world, BLUE_HERO).health === 300) step(world);
+
+  const hero = entity(world, RED_HERO);
+  expect(entity(world, BLUE_HERO).health).toBe(230);
+  expect(20 - hero.x).toBeCloseTo(6.6, 0);
+  expect(hero.abilityCooldowns[0]).toBe(6 * TICK_RATE);
+  expect(hero.order).toEqual({ type: "attack", targetId: BLUE_HERO });
+  expect(takeSnapshot(world).entities[0].abilityCooldowns[0]).toBe(6);
+
+  run(world, 1, [{ ...cast("bolt", BLUE_HERO), tick: world.tick }]);
+  expect(hero.order).toEqual({ type: "attack", targetId: BLUE_HERO });
+});
+
+test("an ability needs its level, and its modifier wears off", () => {
+  const world = duel();
+  const hero = entity(world, RED_HERO);
+  run(world, 1, [cast("sprint")]);
+  expect(hero.modifiers).toEqual([]);
+
+  hero.level = 2;
+  run(world, 1, [
+    { ...cast("sprint"), tick: world.tick },
+    { type: "move", playerId: "red", tick: world.tick, unitIds: [RED_HERO], x: 10, y: 2 },
+  ]);
+  expect(hero.modifiers).toEqual([{ stat: "speed", add: 3, remaining: 4 * TICK_RATE - 1 }]);
+  const start = hero.y;
+  run(world, 15);
+  expect(start - hero.y).toBeCloseTo(8 * 0.5);
+  run(world, 4 * TICK_RATE);
+  expect(hero.modifiers).toEqual([]);
+});
+
+test("a death nearby gives experience, and a level raises health and damage", () => {
+  const world = duel();
+  entity(world, BLUE_HERO).health = 0;
+  expect(step(world)).toContainEqual({ type: "leveled", id: RED_HERO, level: 2 });
+  expect(entity(world, RED_HERO)).toMatchObject({ level: 2, experience: 0, health: 360 });
+  expect(takeSnapshot(world).entities[0]).toMatchObject({ level: 2, maxHealth: 360 });
+});
+
+test("a dead hero comes back at home with its id and level", () => {
+  const world = duel();
+  const blue = entity(world, BLUE_HERO);
+  blue.level = 3;
+  blue.health = 0;
+  blue.x = 15;
+  expect(step(world).map((event) => event.type)).toContain("died");
+  expect(world.entities.map((candidate) => candidate.id)).toEqual([RED_HERO]);
+
+  const events = run(world, 10 * TICK_RATE);
+  expect(events).toContainEqual({ type: "respawned", id: BLUE_HERO });
+  expect(world.entities.map((candidate) => candidate.id)).toEqual([RED_HERO, BLUE_HERO]);
+  expect(entity(world, BLUE_HERO)).toMatchObject({ x: 20, y: 12, level: 3, health: 420 });
+});

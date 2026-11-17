@@ -102,3 +102,39 @@ test("queued commands keep only known fields and never hold negative zero", () =
   expect(Object.keys(queued).sort()).toEqual(["playerId", "tick", "type", "unitIds", "x", "y"]);
   expect([queued.x, queued.y, queued.unitIds[0]].every((value) => Object.is(value, 0))).toBe(true);
 });
+
+test("commands from two players for one tick apply the same way in either arrival order", () => {
+  const build = { type: "build", tick: 0, definitionId: "barracks", x: 18, y: 24 } as const;
+  const red: Command = { ...build, playerId: "red", unitIds: [worker] };
+  const blue: Command = { ...build, playerId: "blue", unitIds: [ids.blueWorkers[0]] };
+  const play = (commands: Command[]) => {
+    const world = skirmishWorld();
+    step(world, commands);
+    return world;
+  };
+  const world = play([blue, red]);
+  expect(hashWorld(world)).toBe(hashWorld(play([red, blue])));
+  expect(entity(world, ids.next)).toMatchObject({ definitionId: "barracks", playerId: "red" });
+  expect(world.entities).toHaveLength(ids.next);
+});
+
+test("queued commands sort by tick, then player, and keep each player's own order", () => {
+  const move = (playerId: string, tick: number, x: number): Command => ({
+    type: "move",
+    playerId,
+    tick,
+    unitIds: [worker],
+    x,
+    y: 0,
+  });
+  const world = skirmishWorld();
+  step(world, [
+    move("blue", 50, 1),
+    move("red", 50, 2),
+    move("blue", 40, 3),
+    move("red", 50, 4),
+    move("blue", 50, 5),
+  ]);
+  const queued = world.pendingCommands as Extract<Command, { type: "move" }>[];
+  expect(queued.map((command) => command.x)).toEqual([3, 2, 4, 1, 5]);
+});

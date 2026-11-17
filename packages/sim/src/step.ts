@@ -1,6 +1,14 @@
 import { AI_INTERVAL, think } from "./ai.ts";
 import { applyCommand, enqueueCommand, type Command } from "./commands.ts";
-import { checkVictory, removeDead, runOrders, runProduction, type SimEvent } from "./systems.ts";
+import {
+  checkEnd,
+  removeDead,
+  runOrders,
+  runProduction,
+  runRespawns,
+  type SimEvent,
+} from "./systems.ts";
+import { runTriggers } from "./triggers.ts";
 import type { World } from "./world.ts";
 
 /**
@@ -26,10 +34,12 @@ export function step(world: World, commands: readonly Command[] = []): SimEvent[
     applyCommand(world, world.pendingCommands.shift()!);
   }
 
+  runRespawns(world, events);
   runProduction(world, events);
   runOrders(world, events);
   removeDead(world, events);
-  checkVictory(world, events);
+  runTriggers(world, events);
+  checkEnd(world, events);
   world.tick += 1;
   return events;
 }

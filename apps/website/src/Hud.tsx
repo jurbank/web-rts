@@ -4,7 +4,7 @@ import { useHud } from "./store.ts";
 
 const OUTCOMES = { won: "Victory", lost: "Defeat", draw: "Draw" };
 
-function Button(props: {
+export function Button(props: {
   onClick: () => void;
   disabled?: boolean;
   pressed?: boolean;
@@ -23,19 +23,38 @@ function Button(props: {
   );
 }
 
-export function Hud({ game, onRestart }: { game: RefObject<Game | null>; onRestart: () => void }) {
+export function Hud({
+  game,
+  onRestart,
+  onExit,
+}: {
+  game: RefObject<Game | null>;
+  onRestart: () => void;
+  onExit: () => void;
+}) {
   const view = useHud((state) => state.view);
   const debug = useHud((state) => state.debug);
+  const targeting = view.abilities.find((ability) => ability.id === view.targeting);
 
   return (
     <div className="pointer-events-none fixed inset-0 flex flex-col justify-between p-3 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm text-white">
       <div className="flex items-start justify-between gap-2">
-        <div className="rounded-lg bg-slate-900/85 px-3 py-2 tabular-nums">
-          Resources {view.resources}
+        <div className="flex gap-3 rounded-lg bg-slate-900/85 px-3 py-2 tabular-nums">
+          <span>Resources {view.resources}</span>
+          {view.counters.map((counter) => (
+            <span key={counter.label}>
+              {counter.label} {counter.value}
+            </span>
+          ))}
         </div>
-        {view.placing !== null && (
+        {(view.placing !== null || view.targeting !== null) && (
           <div className="flex items-center gap-2 rounded-lg bg-slate-900/85 py-1 pr-1 pl-3">
-            <span>{view.notice ?? `Tap the ground to place ${view.placing}`}</span>
+            <span>
+              {view.notice ??
+                (view.placing !== null
+                  ? `Tap the ground to place ${view.placing}`
+                  : `Tap an enemy to use ${targeting?.label}`)}
+            </span>
             <Button onClick={() => game.current?.cancelPlacement()}>Cancel</Button>
           </div>
         )}
@@ -63,6 +82,21 @@ export function Hud({ game, onRestart }: { game: RefObject<Game | null>; onResta
             <div className="rounded-lg bg-slate-900/85 px-3 py-2">{view.selection}</div>
           )}
           <div className="flex flex-wrap gap-2">
+            {view.abilities.map((ability) => (
+              <Button
+                key={ability.id}
+                disabled={ability.locked !== null || ability.seconds > 0}
+                pressed={view.targeting === ability.id}
+                onClick={() => game.current?.cast(ability.id)}
+              >
+                {ability.label}
+                {ability.locked !== null
+                  ? ` (level ${ability.locked})`
+                  : ability.seconds > 0
+                    ? ` ${ability.seconds}s`
+                    : ""}
+              </Button>
+            ))}
             {view.actions.map((action) => (
               <Button
                 key={action.kind + action.definitionId}
@@ -85,6 +119,7 @@ export function Hud({ game, onRestart }: { game: RefObject<Game | null>; onResta
           <Button pressed={debug} onClick={() => useHud.setState({ debug: !debug })}>
             Debug
           </Button>
+          <Button onClick={onExit}>Editor</Button>
         </div>
       </div>
     </div>
