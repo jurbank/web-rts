@@ -1,4 +1,4 @@
-"""Build a linked review gallery or stage one static structure GLB."""
+"""Build a linked review gallery, stage one static structure GLB, or render a staged GLB for review."""
 import argparse
 import json
 import math
@@ -10,16 +10,33 @@ import sys
 from tempfile import TemporaryDirectory
 
 import bpy
+from bpy_extras.object_utils import world_to_camera_view
 from mathutils import Vector
+import numpy
 
 
 LIBRARY = Path("art/blender/library")
+STAGING = Path("art/staging/models/structures")
+RUNTIME = Path("apps/website/public/models/structures")
+RENDERS = Path("art/staging/renders/structures")
+# The review sheet: a close view and a lineup on top, desktop and phone crops at true pixel size below.
+SHEET_WIDTH = 1400
+SHEET_GAP = 8
+SHEET_ROW = 512
+SHEET_CROP_HEIGHT = 400
+SHEET_BACKGROUND = "#11151a"
+CROP_WIDTH = (SHEET_WIDTH - SHEET_GAP) // 2
+# The game camera in packages/render/src/camera.ts.
+FIELD_OF_VIEW = 40
+PITCH = 55
+MIN_DISTANCE = 8
 CATEGORIES = ("structures", "units", "creatures")
 ASSET_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 # A foundation may sink this far below Z=0 to meet uneven terrain.
 GROUND_SKIRT = 0.25
 # The footprint center may drift this fraction of the asset's width or depth, for overhangs.
 CENTER_TOLERANCE = 0.1
+TEXTURE_KEY = re.compile(r'"\w+Texture"')
 
 
 def asset_id(value):
@@ -107,7 +124,7 @@ def build_gallery(root, output, destination):
         for area in screen.areas:
             if area.type == "VIEW_3D":
                 view = area.spaces.active
-                view.shading.color_type = "MATERIAL"
+                view.shading.color_type = "TEXTURE"
                 view.overlay.show_floor = False
                 view.overlay.show_axis_x = False
                 view.overlay.show_axis_y = False
@@ -148,10 +165,21 @@ def glb_summary(output):
     )
     if not triangles:
         raise ValueError("The exported model has no triangles")
-    return f"{length:,} bytes, {triangles:,} triangles in mesh data, {len(primitives)} primitives"
+
+    images = document.get("images", [])
+    external = [image["uri"] for image in images if "uri" in image]
+    if external:
+        raise ValueError(f"The GLB references images outside the file: {', '.join(external)}")
+    materials = document.get("materials", [])
+    textured = sum(1 for material in materials if TEXTURE_KEY.search(json.dumps(material)))
+    summary = (
+        f"{length:,} bytes, {triangles:,} triangles in mesh data, {len(primitives)} primitives, "
+        f"{len(images)} images, {textured} of {len(materials)} materials textured"
+    )
+    return summary, len(images)
 
 
-def export_structure(root, identifier, output):
+def export_structure(root, identifier, output, blockout):
     source = root / LIBRARY / "structures" / f"{identifier}.blend"
     collection = load_asset(source, link=False)
     objects = set(collection.all_objects)
@@ -192,8 +220,197 @@ def export_structure(root, identifier, output):
     )
     if "FINISHED" not in status:
         raise ValueError("Blender could not export the collection")
+    summary, images = glb_summary(output)
+    if not images and not blockout:
+        raise ValueError(
+            "The export has no image textures. docs/ART_DIRECTION.md calls for painted detail, and "
+            "procedural shaders do not survive export, so bake them. Pass --blockout to stage an untextured blockout."
+        )
     size = " × ".join(f"{value:.3g}" for value in maximum - minimum)
-    return f"{glb_summary(output)}, {size} Blender units (width × depth × height)"
+    stage = ", untextured blockout" if blockout else ""
+    return f"{summary}, {size} Blender units (width × depth × height){stage}"
+
+
+def linear(color):
+    channels = (int(color[index:index + 2], 16) / 255 for index in (1, 3, 5))
+    return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels) + (1.0,)
+
+
+def stage_like_game(scene):
+    """Mirror the lights, ground, and colors in packages/render/src/renderer.ts."""
+    # three.js divides light intensities by pi where Blender does not.
+    world = bpy.data.worlds.new("Game hemisphere")
+    world.use_nodes = True
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    direction = nodes.new("ShaderNodeTexCoord")
+    axes = nodes.new("ShaderNodeSeparateXYZ")
+    height = nodes.new("ShaderNodeMapRange")
+    height.inputs["From Min"].default_value = -1
+    sky = nodes.new("ShaderNodeMix")
+    sky.data_type = "RGBA"
+    sky.inputs["A"].default_value = linear("#40464f")
+    sky.inputs["B"].default_value = linear("#ffffff")
+    background = nodes["Background"]
+    background.inputs["Strength"].default_value = 2 / math.pi
+    links.new(direction.outputs["Generated"], axes.inputs["Vector"])
+    links.new(axes.outputs["Z"], height.inputs["Value"])
+    links.new(height.outputs["Result"], sky.inputs["Factor"])
+    links.new(sky.outputs["Result"], background.inputs["Color"])
+    scene.world = world
+
+    sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
+    sun.data.energy = 1.5 / math.pi
+    # The game's sun sits at three.js (-0.4, 1, 0.6), which is Blender (-0.4, -0.6, 1).
+    sun.rotation_euler = Vector((-0.4, -0.6, 1)).to_track_quat("Z", "Y").to_euler()
+    scene.collection.objects.link(sun)
+
+    ground_material = bpy.data.materials.new("Ground")
+    ground_material.use_nodes = True
+    # The game's ground is Lambert, so it has no reflections.
+    surface = ground_material.node_tree.nodes["Principled BSDF"]
+    surface.inputs["Base Color"].default_value = linear("#3b4a3f")
+    surface.inputs["Roughness"].default_value = 1
+    surface.inputs["Specular IOR Level"].default_value = 0
+    plane = bpy.data.meshes.new("Ground")
+    plane.from_pydata([(-500, -500, 0), (500, -500, 0), (500, 500, 0), (-500, 500, 0)], [], [(0, 1, 2, 3)])
+    plane.materials.append(ground_material)
+    scene.collection.objects.link(bpy.data.objects.new("Ground", plane))
+
+    engines = {item.identifier for item in scene.render.bl_rna.properties["engine"].enum_items}
+    scene.render.engine = next(e for e in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE", "CYCLES") if e in engines)
+    scene.view_settings.view_transform = "Standard"
+    scene.render.image_settings.file_format = "PNG"
+
+
+def import_glb(path):
+    before = set(bpy.context.scene.objects)
+    bpy.ops.import_scene.gltf(filepath=str(path))
+    objects = [obj for obj in bpy.context.scene.objects if obj not in before]
+    corners = [corner for obj in objects for corner in mesh_corners(obj, obj.matrix_world)]
+    return objects, *bounds(corners, path.stem)
+
+
+def find_export(root, identifier):
+    for folder in (RUNTIME, STAGING):
+        path = root / folder / f"{identifier}.glb"
+        if path.is_file():
+            return path
+    raise ValueError(f"No export of {identifier} in {RUNTIME} or {STAGING}")
+
+
+def shoot(scene, camera, target_x, away, width, height, path):
+    pitch = math.radians(PITCH)
+    camera.location = (target_x, -away * math.cos(pitch), away * math.sin(pitch))
+    scene.render.resolution_x, scene.render.resolution_y = width, height
+    scene.render.filepath = str(path)
+    bpy.ops.render.render(write_still=True)
+
+
+def read_png(path):
+    image = bpy.data.images.load(str(path))
+    width, height = image.size
+    pixels = numpy.empty(width * height * 4, dtype=numpy.float32)
+    image.pixels.foreach_get(pixels)
+    bpy.data.images.remove(image)
+    # Blender stores rows bottom up. Arrays here run top down.
+    return numpy.flipud(pixels.reshape(height, width, 4))
+
+
+def write_png(array, path):
+    height, width = array.shape[:2]
+    image = bpy.data.images.new("Review sheet", width, height, alpha=False)
+    image.pixels.foreach_set(numpy.ascontiguousarray(numpy.flipud(array)).ravel())
+    image.filepath_raw = str(path)
+    image.file_format = "PNG"
+    image.save()
+
+
+def asset_crop(scene, camera, minimum, maximum, pixels, limit):
+    """Crop a render around the asset at its true pixel size, padded and capped at `limit`."""
+    height, width = pixels.shape[:2]
+    corners = [Vector((x, y, z)) for x in (minimum.x, maximum.x) for y in (minimum.y, maximum.y) for z in (minimum.z, maximum.z)]
+    points = [world_to_camera_view(scene, camera, corner) for corner in corners]
+    left, right = min(p.x for p in points) * width, max(p.x for p in points) * width
+    top, bottom = (1 - max(p.y for p in points)) * height, (1 - min(p.y for p in points)) * height
+    pad = max(16, 0.25 * max(right - left, bottom - top))
+    crop_width = min(limit[0], width, round(right - left + 2 * pad))
+    crop_height = min(limit[1], height, round(bottom - top + 2 * pad))
+    x = min(max(0, round((left + right - crop_width) / 2)), width - crop_width)
+    y = min(max(0, round((top + bottom - crop_height) / 2)), height - crop_height)
+    return pixels[y:y + crop_height, x:x + crop_width]
+
+
+def render_structure(root, identifier, neighbors, distance):
+    """Render the staged GLB, not the source, so anything the exporter dropped shows."""
+    source = root / STAGING / f"{identifier}.glb"
+    if not source.is_file():
+        raise ValueError(f"Export {identifier} before rendering it. Missing {source}")
+    scene = bpy.context.scene
+    _, minimum, maximum = import_glb(source)
+
+    # Line neighbors up to the right of the asset, left to right in the order given.
+    lineup = [(minimum, maximum)]
+    hidden = []
+    edge, gap = maximum.x, max(1.0, (maximum - minimum).x * 0.3)
+    for neighbor in neighbors:
+        objects, low, high = import_glb(find_export(root, neighbor))
+        shift = edge + gap - low.x
+        for obj in objects:
+            if obj.parent is None:
+                obj.location.x += shift
+            obj.hide_render = True
+        hidden += objects
+        lineup.append((low + Vector((shift, 0, 0)), high + Vector((shift, 0, 0))))
+        edge = high.x + shift
+    stage_like_game(scene)
+
+    camera = bpy.data.objects.new("Game camera", bpy.data.cameras.new("Game camera"))
+    camera.data.sensor_fit = "VERTICAL"
+    camera.data.angle_y = math.radians(FIELD_OF_VIEW)
+    camera.data.clip_end = 2000
+    camera.rotation_euler = (math.radians(90 - PITCH), 0, 0)
+    scene.collection.objects.link(camera)
+    scene.camera = camera
+
+    # The game camera only pans and zooms, so every view looks at the front (-Y) from above it.
+    half_angle = math.tan(math.radians(FIELD_OF_VIEW) / 2)
+    reach = (maximum - minimum).length / 2
+    close = max(MIN_DISTANCE, reach / math.sin(math.radians(FIELD_OF_VIEW) / 2) * 1.15)
+    folder = root / RENDERS
+    folder.mkdir(parents=True, exist_ok=True)
+    path = {name: folder / f"{identifier}-{name}.png" for name in ("close", "desktop", "phone", "review")}
+    shoot(scene, camera, 0, close, 1024, 1024, path["close"])
+    shoot(scene, camera, 0, distance, 1920, 1080, path["desktop"])
+    desktop = asset_crop(scene, camera, minimum, maximum, read_png(path["desktop"]), (CROP_WIDTH, SHEET_CROP_HEIGHT))
+    shoot(scene, camera, 0, distance, 844, 390, path["phone"])
+    phone = asset_crop(scene, camera, minimum, maximum, read_png(path["phone"]), (CROP_WIDTH, SHEET_CROP_HEIGHT))
+
+    for obj in hidden:
+        obj.hide_render = False
+    left, right = lineup[0][0].x, lineup[-1][1].x
+    tallest = max(max(high.z, high.y - low.y) for low, high in lineup)
+    lineup_width = SHEET_WIDTH - SHEET_ROW - SHEET_GAP
+    away = max(
+        MIN_DISTANCE,
+        ((right - left) / 2 + gap) / (half_angle * lineup_width / SHEET_ROW),
+        (tallest / 2 + gap) / half_angle,
+    )
+    with TemporaryDirectory() as temporary:
+        lineup_path = Path(temporary) / "lineup.png"
+        shoot(scene, camera, (left + right) / 2, away, lineup_width, SHEET_ROW, lineup_path)
+        lineup_pixels = read_png(lineup_path)
+
+    sheet = numpy.empty((SHEET_ROW + SHEET_GAP + max(len(desktop), len(phone)), SHEET_WIDTH, 4), numpy.float32)
+    sheet[:] = [int(SHEET_BACKGROUND[i:i + 2], 16) / 255 for i in (1, 3, 5)] + [1]
+    halved = read_png(path["close"]).reshape(SHEET_ROW, 2, SHEET_ROW, 2, 4).mean(axis=(1, 3))
+    sheet[:SHEET_ROW, :SHEET_ROW] = halved
+    sheet[:SHEET_ROW, SHEET_ROW + SHEET_GAP:] = lineup_pixels
+    below = SHEET_ROW + SHEET_GAP
+    sheet[below:below + len(desktop), :desktop.shape[1]] = desktop
+    start = CROP_WIDTH + SHEET_GAP
+    sheet[below:below + len(phone), start:start + phone.shape[1]] = phone
+    write_png(sheet, path["review"])
+    return [str(path[name]) for name in ("review", "close", "desktop", "phone")]
 
 
 def main():
@@ -203,29 +420,49 @@ def main():
     arguments = argparse.ArgumentParser(description=__doc__)
     commands = arguments.add_subparsers(dest="command", required=True)
     for command in (commands.add_parser("gallery"), commands.add_parser("export")):
-        command.add_argument("--root", type=Path, default=Path.cwd())
         command.add_argument("--replace", action="store_true", help="Replace the generated output")
     commands.choices["export"].add_argument("asset_id", type=asset_id)
+    commands.choices["export"].add_argument(
+        "--blockout", action="store_true", help="Allow an untextured export for shape review"
+    )
+    render = commands.add_parser("render", help="Render a staged export from the game camera")
+    render.add_argument("asset_id", type=asset_id)
+    render.add_argument(
+        "--with",
+        dest="neighbors",
+        type=lambda value: [asset_id(item) for item in value.split(",")],
+        default=[],
+        help="Comma-separated IDs of approved or staged structures to line up beside it",
+    )
+    render.add_argument(
+        "--distance", type=float, default=30, help="Camera distance for the desktop and phone views"
+    )
+    for command in commands.choices.values():
+        command.add_argument("--root", type=Path, default=Path.cwd())
     options = arguments.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
     root = options.root.resolve()
     if not (root / LIBRARY).is_dir():
         arguments.error(f"{root} has no {LIBRARY} folder. Run from the web-rts root or pass --root.")
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+
+    if options.command == "render":
+        print("\n".join(render_structure(root, options.asset_id, options.neighbors, options.distance)))
+        return
     if options.command == "gallery":
         destination = root / "art/blender/gallery.blend"
     else:
-        destination = root / "art/staging/models/structures" / f"{options.asset_id}.glb"
+        destination = root / STAGING / f"{options.asset_id}.glb"
 
     if not options.replace and destination.exists():
         arguments.error(f"{destination} already exists. Pass --replace to overwrite it.")
 
-    bpy.ops.wm.read_factory_settings(use_empty=True)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=destination.parent) as temporary:
         output = Path(temporary) / destination.name
         if options.command == "gallery":
             summary = build_gallery(root, output, destination)
         else:
-            summary = export_structure(root, options.asset_id, output)
+            summary = export_structure(root, options.asset_id, output, options.blockout)
         if options.replace:
             output.replace(destination)
         else:

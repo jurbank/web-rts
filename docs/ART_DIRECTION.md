@@ -15,3 +15,8 @@ Two near-future city battles seen from a high three-quarter camera.
 - **Roofs identify buildings.** From this camera the roof is most of what a player sees. Barrel-vault hangars, flat roofs with rooftop equipment, and stepped towers each read differently.
 - **Grounded in a lived-in setting.** Roads, lot markings, fences, pylons, trees, and parked vehicles surround the buildings, so structures sit in a place instead of on a plain.
 - **A neutral environment so units stand out.** Buildings and ground should not be as bright as team colors, selection rings, and effects are the most saturated things on screen.
+
+## Buildings
+
+- **Each building type looks unique.** Its silhouette and massing differ from every other type, so a player can tell them apart by shape alone. Shapes repeat only across designated variants of one type, such as a small and a large hospital.
+- **Each building type has its own accent color.** Signs, trims, doors, and markings use it, so buildings don't all share one generic blue. Police use blue, the hospital uses red, and the barracks uses army greens. Accents cover small areas in muted tones, under the neutral-environment rule above.

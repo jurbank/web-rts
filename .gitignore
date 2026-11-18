@@ -44,3 +44,6 @@ art/staging/
 
 # Reference screenshots from other games stay local. ART_DIRECTION.md describes them.
 docs/screen_shots/inspiration/
+
+# Python bytecode from Blender helper scripts
+__pycache__/
