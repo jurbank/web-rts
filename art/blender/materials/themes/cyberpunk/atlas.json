@@ -207,6 +207,104 @@
       "width": 48,
       "height": 48,
       "shows": "Lamp head: dark housing around a glowing cyan lens"
+    },
+    "cyber_therapy_front": {
+      "x": 796,
+      "y": 1791,
+      "width": 240,
+      "height": 138,
+      "shows": "Weathered therapy storefront with boarded windows, patched cladding, and a recessed entry door"
+    },
+    "cyber_therapy_sign": {
+      "x": 1060,
+      "y": 1791,
+      "width": 228,
+      "height": 62,
+      "shows": "Chipped sign reading THERAPY in worn magenta tubing"
+    },
+    "cyber_container_wall": {
+      "x": 1312,
+      "y": 1791,
+      "width": 252,
+      "height": 106,
+      "shows": "Corrugated security container with personnel doors, dark vents, and a narrow green access panel"
+    },
+    "cyber_security_yard": {
+      "x": 1588,
+      "y": 1791,
+      "width": 236,
+      "height": 222,
+      "shows": "Rain-dark muster yard with faded drill lines, a gate approach, and a striped equipment bay"
+    },
+    "cyber_security_lamp": {
+      "x": 1848,
+      "y": 1791,
+      "width": 48,
+      "height": 32,
+      "shows": "Steel floodlight housing with twin acid-green lenses"
+    },
+    "cyber_security_roof": {
+      "x": 1920,
+      "y": 1791,
+      "width": 112,
+      "height": 48,
+      "shows": "Painted container roof with faded SEC 12 lettering and steel seams"
+    },
+    "cyber_exchange": {
+      "x": 1554,
+      "y": 70,
+      "width": 298,
+      "height": 193,
+      "shows": "Exchange curtain wall with broad grouped glass bays, dark spandrels, and scattered cool lights"
+    },
+    "cyber_relay": {
+      "x": 397,
+      "y": 580,
+      "width": 270,
+      "height": 187,
+      "shows": "Shielded relay cladding with recessed air intakes, an ochre block 18 field, and amber status bars"
+    },
+    "cyber_habitat": {
+      "x": 691,
+      "y": 600,
+      "width": 310,
+      "height": 187,
+      "shows": "Residential balcony rows with patched teal screens and scattered green-lit rooms"
+    },
+    "cyber_tower_lobby": {
+      "x": 1350,
+      "y": 287,
+      "width": 304,
+      "height": 92,
+      "shows": "Tower storefront with a glazed street lobby and weathered roller shutters"
+    },
+    "cyber_exchange_sign": {
+      "x": 1678,
+      "y": 287,
+      "width": 184,
+      "height": 42,
+      "shows": "Exchange bridge fascia with sparse cyan pinstripes and EXCHANGE lettering"
+    },
+    "cyber_habitat_deck": {
+      "x": 1876,
+      "y": 12,
+      "width": 110,
+      "height": 140,
+      "shows": "Rain-stained concrete roof terrace with boxed planting beds"
+    },
+    "cyber_habitat_sign": {
+      "x": 1350,
+      "y": 161,
+      "width": 84,
+      "height": 48,
+      "shows": "Worn communal tank sign with green HAB lettering"
+    },
+    "cyber_relay_beacon": {
+      "x": 1458,
+      "y": 161,
+      "width": 42,
+      "height": 34,
+      "shows": "Amber warning lens set in a dark antenna housing"
     }
   }
 }

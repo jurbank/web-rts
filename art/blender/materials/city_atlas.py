@@ -9,7 +9,7 @@ every card once. BASE lists the theme-neutral cards that every theme's atlas
 carries, and THEMES lists each theme's own cards and tool settings. Each theme
 gets art/blender/materials/themes/<theme>/atlas.jpg and atlas.json, plus
 atlas-glow.jpg when the theme glows. Cards pack in list order onto 2048-pixel
-pages laid side by side.
+pages laid side by side, filling gaps before adding a page.
 
 Cards may move when lists change. Structures mapped with atlas_cards.py record
 which card each face uses, so atlas_cards.refresh() fits them again. Reuse cards
@@ -81,6 +81,20 @@ CARDS = {
     'cyber_trim_cyan': ((256, 20), (44, 48, 54), 'Dark steel edge trim with a thin glowing cyan lamp line'),
     'cyber_metal_rust': ((128, 96), (84, 66, 52), 'Rusted brown sheet metal with ribs and streaks'),
     'cyber_lamp': ((48, 48), (40, 44, 50), 'Lamp head: dark housing around a glowing cyan lens'),
+    'cyber_therapy_front': ((240, 138), (71, 78, 78), 'Weathered therapy storefront with boarded windows, patched cladding, and a recessed entry door'),
+    'cyber_therapy_sign': ((228, 62), (54, 45, 53), 'Chipped sign reading THERAPY in worn magenta tubing'),
+    'cyber_container_wall': ((252, 106), (66, 76, 71), 'Corrugated security container with personnel doors, dark vents, and a narrow green access panel'),
+    'cyber_security_yard': ((236, 222), (46, 50, 54), 'Rain-dark muster yard with faded drill lines, a gate approach, and a striped equipment bay'),
+    'cyber_security_lamp': ((48, 32), (44, 49, 48), 'Steel floodlight housing with twin acid-green lenses'),
+    'cyber_security_roof': ((112, 48), (79, 87, 79), 'Painted container roof with faded SEC 12 lettering and steel seams'),
+    'cyber_exchange': ((298, 193), (62, 69, 75), 'Exchange curtain wall with broad grouped glass bays, dark spandrels, and scattered cool lights'),
+    'cyber_relay': ((270, 187), (65, 66, 68), 'Shielded relay cladding with recessed air intakes, an ochre block 18 field, and amber status bars'),
+    'cyber_habitat': ((310, 187), (71, 75, 69), 'Residential balcony rows with patched teal screens and scattered green-lit rooms'),
+    'cyber_tower_lobby': ((304, 92), (59, 64, 67), 'Tower storefront with a glazed street lobby and weathered roller shutters'),
+    'cyber_exchange_sign': ((184, 42), (49, 59, 66), 'Exchange bridge fascia with sparse cyan pinstripes and EXCHANGE lettering'),
+    'cyber_habitat_deck': ((110, 140), (63, 68, 64), 'Rain-stained concrete roof terrace with boxed planting beds'),
+    'cyber_habitat_sign': ((84, 48), (57, 71, 66), 'Worn communal tank sign with green HAB lettering'),
+    'cyber_relay_beacon': ((42, 34), (52, 48, 47), 'Amber warning lens set in a dark antenna housing'),
 }
 
 # Theme-neutral cards in every theme's atlas.
@@ -95,11 +109,15 @@ THEMES = {
         'sign_hospital_roof', 'sign_hospital_fascia', 'marking_ambulance_bays', 'wall_ward_slab',
         'wall_ward_slab_end', 'wall_podium_entrance', 'roof_barrel_seam', 'gable_quonset_end',
         'marking_muster_yard', 'flag_army']},
-    'cyberpunk': {'lighting': 'night', 'glow': True, 'cards': [
+    'cyberpunk': {'lighting': 'night', 'glow': True, 'fill_gaps': True, 'cards': [
         'cyber_hospital_ward', 'cyber_hospital_lobby', 'cyber_hospital_pad',
         'cyber_apron_bays', 'cyber_clinic_street', 'cyber_clinic_tower', 'cyber_clinic_upper', 'cyber_landing_deck',
         'cyber_roof_tar', 'cyber_wall_channels', 'cyber_lift_shaft', 'cyber_sign_pharmacy', 'cyber_metal_rust',
-        'cyber_canopy_fascia', 'cyber_trim_cyan', 'cyber_lamp']},
+        'cyber_canopy_fascia', 'cyber_trim_cyan', 'cyber_lamp',
+        'cyber_therapy_front', 'cyber_therapy_sign', 'cyber_container_wall', 'cyber_security_yard',
+        'cyber_security_lamp', 'cyber_security_roof',
+        'cyber_exchange', 'cyber_relay', 'cyber_habitat', 'cyber_tower_lobby',
+        'cyber_exchange_sign', 'cyber_habitat_deck', 'cyber_habitat_sign', 'cyber_relay_beacon']},
 }
 
 resample = Image.Resampling.BICUBIC
@@ -801,6 +819,175 @@ for card, (size, base, _) in CARDS.items():
         d.ellipse((10,10,w-11,h-11),fill=(170,225,228))
         gd.ellipse((10,10,w-11,h-11),fill=CYAN)
 
+    if card == 'cyber_therapy_front':
+        d.rectangle((0,14,w-1,52),fill=(49,69,69),outline=(33,49,51),width=2)
+        d.rectangle((12,61,144,120),fill=(31,35,40),outline=(100,98,90),width=3)
+        for x in (46,79,112):
+            d.line((x,64,x,116),fill=(67,72,74),width=3)
+        for offset, tone in ((0,(146,119,88)),(19,(126,100,77)),(38,(133,113,89))):
+            d.polygon(((12,73+offset),(137,64+offset),(138,76+offset),(12,85+offset)),fill=tone)
+            d.line((15,83+offset,133,75+offset),fill=(72,57,45),width=1)
+            for x,y in ((18,78+offset),(132,69+offset)):
+                d.ellipse((x-1,y-1,x+1,y+1),fill=(45,41,39))
+        d.rectangle((163,47,217,137),fill=(29,36,42),outline=(103,130,124),width=3)
+        d.rectangle((173,59,207,92),fill=(70,86,88),outline=(36,48,51),width=3)
+        d.line((173,85,206,78),fill=(95,107,103),width=2)
+        d.line((201,103,209,103),fill=(155,147,123),width=3)
+        d.rectangle((224,48,232,102),fill=(98,77,64))
+        for x in (25,81,153,223):
+            d.line((x,17,x,49),fill=(33,50,50),width=2)
+        patches(im,12,(0,0,w,45))
+        rust(im,19,8)
+        grime(im,[(0,119,w,h,55)],24)
+
+    if card == 'cyber_therapy_sign':
+        d.rectangle((3,4,w-4,h-5),outline=(113,87,86),width=2)
+        d.line((5,h-7,w-6,h-7),fill=(56,36,39),width=2)
+        for x in (9,w-10):
+            for y in (9,h-10):
+                d.ellipse((x-2,y-2,x+2,y+2),fill=(125,106,98))
+        rust(im,14,3)
+        text(d,(w//2,h//2+1),'THERAPY',41,(218,146,186))
+        text(gd,(w//2,h//2+1),'THERAPY',41,(224,74,200))
+        # Dead segments interrupt the tubing while the original painted letter stays legible.
+        for x,y,length in ((51,22,8),(116,37,7),(179,23,9)):
+            gd.line((x,y,x+length,y+1),fill=(18,4,13),width=3)
+
+    if card == 'cyber_container_wall':
+        channels(d,h,range(5,w-3,13))
+        d.rectangle((0,0,w-1,h-1),outline=(95,104,94),width=4)
+        d.rectangle((5,5,w-6,h-6),outline=(42,50,49),width=2)
+        d.rectangle((14,17,67,76),fill=(107,118,93),outline=(36,46,41),width=2)
+        text(d,(40,36),'SEC',20,(30,44,39),True)
+        text(d,(40,59),'12',25,(30,44,39),True)
+        for x in (77,125):
+            shutter(d,x,22,x+34,56)
+        d.rectangle((178,12,227,h-6),fill=(53,63,62),outline=(31,41,42),width=3)
+        d.rectangle((190,24,217,43),fill=(28,38,40),outline=(91,101,94),width=2)
+        d.rectangle((232,42,239,55),fill=GREEN_PAINT)
+        gd.rectangle((233,43,238,54),fill=GREEN)
+        d.line((213,62,220,62),fill=(144,147,127),width=3)
+        d.line((8,h-10,173,h-10),fill=(110,94,62),width=3)
+        rust(im,21,3)
+        grime(im,[(0,h-9,w,h,56)],17)
+
+    if card == 'cyber_security_yard':
+        d.rectangle((3,3,w-4,h-4),outline=(83,85,77),width=3)
+        for x in (53,102,150,197):
+            d.line((x,0,x,h),fill=(36,41,46),width=2)
+        d.line((0,174,w,174),fill=(36,41,46),width=2)
+        patches(im,12,sheen=True)
+        d.rectangle((23,137,91,198),outline=(132,122,83),width=3)
+        for y in (150,164,178,192):
+            d.line((30,y,83,y),fill=(110,111,88),width=2)
+        hazard(im,158,141,205,145,11)
+        d.rectangle((158,146,205,195),outline=(120,111,75),width=2)
+        for x in (94,137):
+            d.line((x,205,x,218),fill=(131,120,79),width=3)
+
+    if card == 'cyber_security_lamp':
+        d.rectangle((2,3,w-3,h-4),outline=(108,116,112),width=2)
+        for x in (6,26):
+            d.rectangle((x,8,x+15,23),fill=(178,200,160))
+            gd.rectangle((x+1,9,x+14,22),fill=GREEN)
+
+    if card == 'cyber_security_roof':
+        for x in range(7,w-3,8):
+            d.line((x,1,x,h-2),fill=(48,60,55))
+            d.line((x+1,1,x+1,h-2),fill=(100,109,96))
+        d.rectangle((0,0,w-1,h-1),outline=(51,57,55),width=2)
+        d.rectangle((8,9,w-9,h-10),fill=(89,98,86),outline=(67,76,68))
+        text(d,(w//2,h//2),'SEC 12',26,(208,209,183),True)
+        rust(im,7,1)
+
+    if card == 'cyber_exchange':
+        for y in range(13,h-17,31):
+            d.rectangle((0,y-5,w-1,y+24),fill=(46,52,59))
+            for x in range(9,w-26,28):
+                d.rectangle((x,y,x+22,y+17),fill=(28,37,44))
+                d.line((x,y,x+22,y),fill=(72,87,93),width=2)
+                if rng.random()<.11:
+                    d.rectangle((x+3,y+4,x+15,y+14),fill=(103,145,153))
+                    gd.rectangle((x+4,y+5,x+14,y+13),fill=(55,151,166))
+            d.line((0,y+25,w-1,y+25),fill=(104,112,112),width=2)
+        for x in (3,91,203,292):
+            d.rectangle((x,0,x+4,h),fill=(90,95,97))
+        rust(im,18,4)
+        grime(im,[(0,h-10,w,h,45)],16)
+
+    if card == 'cyber_relay':
+        channels(d,h,range(10,w-8,25))
+        for y in (16,71,126):
+            d.rectangle((10,y,156,y+34),fill=(38,44,49),outline=(87,92,94),width=2)
+            for x in range(18,151,23):
+                shutter(d,x,y+6,x+15,y+27)
+        d.rectangle((169,14,257,150),fill=(122,107,65),outline=(41,44,47),width=3)
+        hazard(im,173,18,253,29,17)
+        text(d,(213,61),'18',55,(37,41,42),True)
+        text(d,(213,103),'RELAY',24,(46,47,41),True)
+        for x in (175,225):
+            d.rectangle((x,131,x+22,135),fill=(173,127,65))
+            gd.rectangle((x+2,132,x+20,134),fill=(240,166,64))
+        d.line((0,h-10,w,h-10),fill=(106,104,87),width=3)
+        rust(im,24,6)
+        grime(im,[(0,h-18,w,h,52)],18)
+
+    if card == 'cyber_habitat':
+        for y in (10,67,124):
+            for x in range(7,w-40,48):
+                d.rectangle((x,y,x+39,y+37),fill=(33,42,46),outline=(98,102,92),width=2)
+                d.line((x+18,y+2,x+18,y+19),fill=(75,79,73),width=2)
+                shade=rng.choice(((70,89,87),(89,86,75),(95,99,90)))
+                d.rectangle((x+1,y+22,x+38,y+36),fill=shade)
+                if rng.random()<.17:
+                    d.rectangle((x+21,y+6,x+34,y+16),fill=(131,167,113))
+                    gd.rectangle((x+23,y+8,x+32,y+14),fill=(96,160,75))
+            d.line((0,y+41,w-1,y+41),fill=(111,111,96),width=3)
+        rust(im,25,12)
+        grime(im,[(0,h-16,w,h,45)],18)
+
+    if card == 'cyber_tower_lobby':
+        shutter(d,11,24,85,h-8)
+        shutter(d,224,24,292,h-8)
+        d.rectangle((100,13,211,h-2),fill=(35,46,51),outline=(101,106,103),width=3)
+        glass(d,109,20,203,h-3,4,door=True)
+        for x in (93,217):
+            d.line((x,8,x,h-2),fill=(101,109,103),width=3)
+        for x in (28,241):
+            d.rectangle((x,12,x+34,17),fill=(126,118,93))
+        rust(im,15,0)
+
+    if card == 'cyber_exchange_sign':
+        d.rectangle((2,2,w-3,h-3),outline=(86,103,107),width=2)
+        text(d,(w//2,h//2),'EXCHANGE',26,(150,189,193),True)
+        text(gd,(w//2,h//2),'EXCHANGE',26,(68,187,198),True)
+        for x in (10,w-28):
+            for dy in (0,7):
+                d.rectangle((x,16+dy,x+17,18+dy),fill=CYAN_PAINT)
+                gd.line((x+1,17+dy,x+16,17+dy),fill=CYAN)
+
+    if card == 'cyber_habitat_deck':
+        d.rectangle((2,3,w-3,h-4),outline=(108,111,98),width=3)
+        patches(im,5,sheen=True)
+        for y in (8,76):
+            d.rectangle((9,y,w-10,y+55),fill=(88,97,67),outline=(149,144,117),width=5)
+            for x in (29,54,79):
+                for offset in (17,38):
+                    canopy=rng.choice(((119,133,77),(136,144,91),(105,126,77)))
+                    d.ellipse((x-16,y+offset-13,x+16,y+offset+13),fill=canopy)
+                    d.arc((x-14,y+offset-11,x+14,y+offset+11),195,320,fill=(151,153,104),width=2)
+
+    if card == 'cyber_habitat_sign':
+        d.rectangle((3,4,w-4,h-5),outline=(103,117,100),width=2)
+        text(d,(w//2,h//2),'HAB',28,(172,188,151),True)
+        text(gd,(w//2,h//2),'HAB',28,(102,176,84),True)
+        rust(im,7,1)
+
+    if card == 'cyber_relay_beacon':
+        d.rectangle((2,2,w-3,h-3),outline=(90,73,61),width=2)
+        d.rectangle((9,8,w-10,h-9),fill=(195,128,67))
+        gd.rectangle((10,9,w-11,h-10),fill=(240,166,64))
+
     # Break up perfectly even paint without eroding the small lettering at game zoom.
     stipple=Image.new('L',im.size)
     sd=ImageDraw.Draw(stipple)
@@ -824,15 +1011,43 @@ def paste(atlas, im, x, y):
     atlas.paste(strip,(x-PAD,y+h))
 
 
-def pack(names):
-    """Shelf-pack cards in order onto 2048-pixel pages, starting a page when one fills."""
+def page_gap(regions, page, width, height):
+    """Find space for a padded card without moving cards already on this page."""
+    offset = page * PAGE
+    rects = []
+    for name, (x, y) in regions.items():
+        if offset <= x < offset + PAGE:
+            w, h = CARDS[name][0]
+            rects.append((x-offset-PAD, y-PAD, x-offset+w+PAD, y+h+PAD))
+    xs = sorted({0, *(right for _, _, right, _ in rects)})
+    ys = sorted({0, *(bottom for _, _, _, bottom in rects)})
+    for y in ys:
+        bottom = y + height + 2 * PAD
+        for x in xs:
+            right = x + width + 2 * PAD
+            if right <= PAGE and bottom <= PAGE and all(
+                right <= left or x >= r or bottom <= top or y >= b for left, top, r, b in rects
+            ):
+                return offset + x + PAD, y + PAD
+    return None
+
+
+def pack(names, *, fill_gaps=False):
+    """Shelf-pack cards onto 2048-pixel pages, optionally filling gaps when a page overflows."""
     regions, page, x, y, row = {}, 0, PAD, PAD, 0
+    filling_gaps = False
     for name in names:
         w, h = CARDS[name][0]
-        if x + w + PAD > PAGE:
+        if not filling_gaps and x + w + PAD > PAGE:
             x, y, row = PAD, y + row + 2 * PAD, 0
-        if y + h + PAD > PAGE:
+        if filling_gaps or y + h + PAD > PAGE:
+            gap = page_gap(regions, page, w, h) if fill_gaps else None
+            if gap is not None:
+                regions[name] = gap
+                filling_gaps = True
+                continue
             page, x, y, row = page + 1, PAD, PAD, 0
+            filling_gaps = False
         regions[name] = (page * PAGE + x, y)
         x += w + 2 * PAD
         row = max(row, h)
@@ -842,7 +1057,7 @@ def pack(names):
 for theme, settings in THEMES.items():
     names = BASE + settings['cards']
     assert len(set(names)) == len(names), f'{theme} lists a card twice'
-    regions, pages = pack(names)
+    regions, pages = pack(names, fill_gaps=settings.get('fill_gaps', False))
     folder = HERE / 'themes' / theme
     folder.mkdir(parents=True, exist_ok=True)
     atlas = Image.new('RGB', (PAGE * pages, PAGE), (86, 91, 89))

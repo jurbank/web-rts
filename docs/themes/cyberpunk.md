@@ -17,13 +17,13 @@ Dark weathered concrete, grimy steel cladding with recessed vertical channels, a
 
 ## Palette
 
-| Use | Colors |
-| --- | --- |
-| Walls | Charcoal concrete `#3a3d42`, dark steel `#2c3035` |
+| Use          | Colors                                                                  |
+| ------------ | ----------------------------------------------------------------------- |
+| Walls        | Charcoal concrete `#3a3d42`, dark steel `#2c3035`                       |
 | Panel fields | Muted hazard ochre `#8c7a3a` with black stripes, stained teal `#2f4a4c` |
-| Metal | Rusted brown `#5a4636`, gunmetal `#4a4f55` |
-| Glass | Near-black `#1d2329` with occasional lit tiles |
-| Ground | Wet asphalt `#26292d` |
+| Metal        | Rusted brown `#5a4636`, gunmetal `#4a4f55`                              |
+| Glass        | Near-black `#1d2329` with occasional lit tiles                          |
+| Ground       | Wet asphalt `#26292d`                                                   |
 
 A panel field may cover up to a third of a facade.
 
@@ -49,11 +49,13 @@ Vertical sign strips, block numbers painted large, small screens, and glowing pi
 
 All are provisional until the first one is approved.
 
-| Type | Signature silhouette | Accent glow | Required elements |
-| --- | --- | --- | --- |
-| Hospital | A stepped clinic tower with a landing deck cantilevered out on struts and an exterior lift shaft | Cyan `#35d6e0` | A vertical sign strip with a glowing green cross (a pharmacy cross, not the protected red cross), deck lamps, an ambulance bay at the base |
-| Police station | A fortified block with a watchtower and a searchlight mast | Amber `#f0a640` with blue-white strobes | Armored shutters, a block number, drone pads |
-| Barracks | Stacked container blocks with exterior stairs and catwalks | Acid green `#7ee05a` | Corporate security markings, floodlights, a fenced yard |
+| Type           | Signature silhouette                                                                                                     | Accent glow                                           | Required elements                                                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hospital       | A stepped clinic tower with a landing deck cantilevered out on struts and an exterior lift shaft                         | Cyan `#35d6e0`                                        | A vertical sign strip with a glowing green cross (a pharmacy cross, not the protected red cross), deck lamps, an ambulance bay at the base |
+| Police station | A fortified block with a watchtower and a searchlight mast                                                               | Amber `#f0a640` with blue-white strobes               | Armored shutters, a block number, drone pads                                                                                               |
+| Barracks       | Stacked container blocks with exterior stairs and catwalks                                                               | Acid green `#7ee05a`                                  | Corporate security markings, floodlights, a fenced yard                                                                                    |
+| Therapy center | A low storefront with an offset shed roof and a salvaged sign pitched toward the street                                  | Magenta `#e04ac8`                                     | A legible THERAPY sign, boarded windows, and a patched entry canopy                                                                        |
+| Skyscrapers    | Exchange with twin slabs and a skybridge, relay with a cantilever and antenna crown, habitat with broad planted setbacks | Cyan for exchange, amber for relay, green for habitat | Street entrances, weathered panel fields, and rooftop plant or antenna equipment matched to each variant                                   |
 
 ## References
 

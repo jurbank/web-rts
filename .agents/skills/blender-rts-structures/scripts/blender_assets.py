@@ -341,9 +341,9 @@ def find_export(root, theme, identifier):
     raise ValueError(f"No export of {identifier} in {theme_folder(RUNTIME, theme)} or {theme_folder(STAGING, theme)}")
 
 
-def shoot(scene, camera, target_x, away, width, height, path):
+def shoot(scene, camera, target_x, away, width, height, path, *, target_z=0.0):
     pitch = math.radians(PITCH)
-    camera.location = (target_x, -away * math.cos(pitch), away * math.sin(pitch))
+    camera.location = (target_x, -away * math.cos(pitch), target_z + away * math.sin(pitch))
     scene.render.resolution_x, scene.render.resolution_y = width, height
     scene.render.filepath = str(path)
     bpy.ops.render.render(write_still=True)
@@ -422,7 +422,7 @@ def render_structure(root, theme, identifier, neighbors, distance):
     folder = root / theme_folder(RENDERS, theme)
     folder.mkdir(parents=True, exist_ok=True)
     path = {name: folder / f"{identifier}-{name}.png" for name in ("close", "desktop", "phone", "review")}
-    shoot(scene, camera, 0, close, 1024, 1024, path["close"])
+    shoot(scene, camera, 0, close, 1024, 1024, path["close"], target_z=(minimum.z + maximum.z) / 2)
     shoot(scene, camera, 0, distance, 1920, 1080, path["desktop"])
     desktop = asset_crop(scene, camera, minimum, maximum, read_png(path["desktop"]), (CROP_WIDTH, SHEET_CROP_HEIGHT))
     shoot(scene, camera, 0, distance, 844, 390, path["phone"])
