@@ -1,0 +1,354 @@
+{
+  "formatVersion": 9,
+  "map": { "width": 72, "height": 72 },
+  "players": [
+    {
+      "id": "red",
+      "color": "#e5484d",
+      "controller": "human",
+      "team": "west",
+      "start": { "x": 10, "y": 61 },
+      "resources": 100,
+      "ai": { "workers": 0, "attackSize": 1 }
+    },
+    {
+      "id": "blue",
+      "color": "#3e63dd",
+      "controller": "human",
+      "team": "east",
+      "ai": { "workers": 0, "attackSize": 1 },
+      "start": { "x": 62, "y": 11 },
+      "resources": 100
+    },
+    { "id": "redBase", "color": "#b03a3e", "controller": "none", "team": "west" },
+    { "id": "blueBase", "color": "#2f4bb0", "controller": "none", "team": "east" }
+  ],
+  "definitions": [
+    {
+      "id": "hero",
+      "name": "Vanguard",
+      "radius": 0.8,
+      "maxHealth": 300,
+      "speed": 5,
+      "weapon": { "damage": 20, "range": 4, "cooldown": 1, "acquireRange": 7 },
+      "experience": 60,
+      "bounty": 100,
+      "levels": {
+        "thresholds": [60, 100, 140, 180],
+        "range": 10,
+        "perLevel": [
+          { "stat": "maxHealth", "add": 60 },
+          { "stat": "damage", "add": 6 }
+        ]
+      },
+      "respawn": { "seconds": 10 },
+      "abilities": [
+        {
+          "id": "bolt",
+          "name": "Bolt",
+          "cooldown": 6,
+          "target": "enemy",
+          "range": 6,
+          "effects": [{ "type": "damage", "amount": 70 }]
+        },
+        {
+          "id": "sprint",
+          "name": "Sprint",
+          "cooldown": 12,
+          "target": "self",
+          "level": 2,
+          "effects": [{ "type": "modify", "stat": "speed", "add": 3, "seconds": 4 }]
+        },
+        {
+          "id": "blade",
+          "name": "Blade",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 150,
+          "near": { "definitionIds": ["shop"], "range": 4 },
+          "effects": [{ "type": "modify", "stat": "damage", "add": 8 }]
+        },
+        {
+          "id": "boots",
+          "name": "Boots",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 100,
+          "near": { "definitionIds": ["shop"], "range": 4 },
+          "effects": [{ "type": "modify", "stat": "speed", "add": 1 }]
+        }
+      ],
+      "sight": 13
+    },
+    {
+      "id": "creep",
+      "name": "Footguard",
+      "radius": 0.4,
+      "maxHealth": 60,
+      "speed": 3,
+      "weapon": { "damage": 6, "range": 1.5, "cooldown": 1, "acquireRange": 5 },
+      "experience": 20,
+      "bounty": 15,
+      "sight": 8
+    },
+    {
+      "id": "tower",
+      "name": "Lane tower",
+      "radius": 1.35,
+      "maxHealth": 390,
+      "weapon": { "damage": 25, "range": 6, "cooldown": 1 },
+      "experience": 50,
+      "bounty": 100,
+      "sight": 10
+    },
+    { "id": "ancient", "name": "Core", "radius": 2, "maxHealth": 640, "sight": 12 },
+    { "id": "shop", "name": "Armory", "radius": 1, "sight": 6 },
+    {
+      "id": "archer",
+      "name": "Longbow",
+      "radius": 0.48,
+      "maxHealth": 45,
+      "speed": 2.8,
+      "sight": 8,
+      "weapon": { "damage": 9, "range": 4, "cooldown": 1.2, "acquireRange": 5 },
+      "experience": 20,
+      "bounty": 15
+    },
+    {
+      "id": "ram",
+      "name": "Siege ram",
+      "radius": 0.95,
+      "maxHealth": 380,
+      "speed": 2.5,
+      "sight": 8,
+      "weapon": { "damage": 35, "range": 2, "cooldown": 1.3, "acquireRange": 5 },
+      "experience": 40,
+      "bounty": 40
+    },
+    { "id": "grove", "name": "Grove", "radius": 3, "color": "#35664d", "sight": 0 }
+  ],
+  "placements": [
+    { "definitionId": "hero", "playerId": "red", "x": 10, "y": 61 },
+    { "definitionId": "hero", "playerId": "blue", "x": 62, "y": 11 },
+    { "definitionId": "ancient", "playerId": "red", "x": 7, "y": 65 },
+    { "definitionId": "ancient", "playerId": "blue", "x": 65, "y": 7 },
+    { "definitionId": "shop", "playerId": "redBase", "x": 7, "y": 59 },
+    { "definitionId": "shop", "playerId": "blueBase", "x": 65, "y": 13 },
+    { "definitionId": "tower", "playerId": "redBase", "x": 10, "y": 31 },
+    { "definitionId": "tower", "playerId": "blueBase", "x": 62, "y": 41 },
+    { "definitionId": "tower", "playerId": "redBase", "x": 25, "y": 44 },
+    { "definitionId": "tower", "playerId": "blueBase", "x": 47, "y": 28 },
+    { "definitionId": "tower", "playerId": "redBase", "x": 41, "y": 62 },
+    { "definitionId": "tower", "playerId": "blueBase", "x": 31, "y": 10 },
+    { "definitionId": "grove", "playerId": null, "x": 15, "y": 17 },
+    { "definitionId": "grove", "playerId": null, "x": 57, "y": 55 },
+    { "definitionId": "grove", "playerId": null, "x": 18, "y": 23 },
+    { "definitionId": "grove", "playerId": null, "x": 54, "y": 49 },
+    { "definitionId": "grove", "playerId": null, "x": 24, "y": 16 },
+    { "definitionId": "grove", "playerId": null, "x": 48, "y": 56 },
+    { "definitionId": "grove", "playerId": null, "x": 16, "y": 35 },
+    { "definitionId": "grove", "playerId": null, "x": 56, "y": 37 },
+    { "definitionId": "grove", "playerId": null, "x": 31, "y": 17 },
+    { "definitionId": "grove", "playerId": null, "x": 41, "y": 55 },
+    { "definitionId": "grove", "playerId": null, "x": 18, "y": 42 },
+    { "definitionId": "grove", "playerId": null, "x": 54, "y": 30 },
+    { "definitionId": "grove", "playerId": null, "x": 30, "y": 29 },
+    { "definitionId": "grove", "playerId": null, "x": 42, "y": 43 },
+    { "definitionId": "grove", "playerId": null, "x": 27, "y": 55 },
+    { "definitionId": "grove", "playerId": null, "x": 45, "y": 17 }
+  ],
+  "variables": [{ "id": "wave", "value": 0, "label": "Wave" }],
+  "timers": [
+    { "id": "wave", "seconds": 14, "repeat": true, "label": "Next wave" },
+    { "id": "income", "seconds": 2, "repeat": true }
+  ],
+  "waypoints": [
+    { "id": "redGate", "x": 10, "y": 62 },
+    { "id": "redTop", "x": 7, "y": 54 },
+    { "id": "redMid", "x": 15, "y": 57 },
+    { "id": "redBot", "x": 18, "y": 65 },
+    { "id": "topBend", "x": 7, "y": 7 },
+    { "id": "midCross", "x": 36, "y": 36 },
+    { "id": "botBend", "x": 65, "y": 65 },
+    { "id": "blueTop", "x": 54, "y": 7 },
+    { "id": "blueMid", "x": 57, "y": 15 },
+    { "id": "blueBot", "x": 65, "y": 18 },
+    { "id": "blueGate", "x": 62, "y": 10 }
+  ],
+  "paths": [
+    { "id": "redTopPush", "waypoints": ["redTop", "topBend", "blueTop", "blueGate"] },
+    { "id": "blueTopPush", "waypoints": ["blueTop", "topBend", "redTop", "redGate"] },
+    { "id": "redMidPush", "waypoints": ["redMid", "midCross", "blueMid", "blueGate"] },
+    { "id": "blueMidPush", "waypoints": ["blueMid", "midCross", "redMid", "redGate"] },
+    { "id": "redBotPush", "waypoints": ["redBot", "botBend", "blueBot", "blueGate"] },
+    { "id": "blueBotPush", "waypoints": ["blueBot", "botBend", "redBot", "redGate"] }
+  ],
+  "triggers": [
+    {
+      "id": "begin",
+      "event": { "type": "start" },
+      "actions": [
+        { "type": "startTimer", "timer": "wave" },
+        { "type": "startTimer", "timer": "income" }
+      ]
+    },
+    {
+      "id": "income",
+      "event": { "type": "timer", "timer": "income" },
+      "actions": [
+        { "type": "grantResources", "playerId": "red", "amount": 2 },
+        { "type": "grantResources", "playerId": "blue", "amount": 2 }
+      ]
+    },
+    {
+      "id": "wave",
+      "event": { "type": "timer", "timer": "wave" },
+      "actions": [
+        { "type": "addVariable", "variable": "wave", "value": 1 },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "redBase",
+          "at": "redTop",
+          "path": "redTopPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "redBase",
+          "at": "redTop",
+          "path": "redTopPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "blueBase",
+          "at": "blueTop",
+          "path": "blueTopPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "blueBase",
+          "at": "blueTop",
+          "path": "blueTopPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "redBase",
+          "at": "redMid",
+          "path": "redMidPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "redBase",
+          "at": "redMid",
+          "path": "redMidPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "blueBase",
+          "at": "blueMid",
+          "path": "blueMidPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "blueBase",
+          "at": "blueMid",
+          "path": "blueMidPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "redBase",
+          "at": "redBot",
+          "path": "redBotPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "redBase",
+          "at": "redBot",
+          "path": "redBotPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "creep",
+          "playerId": "blueBase",
+          "at": "blueBot",
+          "path": "blueBotPush"
+        },
+        {
+          "type": "spawn",
+          "definitionId": "archer",
+          "playerId": "blueBase",
+          "at": "blueBot",
+          "path": "blueBotPush"
+        }
+      ]
+    },
+    {
+      "id": "redSiege",
+      "event": { "type": "timer", "timer": "wave" },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "blueBase",
+          "definitionIds": ["tower"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "spawn",
+          "definitionId": "ram",
+          "playerId": "redBase",
+          "at": "redMid",
+          "path": "redMidPush"
+        }
+      ]
+    },
+    {
+      "id": "blueSiege",
+      "event": { "type": "timer", "timer": "wave" },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "redBase",
+          "definitionIds": ["tower"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [
+        {
+          "type": "spawn",
+          "definitionId": "ram",
+          "playerId": "blueBase",
+          "at": "blueMid",
+          "path": "blueMidPush"
+        }
+      ]
+    },
+    {
+      "id": "victory",
+      "event": { "type": "died", "definitionIds": ["ancient"] },
+      "conditions": [
+        {
+          "type": "count",
+          "playerId": "$triggering",
+          "definitionIds": ["ancient"],
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "actions": [{ "type": "defeat", "playerId": "$triggering" }]
+    }
+  ],
+  "fogOfWar": false
+}
