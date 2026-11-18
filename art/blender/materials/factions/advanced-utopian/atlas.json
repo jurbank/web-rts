@@ -1,0 +1,164 @@
+{
+  "faction": "advanced-utopian",
+  "width": 2048,
+  "height": 2048,
+  "lighting": "day",
+  "glow": "atlas-glow.jpg",
+  "surface": "atlas-surface.jpg",
+  "cards": {
+    "advanced_utopian_apron_depot": {
+      "x": 12,
+      "y": 12,
+      "width": 512,
+      "height": 512,
+      "shows": "Depot podium from above: pale paving, three grey-outlined drop-off bays with chevrons across the middle, soft lit studs in front of them"
+    },
+    "advanced_utopian_apron_factory": {
+      "x": 548,
+      "y": 12,
+      "width": 512,
+      "height": 512,
+      "shows": "Factory lot from above: pale paving inside a dark kerb, a roll-out lane with white lines, chevrons, and soft lit studs"
+    },
+    "advanced_utopian_podium_top": {
+      "x": 1084,
+      "y": 12,
+      "width": 512,
+      "height": 512,
+      "shows": "Podium top from above: pale stone paving, a light path ring around the center, a front walk, and muted lawn corners"
+    },
+    "advanced_utopian_tower_glass": {
+      "x": 1620,
+      "y": 12,
+      "width": 224,
+      "height": 448,
+      "shows": "Sail tower glass: many floors of dark reflective panes behind bold white fins, most lit softly from within"
+    },
+    "advanced_utopian_roof_solar": {
+      "x": 12,
+      "y": 548,
+      "width": 400,
+      "height": 400,
+      "shows": "Floating white roof from above: one flush solar ring, faint radial panel lines, the faction emblem at the center"
+    },
+    "advanced_utopian_shell_top": {
+      "x": 436,
+      "y": 548,
+      "width": 400,
+      "height": 400,
+      "shows": "Factory shell roof from above: the flush solar ring around the emblem, crossed front to back by a softly lit skylight strip"
+    },
+    "advanced_utopian_plaza": {
+      "x": 860,
+      "y": 548,
+      "width": 384,
+      "height": 384,
+      "shows": "Street plaza from above: pale stone paving with clean joints inside a dark kerb"
+    },
+    "advanced_utopian_court": {
+      "x": 1268,
+      "y": 548,
+      "width": 256,
+      "height": 256,
+      "shows": "Garden court from above: muted lawn, a white path ring, and a still leaf-shaped pool lit softly from below"
+    },
+    "advanced_utopian_dome": {
+      "x": 1548,
+      "y": 548,
+      "width": 256,
+      "height": 256,
+      "shows": "Glass dome from above: fine white ribs over a soft glowing instrument core"
+    },
+    "advanced_utopian_silo": {
+      "x": 1828,
+      "y": 548,
+      "width": 192,
+      "height": 256,
+      "shows": "Glossy white capsule silo side with faint seams and soft lit level windows"
+    },
+    "advanced_utopian_door": {
+      "x": 12,
+      "y": 972,
+      "width": 300,
+      "height": 150,
+      "shows": "Tall vehicle door: glass panels over a softly lit bay inside a rounded white frame"
+    },
+    "advanced_utopian_pool": {
+      "x": 336,
+      "y": 972,
+      "width": 256,
+      "height": 128,
+      "shows": "Still reflecting pool from above: dark water lit softly from below"
+    },
+    "advanced_utopian_silo_top": {
+      "x": 616,
+      "y": 972,
+      "width": 128,
+      "height": 128,
+      "shows": "Capsule silo crown from above: glossy white with faint circular seams"
+    },
+    "advanced_utopian_glass": {
+      "x": 768,
+      "y": 972,
+      "width": 480,
+      "height": 110,
+      "shows": "Advanced utopian storey glass: dark reflective panes behind fine white fins, floors lit softly from within, planting and furniture behind"
+    },
+    "advanced_utopian_shell": {
+      "x": 1272,
+      "y": 972,
+      "width": 512,
+      "height": 96,
+      "shows": "Glossy white composite shell with faint panel lines"
+    },
+    "advanced_utopian_shell_glazed": {
+      "x": 12,
+      "y": 1146,
+      "width": 512,
+      "height": 96,
+      "shows": "Glossy white composite shell with faint panel lines and a softly lit glazed bay in each panel"
+    },
+    "advanced_utopian_stone": {
+      "x": 548,
+      "y": 1146,
+      "width": 128,
+      "height": 96,
+      "shows": "Plain clean pale stone with crisp joints"
+    },
+    "advanced_utopian_fascia": {
+      "x": 700,
+      "y": 1146,
+      "width": 300,
+      "height": 76,
+      "shows": "Glossy white entrance fascia with the faction emblem at the center"
+    },
+    "advanced_utopian_metal": {
+      "x": 1024,
+      "y": 1146,
+      "width": 96,
+      "height": 64,
+      "shows": "Clean pale satin metal with faint brushing"
+    },
+    "advanced_utopian_underside": {
+      "x": 1144,
+      "y": 1146,
+      "width": 64,
+      "height": 64,
+      "shows": "Shaded white underside of a floating roof"
+    },
+    "advanced_utopian_podium": {
+      "x": 1232,
+      "y": 1146,
+      "width": 400,
+      "height": 60,
+      "shows": "Clean pale stone podium side with crisp joints and a light coping"
+    },
+    "advanced_utopian_lamp": {
+      "x": 1656,
+      "y": 1146,
+      "width": 48,
+      "height": 48,
+      "shows": "Lamp lens filling the whole card, glowing soft ice"
+    }
+  }
+}

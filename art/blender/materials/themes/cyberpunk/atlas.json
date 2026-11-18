@@ -4,6 +4,7 @@
   "height": 2048,
   "lighting": "night",
   "glow": "atlas-glow.jpg",
+  "surface": null,
   "cards": {
     "roof_flat_large": {
       "x": 12,

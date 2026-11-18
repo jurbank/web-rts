@@ -6,9 +6,9 @@ The builder of an asset tends to approve it, so a fresh reviewer judges it. Star
 
 Keep the prompt short. The agent already knows the sheet layout and the questions.
 
-- The paths of the review sheets, `art/staging/renders/structures/themes/<theme>/<asset-id>-review.png`, rendered with `--with` naming the closest neighbors.
-- The theme, so it reads `docs/themes/<theme>.md`. Review buildings from one theme per call.
-- Each building's role and its export summary line.
+- The paths of the review sheets under `art/staging/renders/structures/<themes|factions>/<set>/`, rendered with `--with` naming the closest neighbors. For a faction, both the day sheet `<asset-id>-review.png` and the night sheet `<asset-id>-night-review.png`.
+- The set, so it reads `docs/themes/<theme>.md` or `docs/factions/<faction>.md`. Review buildings from one set per call.
+- Each building's type and its export summary line.
 - Deliberate choices it should not reverse, such as avoiding a protected emblem.
 
 Review a whole batch in one call, up to four buildings. Do not send the inspiration screenshots, the skill, or the pipeline.

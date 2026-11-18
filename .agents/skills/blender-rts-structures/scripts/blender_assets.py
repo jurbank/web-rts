@@ -30,8 +30,10 @@ CROP_WIDTH = (SHEET_WIDTH - SHEET_GAP) // 2
 FIELD_OF_VIEW = 40
 PITCH = 55
 MIN_DISTANCE = 8
+# A set is a theme, the look of a map, or a faction, the look of one side. Each has its own folder and atlas.
 THEMES = Path("themes")
-ATLASES = Path("art/blender/materials/themes")
+FACTIONS = Path("factions")
+MATERIALS = Path("art/blender/materials")
 CATEGORIES = ("structures", "units", "creatures")
 ASSET_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 # A foundation may sink this far below Z=0 to meet uneven terrain.
@@ -47,13 +49,20 @@ def asset_id(value):
     return value
 
 
-def structure_ref(value, default_theme):
-    theme, separator, identifier = value.partition("/")
-    return (asset_id(theme), asset_id(identifier)) if separator else (default_theme, asset_id(theme))
+def structure_ref(value, default_set):
+    """An ID in the default set, a theme/ID, or factions/<faction>/ID."""
+    parts = value.split("/")
+    if len(parts) == 1:
+        return default_set, asset_id(parts[0])
+    if len(parts) == 2:
+        return THEMES / asset_id(parts[0]), asset_id(parts[1])
+    if len(parts) == 3 and parts[0] in ("themes", "factions"):
+        return Path(parts[0]) / asset_id(parts[1]), asset_id(parts[2])
+    raise argparse.ArgumentTypeError(f"Expected ID, theme/ID, or factions/<faction>/ID, got {value!r}")
 
 
-def theme_folder(folder, theme):
-    return folder / THEMES / theme
+def set_folder(folder, structure_set):
+    return folder / structure_set
 
 
 def load_asset(source, *, link):
@@ -92,13 +101,14 @@ def build_gallery(root, output, destination):
     scene = bpy.context.scene
     groups = {}
     folders = [(category, library / category) for category in CATEGORIES]
-    themes = library / "structures" / THEMES
-    if themes.is_dir():
-        folders.extend(
-            (f"structures/{asset_id(folder.name)}", folder)
-            for folder in sorted(themes.iterdir())
-            if folder.is_dir()
-        )
+    for kind in (THEMES, FACTIONS):
+        sets = library / "structures" / kind
+        if sets.is_dir():
+            folders.extend(
+                (f"structures/{kind}/{asset_id(folder.name)}", folder)
+                for folder in sorted(sets.iterdir())
+                if folder.is_dir()
+            )
     for category, folder in folders:
         instances = []
         for source in sorted(folder.glob("*.blend")):
@@ -199,15 +209,17 @@ def glb_summary(output):
     return summary, len(images), glowing
 
 
-def theme_settings(root, theme):
-    path = root / ATLASES / theme / "atlas.json"
+def set_settings(root, structure_set):
+    path = root / MATERIALS / structure_set / "atlas.json"
     if not path.is_file():
-        raise ValueError(f"No atlas for theme {theme!r}. Add it to THEMES in art/blender/materials/city_atlas.py")
+        raise ValueError(
+            f"No atlas for {structure_set}. Add it to THEMES or FACTIONS in art/blender/materials/city_atlas.py"
+        )
     return json.loads(path.read_text())
 
 
-def export_structure(root, theme, identifier, output, blockout):
-    source = root / theme_folder(LIBRARY / "structures", theme) / f"{identifier}.blend"
+def export_structure(root, structure_set, identifier, output, blockout):
+    source = root / set_folder(LIBRARY / "structures", structure_set) / f"{identifier}.blend"
     collection = load_asset(source, link=False)
     objects = set(collection.all_objects)
     bpy.context.scene.collection.children.link(collection)
@@ -253,10 +265,10 @@ def export_structure(root, theme, identifier, output, blockout):
             "The export has no image textures. docs/ART_DIRECTION.md calls for painted detail, and "
             "procedural shaders do not survive export, so bake them. Pass --blockout to stage an untextured blockout."
         )
-    if theme_settings(root, theme)["glow"] and not glowing and not blockout:
+    if set_settings(root, structure_set)["glow"] and not glowing and not blockout:
         raise ValueError(
-            f"The {theme} theme glows, but the export has no emissive texture. Map it with atlas_cards.py, "
-            "whose material links the theme's glow map."
+            f"{structure_set} glows, but the export has no emissive texture. Map it with atlas_cards.py, "
+            "whose material links the set's glow map."
         )
     size = " × ".join(f"{value:.3g}" for value in maximum - minimum)
     stage = ", untextured blockout" if blockout else ""
@@ -268,7 +280,7 @@ def linear(color):
     return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in channels) + (1.0,)
 
 
-# Review lighting. "day" mirrors packages/render/src/renderer.ts. Each theme's atlas settings pick one.
+# Review lighting. "day" mirrors packages/render/src/renderer.ts. Each set's atlas settings pick a default.
 # three.js divides light intensities by pi where Blender does not.
 LIGHTING = {
     "day": {"ground": "#40464f", "sky": "#ffffff", "sky_strength": 2 / math.pi,
@@ -279,7 +291,7 @@ LIGHTING = {
 
 
 def stage_like_game(scene, lighting):
-    """Light the scene with a review preset: the game's daylight, or a theme's night."""
+    """Light the scene with a review preset: the game's daylight, or a night city."""
     preset = LIGHTING[lighting]
     world = bpy.data.worlds.new("Game hemisphere")
     world.use_nodes = True
@@ -333,12 +345,14 @@ def import_glb(path):
     return objects, *bounds(corners, path.stem)
 
 
-def find_export(root, theme, identifier):
+def find_export(root, structure_set, identifier):
     for folder in (RUNTIME, STAGING):
-        path = root / theme_folder(folder, theme) / f"{identifier}.glb"
+        path = root / set_folder(folder, structure_set) / f"{identifier}.glb"
         if path.is_file():
             return path
-    raise ValueError(f"No export of {identifier} in {theme_folder(RUNTIME, theme)} or {theme_folder(STAGING, theme)}")
+    raise ValueError(
+        f"No export of {identifier} in {set_folder(RUNTIME, structure_set)} or {set_folder(STAGING, structure_set)}"
+    )
 
 
 def shoot(scene, camera, target_x, away, width, height, path, *, target_z=0.0):
@@ -383,9 +397,9 @@ def asset_crop(scene, camera, minimum, maximum, pixels, limit):
     return pixels[y:y + crop_height, x:x + crop_width]
 
 
-def render_structure(root, theme, identifier, neighbors, distance):
+def render_structure(root, structure_set, identifier, neighbors, distance, lighting):
     """Render the staged GLB, not the source, so anything the exporter dropped shows."""
-    source = root / theme_folder(STAGING, theme) / f"{identifier}.glb"
+    source = root / set_folder(STAGING, structure_set) / f"{identifier}.glb"
     if not source.is_file():
         raise ValueError(f"Export {identifier} before rendering it. Missing {source}")
     scene = bpy.context.scene
@@ -395,8 +409,8 @@ def render_structure(root, theme, identifier, neighbors, distance):
     lineup = [(minimum, maximum)]
     hidden = []
     edge, gap = maximum.x, max(1.0, (maximum - minimum).x * 0.3)
-    for neighbor_theme, neighbor in neighbors:
-        objects, low, high = import_glb(find_export(root, neighbor_theme, neighbor))
+    for neighbor_set, neighbor in neighbors:
+        objects, low, high = import_glb(find_export(root, neighbor_set, neighbor))
         shift = edge + gap - low.x
         for obj in objects:
             if obj.parent is None:
@@ -405,7 +419,8 @@ def render_structure(root, theme, identifier, neighbors, distance):
         hidden += objects
         lineup.append((low + Vector((shift, 0, 0)), high + Vector((shift, 0, 0))))
         edge = high.x + shift
-    stage_like_game(scene, theme_settings(root, theme)["lighting"])
+    default = set_settings(root, structure_set)["lighting"]
+    stage_like_game(scene, lighting or default)
 
     camera = bpy.data.objects.new("Game camera", bpy.data.cameras.new("Game camera"))
     camera.data.sensor_fit = "VERTICAL"
@@ -419,9 +434,11 @@ def render_structure(root, theme, identifier, neighbors, distance):
     half_angle = math.tan(math.radians(FIELD_OF_VIEW) / 2)
     reach = (maximum - minimum).length / 2
     close = max(MIN_DISTANCE, reach / math.sin(math.radians(FIELD_OF_VIEW) / 2) * 1.15)
-    folder = root / theme_folder(RENDERS, theme)
+    folder = root / set_folder(RENDERS, structure_set)
     folder.mkdir(parents=True, exist_ok=True)
-    path = {name: folder / f"{identifier}-{name}.png" for name in ("close", "desktop", "phone", "review")}
+    # A lighting other than the set's default gets its own files, so both sheets can sit side by side.
+    stem = identifier if lighting in (None, default) else f"{identifier}-{lighting}"
+    path = {name: folder / f"{stem}-{name}.png" for name in ("close", "desktop", "phone", "review")}
     shoot(scene, camera, 0, close, 1024, 1024, path["close"], target_z=(minimum.z + maximum.z) / 2)
     shoot(scene, camera, 0, distance, 1920, 1080, path["desktop"])
     desktop = asset_crop(scene, camera, minimum, maximum, read_png(path["desktop"]), (CROP_WIDTH, SHEET_CROP_HEIGHT))
@@ -475,15 +492,21 @@ def main():
     commands.choices["export"].add_argument(
         "--blockout", action="store_true", help="Allow an untextured export for shape review"
     )
-    commands.choices["export"].add_argument("--theme", type=asset_id, required=True)
     render = commands.add_parser("render", help="Render a staged export from the game camera")
     render.add_argument("asset_id", type=asset_id)
-    render.add_argument("--theme", type=asset_id, required=True)
+    for command in (commands.choices["export"], render):
+        which = command.add_mutually_exclusive_group(required=True)
+        which.add_argument("--theme", type=asset_id, help="A theme, the look of a map")
+        which.add_argument("--faction", type=asset_id, help="A faction, the look of one side")
     render.add_argument(
         "--with",
         dest="neighbors",
         default="",
-        help="Comma-separated IDs or theme/ID references to approved or staged structures",
+        help="Comma-separated IDs in the same set, theme/ID, or factions/<faction>/ID references to approved or "
+        "staged structures",
+    )
+    render.add_argument(
+        "--lighting", choices=sorted(LIGHTING), help="Review lighting, instead of the set's default"
     )
     render.add_argument(
         "--distance", type=float, default=30, help="Camera distance for the desktop and phone views"
@@ -495,20 +518,24 @@ def main():
     if not (root / LIBRARY).is_dir():
         arguments.error(f"{root} has no {LIBRARY} folder. Run from the web-rts root or pass --root.")
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    if options.command != "gallery":
+        structure_set = THEMES / options.theme if options.theme else FACTIONS / options.faction
 
     if options.command == "render":
         try:
             neighbors = [
-                structure_ref(item.strip(), options.theme) for item in options.neighbors.split(",")
+                structure_ref(item.strip(), structure_set) for item in options.neighbors.split(",")
             ] if options.neighbors else []
         except argparse.ArgumentTypeError as error:
             render.error(str(error))
-        print("\n".join(render_structure(root, options.theme, options.asset_id, neighbors, options.distance)))
+        print("\n".join(render_structure(
+            root, structure_set, options.asset_id, neighbors, options.distance, options.lighting
+        )))
         return
     if options.command == "gallery":
         destination = root / "art/blender/gallery.blend"
     else:
-        destination = root / theme_folder(STAGING, options.theme) / f"{options.asset_id}.glb"
+        destination = root / set_folder(STAGING, structure_set) / f"{options.asset_id}.glb"
 
     if not options.replace and destination.exists():
         arguments.error(f"{destination} already exists. Pass --replace to overwrite it.")
@@ -519,7 +546,7 @@ def main():
         if options.command == "gallery":
             summary = build_gallery(root, output, destination)
         else:
-            summary = export_structure(root, options.theme, options.asset_id, output, options.blockout)
+            summary = export_structure(root, structure_set, options.asset_id, output, options.blockout)
         if options.replace:
             output.replace(destination)
         else:

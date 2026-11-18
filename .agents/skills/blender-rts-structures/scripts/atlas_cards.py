@@ -1,4 +1,4 @@
-"""Map structure faces onto cards of a theme's texture atlas.
+"""Map structure faces onto cards of a theme's or faction's texture atlas.
 
 Import inside Blender with the skill's scripts folder on sys.path. Save the
 source to its library path first, so the atlas images link with relative paths:
@@ -7,28 +7,37 @@ source to its library path first, so the atlas images link with relative paths:
     atlas_cards.apply(obj, {"front": "wall_office_entrance", "top": "roof_flat_large"},
                       default="concrete", theme="modern")
 
+Pass faction="<faction>" instead of theme= for a faction's structures.
+
 Each face takes the card for the side it faces. Sides are front (-Y), back (+Y),
 left (-X), right (+X), top (+Z), and bottom (-Z), and the card fills the
 object's extent on that side, so text reads correctly from outside.
 
 Each mesh records the card every face uses. After the atlas is repainted and
-cards move, refresh(obj, theme=...) fits the UVs again without re-mapping.
+cards move, refresh(obj, theme=...) or refresh(obj, faction=...) fits the UVs again without re-mapping.
 """
 import json
 from pathlib import Path
 
 import bpy
 
-MATERIALS = Path("art/blender/materials/themes")
+MATERIALS = Path("art/blender/materials")
 MATERIAL = "City atlas"
 CARD_ATTRIBUTE = "atlas_card"
 CARD_RECORD = "atlas_cards"
 
 
-def atlas(root, theme):
-    path = root / MATERIALS / theme / "atlas.json"
+def structure_set(theme, faction):
+    if (theme is None) == (faction is None):
+        raise ValueError("Pass exactly one of theme= or faction=")
+    return f"themes/{theme}" if theme else f"factions/{faction}"
+
+
+def atlas(root, theme=None, faction=None):
+    folder = structure_set(theme, faction)
+    path = root / MATERIALS / folder / "atlas.json"
     if not path.is_file():
-        raise ValueError(f"No atlas for theme {theme!r} at {path}")
+        raise ValueError(f"No atlas for {folder} at {path}")
     return json.loads(path.read_text()), path.parent
 
 
@@ -41,12 +50,13 @@ def _image(path, name):
     return image
 
 
-def material(root, theme):
-    """The theme's atlas material, created once per file. Its images are linked, not packed."""
+def material(root, theme=None, faction=None):
+    """The set's atlas material, created once per file. Its images are linked, not packed."""
     existing = bpy.data.materials.get(MATERIAL)
     if existing is not None:
         return existing
-    document, folder = atlas(root, theme)
+    document, folder = atlas(root, theme, faction)
+    name = theme or faction
     result = bpy.data.materials.new(MATERIAL)
     result.use_nodes = True
     nodes, links = result.node_tree.nodes, result.node_tree.links
@@ -54,24 +64,36 @@ def material(root, theme):
     shader.inputs["Roughness"].default_value = 0.86
     shader.inputs["Specular IOR Level"].default_value = 0.25
     color = nodes.new("ShaderNodeTexImage")
-    color.image = _image(folder / "atlas.jpg", f"{theme}-atlas")
+    color.image = _image(folder / "atlas.jpg", f"{name}-atlas")
     color.location = (-320, 280)
     links.new(color.outputs["Color"], shader.inputs["Base Color"])
     if document["glow"]:
         glow = nodes.new("ShaderNodeTexImage")
-        glow.image = _image(folder / document["glow"], f"{theme}-atlas-glow")
+        glow.image = _image(folder / document["glow"], f"{name}-atlas-glow")
         glow.location = (-320, -20)
         links.new(glow.outputs["Color"], shader.inputs["Emission Color"])
         shader.inputs["Emission Strength"].default_value = 1.0
+    if document.get("surface"):
+        # Green is roughness and blue is metallic, the layout glTF exports as one metallic-roughness texture.
+        surface = nodes.new("ShaderNodeTexImage")
+        surface.image = _image(folder / document["surface"], f"{name}-atlas-surface")
+        surface.image.colorspace_settings.name = "Non-Color"
+        surface.location = (-520, -320)
+        channels = nodes.new("ShaderNodeSeparateColor")
+        channels.location = (-240, -320)
+        links.new(surface.outputs["Color"], channels.inputs["Color"])
+        links.new(channels.outputs["Green"], shader.inputs["Roughness"])
+        links.new(channels.outputs["Blue"], shader.inputs["Metallic"])
+        shader.inputs["Specular IOR Level"].default_value = 0.5
     return result
 
 
-def relink(root, theme):
-    """Rebuild the atlas material for `theme` and give it to every mesh that used the old one."""
+def relink(root, theme=None, faction=None):
+    """Rebuild the set's atlas material and give it to every mesh that used the old one."""
     old = bpy.data.materials.get(MATERIAL)
     if old is not None:
         old.name = f"{MATERIAL} (replaced)"
-    new = material(root, theme)
+    new = material(root, theme, faction)
     for mesh in bpy.data.meshes:
         for index, slot in enumerate(mesh.materials):
             if slot is old:
@@ -128,13 +150,14 @@ def record(mesh, names, document):
     })
 
 
-def apply(obj, cards, default, *, theme, root=Path.cwd(), from_above=False):
+def apply(obj, cards, default, *, theme=None, faction=None, root=Path.cwd(), from_above=False):
     """Give `obj` the atlas material and UVs. `from_above` maps curved roofs from the top, except their ends."""
-    document, _ = atlas(root, theme)
+    document, _ = atlas(root, theme, faction)
+    label = theme or faction
     width, height = document["width"], document["height"]
     mesh = obj.data
     mesh.materials.clear()
-    mesh.materials.append(material(root, theme))
+    mesh.materials.append(material(root, theme, faction))
     layer = _layer(mesh)
 
     matrix = obj.matrix_world
@@ -152,7 +175,7 @@ def apply(obj, cards, default, *, theme, root=Path.cwd(), from_above=False):
             facing = "top"
         name = cards.get(facing, default)
         if name not in document["cards"]:
-            raise ValueError(f"{obj.name}: the {theme} atlas has no card named {name!r}")
+            raise ValueError(f"{obj.name}: the {label} atlas has no card named {name!r}")
         names.append(name)
         across, flipped, up = PROJECTION[facing]
         for loop in polygon.loop_indices:
@@ -163,12 +186,13 @@ def apply(obj, cards, default, *, theme, root=Path.cwd(), from_above=False):
     record(mesh, names, document)
 
 
-def refresh(obj, *, theme, root=Path.cwd()):
-    """Fit recorded UVs to the theme atlas's current card positions."""
+def refresh(obj, *, theme=None, faction=None, root=Path.cwd()):
+    """Fit recorded UVs to the set atlas's current card positions."""
     mesh = obj.data
     if CARD_RECORD not in mesh or CARD_ATTRIBUTE not in mesh.attributes:
         raise ValueError(f"{obj.name} has no card record. Map it with apply() first")
-    document, _ = atlas(root, theme)
+    document, _ = atlas(root, theme, faction)
+    label = theme or faction
     old = json.loads(mesh[CARD_RECORD])
     indices = [0] * len(mesh.polygons)
     mesh.attributes[CARD_ATTRIBUTE].data.foreach_get("value", indices)
@@ -177,7 +201,7 @@ def refresh(obj, *, theme, root=Path.cwd()):
     for polygon, index in zip(mesh.polygons, indices):
         name = old["names"][index]
         if name not in document["cards"]:
-            raise ValueError(f"{obj.name}: the {theme} atlas no longer has card {name!r}")
+            raise ValueError(f"{obj.name}: the {label} atlas no longer has card {name!r}")
         before = old["cards"][name]
         names.append(name)
         for loop in polygon.loop_indices:

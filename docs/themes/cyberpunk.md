@@ -59,7 +59,7 @@ All are provisional until the first one is approved.
 
 ## References
 
-`docs/screen_shots/inspiration/cyberpunk/structures/` holds city scenes, building packs, and concept art.
+`docs/screen_shots/inspiration/cyberpunk/civic/structures/` holds city scenes, building packs, and concept art.
 
 - **Megastructures with block numbers.** Tall slab towers clad in ochre and black panels with recessed channels, a huge painted number near the top, and lamp lines along setbacks. Take the panel fields, the numbers, and the lamp lines.
 - **Neon street canyons.** Night streets where vertical sign strips, screens, and cables strung between buildings carry the light. Take the sign strips and the cables, kept chunky enough to read from above.

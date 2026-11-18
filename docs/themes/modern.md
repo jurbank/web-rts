@@ -14,13 +14,13 @@ Weathered concrete panels, membrane roofs, ribbed and painted metal, tinted glas
 
 ## Palette
 
-| Use | Colors |
-| --- | --- |
-| Walls | Concrete `#99958a`, warm grey `#77736c` |
-| Roofs | Slate membrane `#5d6569`, `#5f6a6c` |
-| Metal | Dark structural `#4e5659`, painted panels `#69747a` |
-| Glass | Tinted blue-grey `#536874` |
-| Ground | Paving `#706f68` |
+| Use    | Colors                                              |
+| ------ | --------------------------------------------------- |
+| Walls  | Concrete `#99958a`, warm grey `#77736c`             |
+| Roofs  | Slate membrane `#5d6569`, `#5f6a6c`                 |
+| Metal  | Dark structural `#4e5659`, painted panels `#69747a` |
+| Glass  | Tinted blue-grey `#536874`                          |
+| Ground | Paving `#706f68`                                    |
 
 ## Glow
 
@@ -36,11 +36,11 @@ Plain painted signs and fascias in the building's accent color with cream letter
 
 ## Building types
 
-| Type | Signature silhouette | Accent | Required elements |
-| --- | --- | --- | --- |
-| Police station | A two-storey box with a lower garage wing and a radio mast | Blue `#3e5161` | Badge panel on the roof, patrol bays |
-| Hospital | A three-storey ward slab behind a single-storey podium | Muted red `#6c2e2a` | Helipad with a red H in a white ring, emergency canopy, ambulance bays. No red cross, because the emblem is legally protected. |
-| Barracks | Two half-round huts | Olive drab `#50543f` | Personnel doors, a parade yard, a flag |
+| Type           | Signature silhouette                                       | Accent               | Required elements                                                                                                              |
+| -------------- | ---------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Police station | A two-storey box with a lower garage wing and a radio mast | Blue `#3e5161`       | Badge panel on the roof, patrol bays                                                                                           |
+| Hospital       | A three-storey ward slab behind a single-storey podium     | Muted red `#6c2e2a`  | Helipad with a red H in a white ring, emergency canopy, ambulance bays. No red cross, because the emblem is legally protected. |
+| Barracks       | Two half-round huts                                        | Olive drab `#50543f` | Personnel doors, a parade yard, a flag                                                                                         |
 
 ## References
 

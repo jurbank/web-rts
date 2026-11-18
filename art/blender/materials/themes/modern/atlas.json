@@ -4,6 +4,7 @@
   "height": 2048,
   "lighting": "day",
   "glow": null,
+  "surface": null,
   "cards": {
     "roof_flat_large": {
       "x": 12,

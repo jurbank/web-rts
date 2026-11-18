@@ -1,4 +1,4 @@
-"""Paint each theme's texture atlas, glow map, and card map.
+"""Paint each theme's and faction's texture atlas, glow map, surface map, and card map.
 
 Run from the repo root:
 
@@ -6,9 +6,11 @@ Run from the repo root:
 
 Each card is a painted surface that structures map faces onto. CARDS defines
 every card once. BASE lists the theme-neutral cards that every theme's atlas
-carries, and THEMES lists each theme's own cards and tool settings. Each theme
-gets art/blender/materials/themes/<theme>/atlas.jpg and atlas.json, plus
-atlas-glow.jpg when the theme glows. Cards pack in list order onto 2048-pixel
+carries, and THEMES lists each theme's own cards and tool settings. FACTIONS
+lists each faction's cards and settings, and a faction's atlas holds only its
+own cards. Each set gets art/blender/materials/<themes|factions>/<name>/
+atlas.jpg and atlas.json, plus atlas-glow.jpg when it glows and
+atlas-surface.jpg, a roughness and metallic map, when it has one. Cards pack in list order onto 2048-pixel
 pages laid side by side, filling gaps before adding a page.
 
 Cards may move when lists change. Structures mapped with atlas_cards.py record
@@ -95,6 +97,28 @@ CARDS = {
     'cyber_habitat_deck': ((110, 140), (63, 68, 64), 'Rain-stained concrete roof terrace with boxed planting beds'),
     'cyber_habitat_sign': ((84, 48), (57, 71, 66), 'Worn communal tank sign with green HAB lettering'),
     'cyber_relay_beacon': ((42, 34), (52, 48, 47), 'Amber warning lens set in a dark antenna housing'),
+    'advanced_utopian_glass': ((480, 110), (26, 33, 41), 'Advanced utopian storey glass: dark reflective panes behind fine white fins, floors lit softly from within, planting and furniture behind'),
+    'advanced_utopian_tower_glass': ((224, 448), (26, 33, 41), 'Sail tower glass: many floors of dark reflective panes behind bold white fins, most lit softly from within'),
+    'advanced_utopian_shell': ((512, 96), (221, 220, 215), 'Glossy white composite shell with faint panel lines'),
+    'advanced_utopian_shell_glazed': ((512, 96), (221, 220, 215), 'Glossy white composite shell with faint panel lines and a softly lit glazed bay in each panel'),
+    'advanced_utopian_roof_solar': ((400, 400), (221, 220, 215), 'Floating white roof from above: one flush solar ring, faint radial panel lines, the faction emblem at the center'),
+    'advanced_utopian_shell_top': ((400, 400), (221, 220, 215), 'Factory shell roof from above: the flush solar ring around the emblem, crossed front to back by a softly lit skylight strip'),
+    'advanced_utopian_court': ((256, 256), (88, 105, 77), 'Garden court from above: muted lawn, a white path ring, and a still leaf-shaped pool lit softly from below'),
+    'advanced_utopian_pool': ((256, 128), (34, 48, 58), 'Still reflecting pool from above: dark water lit softly from below'),
+    'advanced_utopian_dome': ((256, 256), (26, 33, 41), 'Glass dome from above: fine white ribs over a soft glowing instrument core'),
+    'advanced_utopian_door': ((300, 150), (221, 220, 215), 'Tall vehicle door: glass panels over a softly lit bay inside a rounded white frame'),
+    'advanced_utopian_apron_depot': ((512, 512), (168, 167, 162), 'Depot podium from above: pale paving, three grey-outlined drop-off bays with chevrons across the middle, soft lit studs in front of them'),
+    'advanced_utopian_apron_factory': ((512, 512), (160, 159, 154), 'Factory lot from above: pale paving inside a dark kerb, a roll-out lane with white lines, chevrons, and soft lit studs'),
+    'advanced_utopian_silo': ((192, 256), (221, 220, 215), 'Glossy white capsule silo side with faint seams and soft lit level windows'),
+    'advanced_utopian_silo_top': ((128, 128), (221, 220, 215), 'Capsule silo crown from above: glossy white with faint circular seams'),
+    'advanced_utopian_underside': ((64, 64), (142, 141, 136), 'Shaded white underside of a floating roof'),
+    'advanced_utopian_podium': ((400, 60), (168, 167, 162), 'Clean pale stone podium side with crisp joints and a light coping'),
+    'advanced_utopian_podium_top': ((512, 512), (168, 167, 162), 'Podium top from above: pale stone paving, a light path ring around the center, a front walk, and muted lawn corners'),
+    'advanced_utopian_plaza': ((384, 384), (160, 159, 154), 'Street plaza from above: pale stone paving with clean joints inside a dark kerb'),
+    'advanced_utopian_stone': ((128, 96), (168, 167, 162), 'Plain clean pale stone with crisp joints'),
+    'advanced_utopian_fascia': ((300, 76), (221, 220, 215), 'Glossy white entrance fascia with the faction emblem at the center'),
+    'advanced_utopian_metal': ((96, 64), (210, 212, 212), 'Clean pale satin metal with faint brushing'),
+    'advanced_utopian_lamp': ((48, 48), (169, 196, 198), 'Lamp lens filling the whole card, glowing soft ice'),
 }
 
 # Theme-neutral cards in every theme's atlas.
@@ -119,6 +143,20 @@ THEMES = {
         'cyber_exchange', 'cyber_relay', 'cyber_habitat', 'cyber_tower_lobby',
         'cyber_exchange_sign', 'cyber_habitat_deck', 'cyber_habitat_sign', 'cyber_relay_beacon']},
 }
+
+# The same settings for each faction, plus surface: whether the atlas carries a roughness and metallic map.
+# A faction's atlas holds only its own cards. List cards tallest first so they pack tightly.
+FACTIONS = {
+    'advanced-utopian': {'lighting': 'day', 'glow': True, 'surface': True, 'cards': [
+        'advanced_utopian_apron_depot', 'advanced_utopian_apron_factory', 'advanced_utopian_podium_top',
+        'advanced_utopian_tower_glass', 'advanced_utopian_roof_solar', 'advanced_utopian_shell_top',
+        'advanced_utopian_plaza', 'advanced_utopian_court', 'advanced_utopian_dome', 'advanced_utopian_silo',
+        'advanced_utopian_door', 'advanced_utopian_pool', 'advanced_utopian_silo_top',
+        'advanced_utopian_glass', 'advanced_utopian_shell', 'advanced_utopian_shell_glazed', 'advanced_utopian_stone', 'advanced_utopian_fascia',
+        'advanced_utopian_metal', 'advanced_utopian_underside', 'advanced_utopian_podium',
+        'advanced_utopian_lamp']},
+}
+
 
 resample = Image.Resampling.BICUBIC
 
@@ -188,6 +226,58 @@ def seams(d,w,h,spacing,lower):
 CYAN, CYAN_PAINT = (53,214,224), (128,190,196)
 GREEN, GREEN_PAINT = (126,224,90), (128,176,104)
 OCHRE = (140,122,58)
+
+# The advanced utopian faction from docs/factions/advanced-utopian.md: spotless and glossy, glowing softly.
+UTOPIAN = 'advanced_utopian_'
+ICE = (214,242,240)
+SHELL, SHELL_SHADE, GLASS, LIT = (221,220,215), (142,141,136), (26,33,41), (169,196,198)
+MOSS, SOLAR, STONE, WATER = (88,105,77), (43,54,68), (168,167,162), (34,48,58)
+LEAF_PAINT = (160,196,198)
+# Surface finish as (roughness, metallic), from the faction file's Surfaces table.
+GLOSSY, MIRROR, CELLS, SATIN, MATTE, LAWN = (.25,0), (.07,0), (.15,0), (.3,1), (.7,0), (.9,0)
+SURFACES = {
+    'advanced_utopian_glass': MIRROR, 'advanced_utopian_tower_glass': MIRROR, 'advanced_utopian_dome': MIRROR,
+    'advanced_utopian_pool': (.05,0), 'advanced_utopian_court': LAWN,
+    'advanced_utopian_apron_depot': MATTE, 'advanced_utopian_apron_factory': MATTE,
+    'advanced_utopian_podium_top': MATTE, 'advanced_utopian_plaza': MATTE, 'advanced_utopian_stone': MATTE,
+    'advanced_utopian_podium': MATTE, 'advanced_utopian_metal': SATIN, 'advanced_utopian_underside': (.4,0),
+}
+
+def finish(rough_metal):
+    """A surface-map color: green is roughness and blue is metallic."""
+    rough, metal = rough_metal
+    return (255, round(rough*255), round(metal*255))
+
+def emblem(d, glow, c, cy, r):
+    """The faction emblem: a white ring around a rising leaf that glows softly."""
+    d.ellipse((c-r,cy-r,c+r,cy+r),fill=(150,152,150))
+    d.ellipse((c-r,cy-r,c+r,cy+r),outline=(246,246,242),width=max(3,r//4))
+    k=r/40
+    leaf=[(c-13*k,cy+20*k),(c-17*k,cy+3*k),(c-9*k,cy-13*k),(c+4*k,cy-25*k),
+          (c+15*k,cy-28*k),(c+11*k,cy-13*k),(c+2*k,cy+3*k),(c-7*k,cy+15*k)]
+    d.polygon(leaf,fill=LEAF_PAINT)
+    mask=Image.new('L',glow.size)
+    ImageDraw.Draw(mask).polygon(leaf,fill=230)
+    glow.paste(ICE,(0,0),mask.filter(ImageFilter.GaussianBlur(max(1,r/20))))
+
+def lerp(start, end, t):
+    return tuple(round(a+(b-a)*t) for a,b in zip(start,end))
+
+def wash(glow, box, color, blur, strength=255):
+    """A soft glow that fades out from `box`, never a hard edge."""
+    mask=Image.new('L',glow.size)
+    ImageDraw.Draw(mask).rectangle(box,fill=strength)
+    glow.paste(color,(0,0),mask.filter(ImageFilter.GaussianBlur(blur)))
+
+def joints(d, w, h, spacing, color, light, rows=()):
+    """Fine panel joints, a dark line with a light edge beside it."""
+    for x in range(spacing,w,spacing):
+        d.line((x,0,x,h),fill=color)
+        d.line((x+1,0,x+1,h),fill=light)
+    for y in rows:
+        d.line((0,y,w,y),fill=color)
+        d.line((0,y+1,w,y+1),fill=light)
+
 
 def rust(im, count, top=0):
     """Rust streaks running down from rows near `top`."""
@@ -268,10 +358,17 @@ for card, (size, base, _) in CARDS.items():
     # Glow is painted beside the color, black where nothing glows.
     glow=Image.new('RGB',size,(0,0,0))
     gd=ImageDraw.Draw(glow)
+    # The surface map beside it carries roughness and metallic, for sets that paint one.
+    surface=Image.new('RGB',size,finish(SURFACES.get(card,GLOSSY if card.startswith(UTOPIAN) else (.86,0))))
+    rd=ImageDraw.Draw(surface)
     w,h=size
     is_wall=card.startswith(('wall_office_', 'wall_garage_', 'wall_ward_'))
     broad={'roof_flat_large','lot_two_bay','roof_flat_small','apron_paved','cyber_apron_bays','cyber_roof_tar'}
-    im=field(size,base,16 if card in broad else 8,4,12)
+    if card.startswith(UTOPIAN):
+        # Spotless: an even base, so broad noise never reads as stains on the white.
+        im=Image.new('RGB',size,base)
+    else:
+        im=field(size,base,16 if card in broad else 8,4,12)
     d=ImageDraw.Draw(im)
 
     if is_wall:
@@ -988,15 +1085,219 @@ for card, (size, base, _) in CARDS.items():
         d.rectangle((9,8,w-10,h-9),fill=(195,128,67))
         gd.rectangle((10,9,w-11,h-10),fill=(240,166,64))
 
-    # Break up perfectly even paint without eroding the small lettering at game zoom.
-    stipple=Image.new('L',im.size)
-    sd=ImageDraw.Draw(stipple)
-    for _ in range(w*h//235):
-        x,y=rng.randrange(w),rng.randrange(h)
-        sd.line((x,y,x+rng.choice([0,1,2]),y),fill=rng.randrange(12,53))
-    im.paste((55,55,49),(0,0),stipple)
+    if card in ('advanced_utopian_glass', 'advanced_utopian_tower_glass'):
+        tower = card == 'advanced_utopian_tower_glass'
+        floor = 22 if tower else h
+        for y0 in range(0,h,floor):
+            y1=min(h,y0+floor)
+            for x0 in range(0,w,32):
+                if rng.random()<(.92 if tower else .85):
+                    for y in range(y0+2,y1):
+                        d.line((x0,y,x0+31,y),fill=lerp((78,94,100),GLASS,(y-y0-2)/max(1,y1-y0-3)))
+                    if not tower:
+                        for _ in range(rng.randint(1,2)):
+                            px=rng.randrange(x0+3,x0+24)
+                            d.rectangle((px,y1-30,px+rng.randint(4,7),y1-10),fill=(60,70,76))
+                        if rng.random()<.5:
+                            px=rng.randrange(x0+6,x0+26)
+                            d.ellipse((px-8,y1-32,px+8,y1-10),fill=(84,108,78))
+                    wash(glow,(x0+4,y0+4,x0+27,y0+4+max(6,(y1-y0)//3)),ICE,max(4,floor//8),
+                         rng.randint(55,95) if tower else rng.randint(80,140))
+        step,width=(28,5) if tower else (16,2)
+        for x in range(0,w,step):
+            d.line((x,0,x,h),fill=SHELL,width=width)
+            rd.line((x,0,x,h),fill=finish(GLOSSY),width=width)
 
-    painted[card] = (im, glow)
+    if card in ('advanced_utopian_shell', 'advanced_utopian_shell_glazed'):
+        for y in range(h):
+            d.line((0,y,w,y),fill=lerp((234,233,228),(208,207,202),y/h))
+        for y in range(32,h,32):
+            d.line((0,y,w,y),fill=(188,187,182),width=2)
+        for x in range(96,w,96):
+            d.line((x,0,x,h),fill=(192,191,186),width=2)
+        for x in range(96,w,96) if card == 'advanced_utopian_shell_glazed' else ():
+            # A glazed bay in each panel, lit softly from inside.
+            d.rounded_rectangle((x-80,44,x-16,h-14),radius=8,fill=lerp((78,94,100),GLASS,.4))
+            rd.rounded_rectangle((x-80,44,x-16,h-14),radius=8,fill=finish(MIRROR))
+            wash(glow,(x-74,48,x-22,62),ICE,5,90)
+
+    if card == 'advanced_utopian_roof_solar':
+        c=w//2
+        for k in range(24):
+            a=math.radians(k*15)
+            d.line((c,c,c+w*math.cos(a),c+w*math.sin(a)),fill=(190,189,184),width=2)
+        d.ellipse((c-int(c*.95),c-int(c*.95),c+int(c*.95),c+int(c*.95)),outline=(190,189,184),width=2)
+        r0,r1=int(c*.62),int(c*.88)
+        d.ellipse((c-r1,c-r1,c+r1,c+r1),fill=SOLAR)
+        rd.ellipse((c-r1,c-r1,c+r1,c+r1),fill=finish(CELLS))
+        d.ellipse((c-r0,c-r0,c+r0,c+r0),fill=SHELL)
+        rd.ellipse((c-r0,c-r0,c+r0,c+r0),fill=finish(GLOSSY))
+        for k in range(48):
+            a=math.radians(k*7.5)
+            d.line((c+r0*math.cos(a),c+r0*math.sin(a),c+r1*math.cos(a),c+r1*math.sin(a)),fill=(66,80,96),width=1)
+        d.ellipse((c-(r0+r1)//2,c-(r0+r1)//2,c+(r0+r1)//2,c+(r0+r1)//2),outline=(66,80,96),width=1)
+        emblem(d,glow,c,c,44)
+
+    if card == 'advanced_utopian_shell_top':
+        c=w//2
+        r0,r1=int(c*.5),int(c*.8)
+        d.ellipse((c-r1,c-r1,c+r1,c+r1),fill=SOLAR)
+        rd.ellipse((c-r1,c-r1,c+r1,c+r1),fill=finish(CELLS))
+        d.ellipse((c-r0,c-r0,c+r0,c+r0),fill=SHELL)
+        rd.ellipse((c-r0,c-r0,c+r0,c+r0),fill=finish(GLOSSY))
+        for k in range(40):
+            a=math.radians(k*9)
+            d.line((c+r0*math.cos(a),c+r0*math.sin(a),c+r1*math.cos(a),c+r1*math.sin(a)),fill=(66,80,96),width=1)
+        top,bottom=24,h-84
+        d.rounded_rectangle((c-26,top,c+26,bottom),radius=12,fill=lerp((78,94,100),GLASS,.3))
+        rd.rounded_rectangle((c-26,top,c+26,bottom),radius=12,fill=finish(MIRROR))
+        for y in range(top+14,bottom,18):
+            d.line((c-24,y,c+24,y),fill=SHELL,width=2)
+        wash(glow,(c-16,top+8,c+16,bottom-8),ICE,9,130)
+        emblem(d,glow,c,h-44,26)
+
+    if card == 'advanced_utopian_court':
+        for _ in range(60):
+            x,y=rng.randrange(w),rng.randrange(h)
+            r=rng.randint(6,14)
+            d.ellipse((x-r,y-r,x+r,y+r),fill=rng.choice(((94,111,82),(84,100,74),(100,116,86))))
+        c=w//2
+        d.ellipse((12,12,w-12,h-12),outline=SHELL,width=10)
+        rd.ellipse((12,12,w-12,h-12),outline=finish(MATTE),width=10)
+        k=w/300
+        leaf=[(c-50*k,c+80*k),(c-64*k,c+16*k),(c-34*k,c-46*k),(c+16*k,c-96*k),(c+60*k,c-104*k),(c+44*k,c-46*k),(c+12*k,c+16*k),(c-26*k,c+64*k)]
+        d.polygon(leaf,fill=SHELL)
+        inner=[(x*.86+c*.14,y*.86+c*.14) for x,y in leaf]
+        d.polygon(inner,fill=WATER)
+        rd.polygon(inner,fill=finish((.05,0)))
+        d.line((c-46*k,c+76*k,c+40*k,c-92*k),fill=SHELL,width=4)
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).polygon(inner,fill=210)
+        glow.paste(ICE,(0,0),mask.filter(ImageFilter.GaussianBlur(7)))
+
+    if card == 'advanced_utopian_pool':
+        d.rounded_rectangle((0,0,w-1,h-1),radius=40,fill=WATER)
+        for _ in range(6):
+            x,y=rng.randrange(20,w-60),rng.randrange(20,h-20)
+            d.line((x,y,x+rng.randrange(20,50),y),fill=(60,78,90),width=2)
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).rounded_rectangle((24,24,w-25,h-25),radius=30,fill=130)
+        glow.paste((170,226,232),(0,0),mask.filter(ImageFilter.GaussianBlur(16)))
+
+    if card == 'advanced_utopian_dome':
+        c=w//2
+        for r,tone in ((126,(74,92,102)),(100,(62,80,90))):
+            d.ellipse((c-r,c-r,c+r,c+r),fill=tone)
+        for r in range(60,0,-2):
+            d.ellipse((c-r,c-r,c+r,c+r),fill=lerp((150,172,176),(62,80,90),r/60))
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).ellipse((c-30,c-30,c+30,c+30),fill=220)
+        glow.paste(ICE,(0,0),mask.filter(ImageFilter.GaussianBlur(18)))
+        for k in range(16):
+            a=math.radians(k*22.5)
+            d.line((c+64*math.cos(a),c+64*math.sin(a),c+126*math.cos(a),c+126*math.sin(a)),fill=SHELL,width=2)
+            rd.line((c+64*math.cos(a),c+64*math.sin(a),c+126*math.cos(a),c+126*math.sin(a)),fill=finish(GLOSSY),width=2)
+        for r in (64,94,126):
+            d.ellipse((c-r,c-r,c+r,c+r),outline=SHELL,width=2)
+
+    if card == 'advanced_utopian_door':
+        d.rounded_rectangle((16,14,w-17,h+20),radius=34,fill=(52,60,66))
+        for y in range(20,h):
+            d.line((24,y,w-25,y),fill=lerp((96,114,120),(48,60,68),(y-20)/(h-20)))
+        rd.rounded_rectangle((22,20,w-23,h+20),radius=28,fill=finish(MIRROR))
+        wash(glow,(50,40,w-51,110),ICE,22,150)
+        for y in range(52,h,32):
+            d.line((24,y,w-25,y),fill=SHELL,width=3)
+        for x in range(24+55,w-24,55):
+            d.line((x,22,x,h),fill=SHELL,width=2)
+        d.rounded_rectangle((16,14,w-17,h+20),radius=34,outline=SHELL,width=8)
+
+    if card in ('advanced_utopian_apron_depot', 'advanced_utopian_apron_factory', 'advanced_utopian_podium_top',
+                'advanced_utopian_plaza', 'advanced_utopian_stone', 'advanced_utopian_podium'):
+        spacing={'advanced_utopian_apron_factory':40,'advanced_utopian_plaza':40}.get(card,32)
+        joints(d,w,h,spacing,(150,149,144),(184,183,178),range(spacing,h,spacing))
+
+    if card == 'advanced_utopian_apron_depot':
+        for x0,y0 in ((-60,-60),(w-90,-60)):
+            d.ellipse((x0,y0,x0+150,y0+150),fill=MOSS)
+            rd.ellipse((x0,y0,x0+150,y0+150),fill=finish(LAWN))
+        bay=(w-80)//3
+        top,bottom=int(h*.36),int(h*.82)
+        for i in range(3):
+            x0=40+i*bay
+            d.rectangle((x0+6,top,x0+bay-6,bottom),fill=(186,185,180),outline=(120,121,122),width=8)
+            for k in range(3):
+                y=top+40+k*50
+                m=x0+bay//2
+                d.line((m-30,y+18,m,y,m+30,y+18),fill=(120,121,122),width=8)
+        for x in range(40,w-30,40):
+            d.ellipse((x-5,bottom+12,x+5,bottom+22),fill=LIT)
+            wash(glow,(x-3,bottom+14,x+3,bottom+20),ICE,3,180)
+
+    if card == 'advanced_utopian_apron_factory':
+        d.rectangle((0,0,w-1,h-1),outline=(64,68,72),width=14)
+        c=w//2
+        d.rectangle((c-104,h-150,c+104,h-14),fill=(178,177,172))
+        for x in (c-104,c+104):
+            d.line((x,h-150,x,h-14),fill=SHELL,width=5)
+        for k in range(3):
+            y=h-120+k*36
+            d.line((c-40,y+20,c,y,c+40,y+20),fill=SHELL,width=6)
+
+    if card == 'advanced_utopian_podium_top':
+        for x0,y0 in ((-60,-60),(w-90,-60),(-60,h-90),(w-90,h-90)):
+            d.ellipse((x0,y0,x0+150,y0+150),fill=MOSS)
+            rd.ellipse((x0,y0,x0+150,y0+150),fill=finish(LAWN))
+        c=(w//2,h//2+18)
+        d.ellipse((c[0]-215,c[1]-215,c[0]+215,c[1]+215),outline=(196,195,190),width=22)
+        d.rectangle((c[0]-74,c[1],c[0]+74,h),fill=(196,195,190))
+        joints(d,w,h,32,(176,175,170),(204,203,198))
+
+    if card == 'advanced_utopian_plaza':
+        d.rectangle((0,0,w-1,h-1),outline=(64,68,72),width=12)
+
+    if card == 'advanced_utopian_podium':
+        d.rectangle((0,0,w,7),fill=(200,199,194))
+
+    if card == 'advanced_utopian_silo':
+        for y in range(32,h,32):
+            d.line((0,y,w,y),fill=(188,187,182),width=2)
+        for x in range(24,w,48):
+            d.line((x,0,x,h),fill=(192,191,186),width=2)
+        for c in (w//4,w//2,3*w//4):
+            for k in range(5):
+                y=h-40-k*30
+                d.rounded_rectangle((c-6,y,c+6,y+20),radius=3,fill=LIT)
+                rd.rectangle((c-6,y,c+6,y+20),fill=finish(MIRROR))
+                wash(glow,(c-3,y+3,c+3,y+17),ICE,4,150)
+
+    if card == 'advanced_utopian_silo_top':
+        c=w//2
+        for r in (24,44):
+            d.ellipse((c-r,c-r,c+r,c+r),outline=(192,191,186),width=2)
+
+    if card == 'advanced_utopian_fascia':
+        d.line((0,h-3,w,h-3),fill=(196,195,190),width=3)
+        emblem(d,glow,w//2,h//2,27)
+
+    if card == 'advanced_utopian_metal':
+        for y in range(0,h,3):
+            d.line((0,y,w,y),fill=rng.choice(((206,208,208),(214,216,216),(210,212,212))))
+
+    if card == 'advanced_utopian_lamp':
+        gd.rectangle((0,0,w,h),fill=ICE)
+
+    # Break up perfectly even paint without eroding the small lettering at game zoom.
+    # The advanced utopian faction is spotless, so its cards skip it.
+    if not card.startswith(UTOPIAN):
+        stipple=Image.new('L',im.size)
+        sd=ImageDraw.Draw(stipple)
+        for _ in range(w*h//235):
+            x,y=rng.randrange(w),rng.randrange(h)
+            sd.line((x,y,x+rng.choice([0,1,2]),y),fill=rng.randrange(12,53))
+        im.paste((55,55,49),(0,0),stipple)
+
+    painted[card] = (im, glow, surface)
 
 
 def paste(atlas, im, x, y):
@@ -1054,25 +1355,30 @@ def pack(names, *, fill_gaps=False):
     return regions, page + 1
 
 
-for theme, settings in THEMES.items():
-    names = BASE + settings['cards']
-    assert len(set(names)) == len(names), f'{theme} lists a card twice'
+sets = [('themes', name, BASE + settings['cards'], settings) for name, settings in THEMES.items()]
+sets += [('factions', name, settings['cards'], settings) for name, settings in FACTIONS.items()]
+for kind, name, names, settings in sets:
+    assert len(set(names)) == len(names), f'{name} lists a card twice'
     regions, pages = pack(names, fill_gaps=settings.get('fill_gaps', False))
-    folder = HERE / 'themes' / theme
+    folder = HERE / kind / name
     folder.mkdir(parents=True, exist_ok=True)
     atlas = Image.new('RGB', (PAGE * pages, PAGE), (86, 91, 89))
     glow = Image.new('RGB', atlas.size, (0, 0, 0))
-    for name in names:
-        paste(atlas, painted[name][0], *regions[name])
-        paste(glow, painted[name][1], *regions[name])
+    surface = Image.new('RGB', atlas.size, finish((.86, 0)))
+    for card in names:
+        for layer, image in zip((atlas, glow, surface), painted[card]):
+            paste(layer, image, *regions[card])
     atlas.save(folder / 'atlas.jpg', quality=88, subsampling=0, optimize=True)
     if settings['glow']:
         glow.save(folder / 'atlas-glow.jpg', quality=90, subsampling=0, optimize=True)
+    if settings.get('surface'):
+        surface.save(folder / 'atlas-surface.jpg', quality=92, subsampling=0, optimize=True)
     cards = {
-        name: {'x': regions[name][0], 'y': regions[name][1], 'width': CARDS[name][0][0],
-               'height': CARDS[name][0][1], 'shows': CARDS[name][2]}
-        for name in names
+        card: {'x': regions[card][0], 'y': regions[card][1], 'width': CARDS[card][0][0],
+               'height': CARDS[card][0][1], 'shows': CARDS[card][2]}
+        for card in names
     }
-    document = {'theme': theme, 'width': atlas.width, 'height': atlas.height, 'lighting': settings['lighting'],
-                'glow': 'atlas-glow.jpg' if settings['glow'] else None, 'cards': cards}
+    document = {kind[:-1]: name, 'width': atlas.width, 'height': atlas.height, 'lighting': settings['lighting'],
+                'glow': 'atlas-glow.jpg' if settings['glow'] else None,
+                'surface': 'atlas-surface.jpg' if settings.get('surface') else None, 'cards': cards}
     (folder / 'atlas.json').write_text(json.dumps(document, indent=2) + '\n')
