@@ -65,7 +65,7 @@ test("build, save, reload, playtest, and return to editing with nothing lost", a
 
   const before = serializeDocument(history.document);
   const world = createWorld(parseDocument(before), 1);
-  step(world, [{ type: "attack", playerId: "red", tick: 0, unitIds: [2], targetId: 3 }]);
+  step(world, [{ type: "attack", playerId: "red", tick: 0, unitIds: [2], x: 35, y: 10 }]);
   while (world.outcome === null && world.tick < 30 * 600) step(world);
   expect(world.outcome).toEqual({ winningTeam: "red" });
 

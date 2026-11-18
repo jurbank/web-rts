@@ -26,8 +26,8 @@ export interface GameLoop {
   canPlace(definition: Definition, x: number, y: number): boolean;
 }
 
-export function createGameLoop(world: World): GameLoop {
-  let previous = takeSnapshot(world);
+export function createGameLoop(world: World, viewer: string): GameLoop {
+  let previous = takeSnapshot(world, viewer);
   let current = previous;
   let accumulator = 0;
   const queue = createCommandQueue();
@@ -48,15 +48,15 @@ export function createGameLoop(world: World): GameLoop {
     advance(elapsedSeconds) {
       accumulator += Math.min(elapsedSeconds, MAX_FRAME_SECONDS);
       while (accumulator >= TICK_SECONDS) {
-        step(world, queue.take(world.tick));
+        const events = step(world, queue.take(world.tick));
         previous = current;
-        current = takeSnapshot(world);
+        current = takeSnapshot(world, viewer, events);
         accumulator -= TICK_SECONDS;
       }
       return accumulator / TICK_SECONDS;
     },
     canPlace(definition, x, y) {
-      return canPlace(world, definition, x, y);
+      return canPlace(world, definition, x, y, viewer);
     },
   };
 }

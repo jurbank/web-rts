@@ -104,6 +104,13 @@ test("operations change what they say", () => {
   expect(apply(movePlacements(before, [1], 9, -9)).placements[1]).toMatchObject({ x: 20, y: 0 });
 });
 
+test("undo restores the scenario fog setting", () => {
+  const before = createHistory(scenario());
+  const after = applyEdit(before, { type: "setFogOfWar", enabled: true });
+  expect(parseDocument(serializeDocument(after.document)).fogOfWar).toBe(true);
+  expect(undo(after).document).toEqual(before.document);
+});
+
 test("an index outside the document throws", () => {
   expect(() => applyOperation(scenario(), removeItem("placements", 3))).toThrow("range");
 });
@@ -200,6 +207,7 @@ test("renaming a guide updates the paths and triggers that name it", () => {
       actions: [
         { type: "spawn", definitionId: "hq", playerId: "red", at: "gate", count: 1, path: "lane" },
         { type: "walk", playerId: "red", path: "lane" },
+        { type: "reveal", playerId: "red", region: "goal", seconds: 2 },
       ],
     }),
   );
@@ -213,7 +221,7 @@ test("renaming a guide updates the paths and triggers that name it", () => {
   expect(document.triggers[1].actions[0]).toMatchObject({ at: "door" });
   expect(document.triggers[2]).toMatchObject({
     event: { region: "end" },
-    actions: [{ at: "door", path: "road" }, { path: "road" }],
+    actions: [{ at: "door", path: "road" }, { path: "road" }, { region: "end" }],
   });
 });
 

@@ -16,7 +16,15 @@ const playerRefSchema = z.union([idSchema, triggeringSchema]);
 const compareSchema = z.enum(["==", "!=", "<", "<=", ">", ">="]);
 
 /** The numbers a modifier can change. `range`, `cooldown`, and `damage` are the weapon's. */
-export const statSchema = z.enum(["maxHealth", "speed", "damage", "range", "cooldown", "armor"]);
+export const statSchema = z.enum([
+  "maxHealth",
+  "speed",
+  "damage",
+  "range",
+  "cooldown",
+  "armor",
+  "sight",
+]);
 
 /** The entities an action works on: those matching every field given. */
 const selectionShape = {
@@ -88,6 +96,8 @@ export const eventSchema = z.discriminatedUnion("type", [
 
 /** Every condition must hold for the actions to run. */
 export const conditionSchema = z.discriminatedUnion("type", [
+  /** The viewer's team can see at least one matching live entity. */
+  z.object({ type: z.literal("visible"), viewer: playerRefSchema, ...selectionShape }),
   z.object({
     type: z.literal("variable"),
     variable: idSchema,
@@ -105,6 +115,13 @@ export const conditionSchema = z.discriminatedUnion("type", [
 ]);
 
 export const actionSchema = z.discriminatedUnion("type", [
+  /** Gives the named player's team vision of a region for this duration. */
+  z.object({
+    type: z.literal("reveal"),
+    playerId: playerRefSchema,
+    region: idSchema,
+    seconds: z.number().positive(),
+  }),
   z.object({ type: z.literal("setVariable"), variable: idSchema, value: z.number() }),
   z.object({ type: z.literal("addVariable"), variable: idSchema, value: z.number() }),
   /** Starts the timer, or starts it over. */

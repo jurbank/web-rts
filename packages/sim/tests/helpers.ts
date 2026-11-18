@@ -17,8 +17,11 @@ export const ids = {
 type Raw = Record<string, any>;
 
 /** The skirmish fixture, optionally edited before validation. Blue does nothing unless `ai` is set. */
-export function skirmishWorld(options: { ai?: boolean; edit?: (raw: Raw) => void } = {}): World {
+export function skirmishWorld(
+  options: { ai?: boolean; fog?: boolean; edit?: (raw: Raw) => void } = {},
+): World {
   const raw: Raw = JSON.parse(JSON.stringify(skirmish));
+  raw.fogOfWar = options.fog ?? false;
   if (options.ai !== true) {
     raw.players[1].controller = "human";
     delete raw.players[1].ai;

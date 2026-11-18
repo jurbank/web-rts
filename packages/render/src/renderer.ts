@@ -18,6 +18,7 @@ import {
   WebGLRenderer,
   type Object3D,
 } from "three";
+import { createFogLayer } from "./fog.ts";
 import { createCameraRig, type ScreenPoint } from "./camera.ts";
 
 /** A labelled spot on the ground, such as a start point. */
@@ -115,6 +116,8 @@ export function createRenderer(
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.position.set(map.width / 2, 0, map.height / 2);
   scene.add(groundMesh);
+  const fogLayer = createFogLayer(groundGeometry, map.width, map.height);
+  scene.add(fogLayer.mesh);
 
   const gridGeometry = new BufferGeometry();
   gridGeometry.setAttribute("position", new Float32BufferAttribute(gridLines(map), 3));
@@ -192,12 +195,35 @@ export function createRenderer(
     }
   }
 
-  function drawOverlay({ debug, markers = [], routes = [], zones = [] }: Overlay): void {
+  function drawOverlay(
+    { debug, markers = [], routes = [], zones = [] }: Overlay,
+    fog: Snapshot["fog"],
+  ): void {
     context.setTransform(1, 0, 0, 1, 0, 0);
     context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.font = "12px ui-monospace, monospace";
     context.lineWidth = 2;
+    // Dashed footprints are the last sighting of a building. They cannot be picked.
+    context.setLineDash([4, 4]);
+    context.strokeStyle = "rgba(210, 218, 225, 0.7)";
+    for (const building of fog?.buildings ?? []) {
+      const radius = definitions.get(building.definitionId)!.radius;
+      context.beginPath();
+      for (const [dx, dy] of [
+        [-1, -1],
+        [1, -1],
+        [1, 1],
+        [-1, 1],
+      ]) {
+        const corner = rig.project({ x: building.x + dx * radius, y: building.y + dy * radius });
+        if (dx === -1 && dy === -1) context.moveTo(corner.x, corner.y);
+        else context.lineTo(corner.x, corner.y);
+      }
+      context.closePath();
+      context.stroke();
+    }
+    context.setLineDash([]);
     for (const zone of zones) {
       context.strokeStyle = context.fillStyle = zone.color ?? GUIDE_COLOR;
       const corners = [
@@ -349,14 +375,15 @@ export function createRenderer(
               ? null
               : entity.health / entity.maxHealth,
           selected,
-          target: entity.target,
-          waypoints: entity.waypoints,
+          target: entity.target ?? null,
+          waypoints: entity.waypoints ?? [],
           level: entity.level,
         });
       }
       removeStaleViews();
+      fogLayer.update(current.fog);
       gl.render(scene, rig.camera);
-      drawOverlay(overlay);
+      drawOverlay(overlay, current.fog);
     },
 
     pickEntity(screen, slop) {
@@ -402,6 +429,7 @@ export function createRenderer(
       for (const material of [groundMaterial, gridMaterial, ringMaterial, ...materials.values()]) {
         material.dispose();
       }
+      fogLayer.dispose();
       gl.dispose();
     },
   };

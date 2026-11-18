@@ -5,7 +5,7 @@ import { createGameLoop } from "../src/loop.ts";
 import skirmish from "../src/scenarios/skirmish.json";
 
 function loop() {
-  return createGameLoop(createWorld(loadScenario(skirmish), 1));
+  return createGameLoop(createWorld(loadScenario(skirmish), 1), "red");
 }
 
 test("real time turns into whole ticks plus a remainder", () => {
@@ -49,4 +49,16 @@ test("a command for a later tick waits for it, and a late one is refused", () =>
   game.advance(1 / TICK_RATE);
   expect(game.current.entities[1].x).toBeGreaterThan(unit.x);
   expect(move(game.tick - 1)).toBe(false);
+});
+
+test("the game loop keeps both interpolation snapshots scoped to its seat", () => {
+  const scenario = loadScenario(skirmish);
+  const blue = createGameLoop(createWorld(scenario, 1), "blue");
+  blue.advance(2 / TICK_RATE);
+  for (const frame of [blue.previous, blue.current]) {
+    expect(frame.fog).toBeDefined();
+    expect(frame.entities.some((entity) => entity.playerId === "red")).toBe(false);
+    expect(frame.players.find((player) => player.id === "red")).not.toHaveProperty("resources");
+    expect(frame.players.find((player) => player.id === "blue")?.resources).toBeDefined();
+  }
 });

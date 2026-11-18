@@ -354,6 +354,16 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                 edit={edit}
               />
             )}
+            <Panel title="Visibility">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={document.fogOfWar}
+                  onChange={(event) => edit({ type: "setFogOfWar", enabled: event.target.checked })}
+                />
+                Fog of war
+              </label>
+            </Panel>
             <Panel title="Players">
               {document.players.map((player, index) => (
                 <div key={player.id} className="flex flex-col gap-1">

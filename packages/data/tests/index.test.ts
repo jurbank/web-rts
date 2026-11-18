@@ -7,6 +7,7 @@ import skirmishV6 from "./fixtures/skirmish-v6.json" with { type: "json" };
 import skirmishV7 from "./fixtures/skirmish-v7.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
+import skirmishV8 from "./fixtures/skirmish-v8.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
 
 function fixture(): Record<string, any> {
@@ -17,6 +18,11 @@ function issues(scenario: unknown): string[] {
   const result = scenarioSchema.safeParse(scenario);
   return result.success ? [] : result.error.issues.map((issue) => issue.message);
 }
+
+test("format 8 migrates with fog off", () => {
+  expect(loadScenario(skirmishV8)).toEqual(loadScenario(fixture()));
+  expect(loadScenario(skirmishV8).fogOfWar).toBe(false);
+});
 
 test("round trip yields equal data", () => {
   const first = loadScenario(fixture());

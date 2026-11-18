@@ -1,3 +1,4 @@
+import { seesEntity } from "./fog.ts";
 import { canUseAbility, defeatPlayer, isEnemy, useAbility, type SimEvent } from "./systems.ts";
 import type { CommandType } from "data";
 import { refusedCommands } from "./triggers.ts";
@@ -366,7 +367,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
         return;
       }
       const target = findEntity(world, command.targetId);
-      if (target === undefined) return;
+      if (target === undefined || !seesEntity(world, player.id, target)) return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
         if (definitionOf(world, unit).weapon !== undefined && isEnemy(world, unit, target)) {
           giveOrder(unit, { type: "attack", targetId: target.id }, command.queued);
@@ -401,7 +402,12 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       return;
     case "gather": {
       const node = findEntity(world, command.nodeId);
-      if (node === undefined || definitionOf(world, node).resource === undefined) return;
+      if (
+        node === undefined ||
+        !seesEntity(world, player.id, node) ||
+        definitionOf(world, node).resource === undefined
+      )
+        return;
       for (const unit of ownUnits(world, player.id, command.unitIds)) {
         if (definitionOf(world, unit).gatherer !== undefined) {
           giveOrder(
@@ -421,7 +427,7 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       );
       if (builders.length === 0 || player.resources < definition.cost) return;
       if (!meetsRequirements(world, player, definition.requires)) return;
-      if (!canPlace(world, definition, command.x, command.y)) return;
+      if (!canPlace(world, definition, command.x, command.y, player.id)) return;
       player.resources -= definition.cost;
       const building = spawn(world, definition.id, player.id, command.x, command.y);
       building.buildRemaining = toTicks(definition.buildTime);
@@ -460,7 +466,12 @@ export function applyCommand(world: World, command: Command, events: SimEvent[])
       }
       const target =
         command.targetId === undefined ? undefined : findEntity(world, command.targetId);
-      if (target === undefined || !isEnemy(world, unit, target)) return;
+      if (
+        target === undefined ||
+        !seesEntity(world, player.id, target) ||
+        !isEnemy(world, unit, target)
+      )
+        return;
       giveOrder(unit, { type: "cast", ability: index, targetId: target.id }, command.queued);
       return;
     }

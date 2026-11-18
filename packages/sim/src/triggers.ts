@@ -1,3 +1,4 @@
+import { invalidateSight, revealRegion, seesEntity } from "./fog.ts";
 import {
   COMMAND_TYPES,
   TRIGGERING,
@@ -19,6 +20,8 @@ import {
 } from "./systems.ts";
 import {
   definitionOf,
+  teamOf,
+  toTicks,
   entitiesInside,
   findEntity,
   findPlayer,
@@ -169,6 +172,12 @@ function holds(world: World, condition: Condition, entity: Triggering | null): b
   switch (condition.type) {
     case "variable":
       return compare(world.variables[condition.variable], condition.op, condition.value);
+    case "visible": {
+      const viewer = resolvePlayer(condition.viewer, entity);
+      if (viewer === null) return false;
+      const matches = selects(condition, entity);
+      return world.entities.some((other) => matches(other) && seesEntity(world, viewer, other));
+    }
     case "count": {
       const { definitionIds } = condition;
       const playerId =
@@ -186,10 +195,12 @@ function holds(world: World, condition: Condition, entity: Triggering | null): b
 
 /** Whether an entity matches every field of an action's selection. */
 function selects(
-  selection: Extract<
-    Action,
-    { type: "modify" | "walk" | "setHome" | "returnHome" | "rollOffers" | "grantExperience" }
-  >,
+  selection:
+    | Extract<Condition, { type: "visible" }>
+    | Extract<
+        Action,
+        { type: "modify" | "walk" | "setHome" | "returnHome" | "rollOffers" | "grantExperience" }
+      >,
   entity: Triggering | null,
 ): (candidate: Entity) => boolean {
   const { definitionIds } = selection;
@@ -210,6 +221,7 @@ function runActions(
   for (const action of trigger.actions) {
     if (world.outcome !== null) return;
     runAction(world, action, entity, events);
+    invalidateSight(world);
   }
 }
 
@@ -220,6 +232,11 @@ function runAction(
   events: SimEvent[],
 ): void {
   switch (action.type) {
+    case "reveal": {
+      const team = teamOf(world, resolvePlayer(action.playerId, entity));
+      if (team !== null) revealRegion(world, team, action.region, toTicks(action.seconds));
+      return;
+    }
     case "setVariable":
       world.variables[action.variable] = action.value;
       return;

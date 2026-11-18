@@ -50,7 +50,7 @@ export function createEditorView(elements: GameElements): () => void {
         renderer.setContent(document);
       }
       shown = document;
-      snapshot = takeSnapshot(createWorld(document, 1));
+      snapshot = takeSnapshot(createWorld(document, 1), null);
     }
     return snapshot;
   }

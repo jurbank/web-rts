@@ -1,3 +1,4 @@
+import { advanceReveals, updateFog } from "./fog.ts";
 import { AI_INTERVAL, think } from "./ai.ts";
 import { applyCommand, inSeatOrder, normalizeCommand, type Command } from "./commands.ts";
 import {
@@ -45,9 +46,11 @@ export function step(world: World, commands: readonly Command[] = []): SimEvent[
   runProduction(world, events);
   runOrders(world, events);
   removeDead(world, events);
+  advanceReveals(world);
   runTriggers(world, events);
   runMerges(world, events);
   checkEnd(world, events);
+  updateFog(world);
   world.tick += 1;
   return events;
 }

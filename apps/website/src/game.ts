@@ -53,7 +53,7 @@ export function createGame(
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
-  const loop = createGameLoop(createWorld(scenario, seed, seats));
+  const loop = createGameLoop(createWorld(scenario, seed, seats), localPlayerId);
   const renderer = createRenderer(elements.scene, elements.overlay, scenario);
   const guides = scenarioGuides(scenario);
 
@@ -133,7 +133,9 @@ export function createGame(
     const definition = definitions.get(placingId!)!;
     const ground = renderer.pickGround(at);
     if (ground === null || !loop.canPlace(definition, ground.x, ground.y)) {
-      notice = `${definition.name} does not fit there`;
+      notice = scenario.fogOfWar
+        ? `${definition.name} needs a clear, fully visible site`
+        : `${definition.name} does not fit there`;
       return;
     }
     order({ type: "build", unitIds: selectedIds, definitionId: definition.id, ...ground });

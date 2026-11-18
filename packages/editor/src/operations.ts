@@ -12,6 +12,7 @@ export type GuideList = "waypoints" | "paths" | "regions";
 
 /** Plain data. An index refers to the document the operation is applied to. */
 export type Operation =
+  | { type: "setFogOfWar"; enabled: boolean }
   | {
       [K in ListName]:
         | { type: "add"; list: K; index: number; item: Item<K> }
@@ -38,6 +39,12 @@ export function applyOperation(
   document: Scenario,
   operation: Operation,
 ): { document: Scenario; inverse: Operation } {
+  if (operation.type === "setFogOfWar") {
+    return {
+      document: { ...document, fogOfWar: operation.enabled },
+      inverse: { type: "setFogOfWar", enabled: document.fogOfWar },
+    };
+  }
   if (operation.type === "batch") {
     let current = document;
     const inverses: Operation[] = [];
@@ -191,6 +198,8 @@ export function renameGuide(
         ? { ...trigger.event, region: swap(trigger.event.region) }
         : trigger.event;
     const actions = trigger.actions.map((action) => {
+      if (action.type === "reveal" && list === "regions")
+        return { ...action, region: swap(action.region) };
       if (action.type === "walk") {
         return list === "paths" ? { ...action, path: swap(action.path) } : action;
       }

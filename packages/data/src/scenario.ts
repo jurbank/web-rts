@@ -14,7 +14,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 8;
+export const FORMAT_VERSION = 9;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -107,6 +107,8 @@ export const definitionSchema = z.object({
   color: colorSchema.optional(),
   /** Absent means it cannot be damaged. */
   maxHealth: positive.optional(),
+  /** Ground units of team vision when fog of war is enabled. */
+  sight: z.number().nonnegative().optional(),
   /** Taken off each weapon hit, down to half a point. Ability damage ignores it. */
   armor: z.number().nonnegative().default(0),
   /** Names that upgrades and requirements use to mean a kind of thing, such as `infantry`. */
@@ -214,6 +216,7 @@ export const placementSchema = z.object({
 export const scenarioSchema = z
   .object({
     formatVersion: z.literal(FORMAT_VERSION),
+    fogOfWar: z.boolean().default(false),
     map: z.object({ width: positive, height: positive }),
     players: z.array(playerSchema),
     definitions: z.array(definitionSchema),
@@ -411,6 +414,10 @@ function checkTrigger(
       case "addVariable":
         refs.variable(action.variable, [...path, "variable"]);
         break;
+      case "reveal":
+        player(action.playerId, [...path, "playerId"]);
+        refs.region(action.region, [...path, "region"]);
+        break;
       case "startTimer":
       case "stopTimer":
         refs.timer(action.timer, [...path, "timer"]);
@@ -467,7 +474,12 @@ function checkCondition(
   hasTriggering: boolean,
 ): void {
   if (condition.type === "variable") refs.variable(condition.variable, [...path, "variable"]);
-  if (condition.type === "count") {
+  if (condition.type === "visible") {
+    const check = playerCheck(refs, ctx, hasTriggering);
+    check(condition.viewer, [...path, "viewer"]);
+    check(condition.entity, [...path, "entity"]);
+  }
+  if (condition.type === "count" || condition.type === "visible") {
     playerCheck(refs, ctx, hasTriggering)(condition.playerId, [...path, "playerId"]);
     condition.definitionIds?.forEach((id, i) => refs.definition(id, [...path, "definitionIds", i]));
   }

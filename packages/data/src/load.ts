@@ -63,6 +63,8 @@ const migrations: Record<number, Migration> = {
       ? { commandRules: commandRules.map((rule) => addCommands(rule, { produce: ["research"] })) }
       : {}),
   }),
+  /** Fog and definition sight are opt-in. */
+  8: (document) => ({ ...document, formatVersion: 9 }),
 };
 
 /**

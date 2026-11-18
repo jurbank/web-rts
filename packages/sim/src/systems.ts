@@ -1,3 +1,4 @@
+import { seesEntity } from "./fog.ts";
 import type { Ability, Definition, Modifier } from "data";
 import { findPath } from "./nav.ts";
 import {
@@ -24,12 +25,12 @@ import {
 export type SimEvent =
   | { type: "died"; id: number; definitionId: string; playerId: string | null }
   | { type: "completed"; id: number }
-  | { type: "produced"; id: number; buildingId: number }
+  | { type: "produced"; id: number; buildingId: number; playerId?: string | null }
   | { type: "researched"; playerId: string; upgradeId: string; level: number }
   | { type: "leveled"; id: number; level: number }
   | { type: "respawned"; id: number }
   /** `from` are the ids that became `id`. */
-  | { type: "merged"; id: number; from: number[] }
+  | { type: "merged"; id: number; from: readonly number[]; playerId?: string }
   | { type: "defeated"; playerId: string }
   | { type: "ended"; winningTeam: string | null };
 
@@ -183,8 +184,15 @@ function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "
     target !== undefined &&
     order.acquired === true &&
     beneath !== undefined &&
-    distance(entity, target) - definitionOf(world, target).radius > sightOf(world, entity, holding);
-  if (weapon === undefined || target === undefined || target.health === null || lost) {
+    distance(entity, target) - definitionOf(world, target).radius >
+      acquireRangeOf(world, entity, holding);
+  if (
+    weapon === undefined ||
+    target === undefined ||
+    target.health === null ||
+    !seesEntity(world, entity.playerId, target) ||
+    lost
+  ) {
     finishOrder(entity);
     return;
   }
@@ -349,6 +357,7 @@ function runCast(
   if (
     target === undefined ||
     target.health === null ||
+    !seesEntity(world, entity.playerId, target) ||
     entity.abilityCooldowns[order.ability] > 0
   ) {
     finishOrder(entity);
@@ -405,8 +414,12 @@ function runGather(
   }
 
   let node = findEntity(world, order.nodeId);
-  if (node === undefined || node.amount <= 0) {
-    node = nearest(world, entity, (other) => other.amount > 0);
+  if (node === undefined || node.amount <= 0 || !seesEntity(world, entity.playerId, node)) {
+    node = nearest(
+      world,
+      entity,
+      (other) => other.amount > 0 && seesEntity(world, entity.playerId, other),
+    );
     order.progress = 0;
     if (node === undefined) {
       if (entity.carrying > 0) {
@@ -455,7 +468,7 @@ function runBuild(world: World, entity: Entity, buildingId: number, events: SimE
  * range when that is longer. One holding its position, or one that cannot
  * move, looks only as far as it shoots.
  */
-function sightOf(world: World, entity: Entity, holding = false): number {
+function acquireRangeOf(world: World, entity: Entity, holding = false): number {
   const definition = definitionOf(world, entity);
   const { weapon } = definition;
   if (weapon === undefined) return 0;
@@ -475,13 +488,14 @@ function acquireTarget(world: World, entity: Entity, definition: Definition): vo
   if (definition.weapon === undefined || entity.buildRemaining > 0) return;
   const current = entity.orders[0];
   if (current !== undefined && !ACQUIRING.has(current.type)) return;
-  const sight = sightOf(world, entity, current?.type === "hold");
+  const range = acquireRangeOf(world, entity, current?.type === "hold");
   const target = nearest(
     world,
     entity,
     (other) =>
+      distance(entity, other) - definitionOf(world, other).radius <= range &&
       isEnemy(world, entity, other) &&
-      distance(entity, other) - definitionOf(world, other).radius <= sight,
+      seesEntity(world, entity.playerId, other),
   );
   if (target === undefined) return;
   entity.orders.unshift({ type: "attack", targetId: target.id, acquired: true });
@@ -599,7 +613,12 @@ export function runProduction(world: World, events: SimEvent[]): void {
     }
     const at = exitPoint(world, building, world.definitions[item.definitionId]);
     const unit = spawn(world, item.definitionId, building.playerId, at.x, at.y);
-    events.push({ type: "produced", id: unit.id, buildingId: building.id });
+    events.push({
+      type: "produced",
+      id: unit.id,
+      buildingId: building.id,
+      ...(world.fog && { playerId: building.playerId }),
+    });
   }
 }
 
@@ -786,7 +805,12 @@ export function runMerges(world: World, events: SimEvent[]): void {
           for (const part of parts) used.add(part);
           const result = spawn(world, into, player.id, parts[0].x, parts[0].y);
           group(player.id, into).push(result);
-          events.push({ type: "merged", id: result.id, from: parts.map((part) => part.id) });
+          events.push({
+            type: "merged",
+            id: result.id,
+            from: parts.map((part) => part.id),
+            ...(world.fog && { playerId: player.id }),
+          });
           merged = true;
         }
       }

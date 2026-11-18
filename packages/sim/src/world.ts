@@ -9,6 +9,7 @@ import type {
   Trigger,
   Upgrade,
 } from "data";
+import { createFog, restoreSight, seesBuildSite, updateFog, type FogState } from "./fog.ts";
 import { hashState } from "./hash.ts";
 import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
 
@@ -123,6 +124,7 @@ export interface RegionState extends Region {
 
 /** Plain data. Survives JSON without loss (S7). */
 export interface World {
+  fog?: FogState;
   tick: number;
   rngState: number;
   map: { width: number; height: number };
@@ -214,6 +216,10 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
   }
   // What starts inside a region never entered it.
   for (const region of world.regions) region.inside = entitiesInside(world, region);
+  if (scenario.fogOfWar) {
+    world.fog = createFog(world);
+    updateFog(world);
+  }
   return world;
 }
 
@@ -334,6 +340,8 @@ function baseStat(definition: Definition, stat: Modifier["stat"]): number | unde
     case "range":
     case "cooldown":
       return definition.weapon?.[stat];
+    case "sight":
+      return definition.sight ?? 0;
     case "maxHealth":
     case "speed":
     case "armor":
@@ -422,18 +430,31 @@ export function distance(a: Point, b: Point): number {
 }
 
 /** Whether a footprint fits on the map clear of everything that does not move. */
-export function canPlace(world: World, definition: Definition, x: number, y: number): boolean {
+export function canPlace(
+  world: World,
+  definition: Definition,
+  x: number,
+  y: number,
+  viewer?: string,
+): boolean {
   const { radius } = definition;
   // Leave a corridor the widest unit can path through.
   let widest = 0;
+  let largestBlocker = 0;
   for (const id of Object.keys(world.definitions).sort()) {
     const other = world.definitions[id];
     if (other.speed !== undefined) widest = Math.max(widest, other.radius);
+    else largestBlocker = Math.max(largestBlocker, other.radius);
   }
   const gap = (widest + NAV_CLEARANCE) * 2;
   if (x < radius || y < radius || x > world.map.width - radius || y > world.map.height - radius) {
     return false;
   }
+  if (
+    viewer !== undefined &&
+    !seesBuildSite(world, viewer, { x, y }, radius + largestBlocker + gap)
+  )
+    return false;
   for (const other of world.entities) {
     const otherDefinition = definitionOf(world, other);
     if (otherDefinition.speed !== undefined) continue;
@@ -459,5 +480,7 @@ export function saveWorld(world: World): string {
 }
 
 export function loadWorld(saved: string): World {
-  return JSON.parse(saved) as World;
+  const world = JSON.parse(saved) as World;
+  restoreSight(world);
+  return world;
 }

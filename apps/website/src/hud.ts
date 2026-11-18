@@ -120,7 +120,7 @@ export function buildHudView(input: HudInput): HudView {
   const name = (id: string) => definitions.get(id)?.name ?? id;
   const local = snapshot.players.find((player) => player.id === localPlayerId);
   const resources = local?.resources ?? 0;
-  const isLocked = (id: string) => local?.locked.includes(id) ?? true;
+  const isLocked = (id: string) => local?.locked?.includes(id) ?? true;
   const selected = snapshot.entities.filter((entity) => input.selectedIds.includes(entity.id));
   const refused = (type: CommandType) => snapshot.refusedCommands.includes(type);
   const affordable = (id: string) => (definitions.get(id)?.cost ?? 0) <= resources;
@@ -137,10 +137,10 @@ export function buildHudView(input: HudInput): HudView {
   /** The next level of an upgrade, counting levels waiting in the player's queues. */
   const research = (id: string): HudAction => {
     const upgrade = scenario.upgrades.find((each) => each.id === id)!;
-    let next = (local?.upgrades[id] ?? 0) + 1;
+    let next = (local?.upgrades?.[id] ?? 0) + 1;
     for (const entity of snapshot.entities) {
       if (entity.playerId !== localPlayerId) continue;
-      next += entity.queue.filter((item) => item.upgradeId === id).length;
+      next += (entity.queue ?? []).filter((item) => item.upgradeId === id).length;
     }
     const done = next > upgrade.levels;
     return {
@@ -154,7 +154,7 @@ export function buildHudView(input: HudInput): HudView {
     };
   };
   const store = snapshot.entities.find(
-    (entity) => entity.playerId === localPlayerId && entity.offers.length > 0,
+    (entity) => entity.playerId === localPlayerId && (entity.offers?.length ?? 0) > 0,
   );
 
   const producer = selected.length === 1 && selected[0].built === 1 ? selected[0] : undefined;
@@ -179,10 +179,10 @@ export function buildHudView(input: HudInput): HudView {
             {
               id: ability.id,
               label: ability.name,
-              seconds: Math.ceil(entity.abilityCooldowns[index]),
+              seconds: Math.ceil(entity.abilityCooldowns?.[index] ?? 0),
               locked: entity.level < ability.level ? ability.level : null,
               cost: ability.cost,
-              enabled: entity.abilityUsable[index] && !refused("cast"),
+              enabled: entity.abilityUsable?.[index] === true && !refused("cast"),
             },
           ],
     );
@@ -213,7 +213,7 @@ export function buildHudView(input: HudInput): HudView {
         ? null
         : {
             buildingId: store.id,
-            offers: store.offers.flatMap((id, slot) =>
+            offers: (store.offers ?? []).flatMap((id, slot) =>
               id === null
                 ? []
                 : {
@@ -287,6 +287,6 @@ function describe(
     parts.push(`${Math.ceil(entity.health)}/${entity.maxHealth}`);
   }
   if (entity.built < 1) parts.push(`building ${Math.floor(entity.built * 100)}%`);
-  if (entity.carrying > 0) parts.push(`carrying ${entity.carrying}`);
+  if ((entity.carrying ?? 0) > 0) parts.push(`carrying ${entity.carrying}`);
   return parts.join(" · ");
 }

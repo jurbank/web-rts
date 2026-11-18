@@ -126,6 +126,13 @@ export function DefinitionPanel(props: { document: Scenario; index: number; edit
         onCommit={(speed) => set({ speed })}
         onClear={() => set({ speed: undefined })}
       />
+      <NumberField
+        label="Sight"
+        value={definition.sight}
+        placeholder="0"
+        onCommit={(sight) => set({ sight })}
+        onClear={() => set({ sight: undefined })}
+      />
       <NumberField label="Cost" value={definition.cost} onCommit={(cost) => set({ cost })} />
       <NumberField
         label="Build time"

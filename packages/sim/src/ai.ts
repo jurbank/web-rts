@@ -1,3 +1,4 @@
+import { scoutingPoint, seesEntity } from "./fog.ts";
 import { researchedOrQueued, type Command } from "./commands.ts";
 import { canUseAbility, isEnemy, nearest } from "./systems.ts";
 import { distance } from "./world.ts";
@@ -41,7 +42,11 @@ export function think(world: World, player: PlayerState): Command[] {
 
   for (const unit of own) {
     if (unit.orders.length > 0 || definition(unit).gatherer === undefined) continue;
-    const node = nearest(world, unit, (other) => other.amount > 0);
+    const node = nearest(
+      world,
+      unit,
+      (other) => other.amount > 0 && seesEntity(world, player.id, other),
+    );
     if (node !== undefined) {
       commands.push({ ...base, type: "gather", unitIds: [unit.id], nodeId: node.id });
     }
@@ -103,7 +108,7 @@ export function think(world: World, player: PlayerState): Command[] {
         world.definitions[id].cost <= budget &&
         unlocked(id),
     );
-    const site = wanted === undefined ? undefined : findSite(world, home, wanted);
+    const site = wanted === undefined ? undefined : findSite(world, home, wanted, player.id);
     if (wanted !== undefined && site !== undefined) {
       commands.push({
         ...base,
@@ -142,7 +147,9 @@ export function think(world: World, player: PlayerState): Command[] {
         world,
         unit,
         (other) =>
-          isEnemy(world, unit, other) && distance(unit, other) - definition(other).radius <= reach,
+          isEnemy(world, unit, other) &&
+          seesEntity(world, player.id, other) &&
+          distance(unit, other) - definition(other).radius <= reach,
       );
       if (target === undefined) continue;
       budget -= ability.cost;
@@ -158,7 +165,11 @@ export function think(world: World, player: PlayerState): Command[] {
       definition(entity).speed !== undefined,
   );
   if (army.length >= settings.attackSize) {
-    const target = nearest(world, army[0], (other) => isEnemy(world, army[0], other));
+    const target = nearest(
+      world,
+      army[0],
+      (other) => isEnemy(world, army[0], other) && seesEntity(world, player.id, other),
+    );
     if (target !== undefined) {
       commands.push({
         ...base,
@@ -166,20 +177,29 @@ export function think(world: World, player: PlayerState): Command[] {
         unitIds: army.map((entity) => entity.id),
         targetId: target.id,
       });
+    } else {
+      const point = scoutingPoint(world, player.team, army[0]);
+      if (point !== undefined)
+        commands.push({ ...base, type: "attack", unitIds: army.map((unit) => unit.id), ...point });
     }
   }
   return commands;
 }
 
 /** The first free spot on rings of growing size around `home`. */
-function findSite(world: World, home: Entity, definitionId: string): Point | undefined {
+function findSite(
+  world: World,
+  home: Entity,
+  definitionId: string,
+  viewer: string,
+): Point | undefined {
   const definition = world.definitions[definitionId];
   const start = definitionOf(world, home).radius + definition.radius + 2;
   for (let ring = start; ring < start + 16; ring += 2) {
     for (const direction of SITE_DIRECTIONS) {
       const x = home.x + direction.x * ring;
       const y = home.y + direction.y * ring;
-      if (canPlace(world, definition, x, y)) return { x, y };
+      if (canPlace(world, definition, x, y, viewer)) return { x, y };
     }
   }
   return undefined;

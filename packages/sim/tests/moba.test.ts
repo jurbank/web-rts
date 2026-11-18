@@ -155,7 +155,7 @@ test("an ability is cast from range, then has to cool down", () => {
   expect(20 - hero.x).toBeCloseTo(6.6, 0);
   expect(hero.abilityCooldowns[0]).toBe(6 * TICK_RATE);
   expect(hero.orders[0]).toEqual({ type: "attack", targetId: BLUE_HERO });
-  expect(takeSnapshot(world).entities[0].abilityCooldowns[0]).toBe(6);
+  expect(takeSnapshot(world).entities[0].abilityCooldowns?.[0]).toBe(6);
 
   run(world, 1, [{ ...cast("bolt", BLUE_HERO), tick: world.tick }]);
   expect(hero.orders[0]).toEqual({ type: "attack", targetId: BLUE_HERO });

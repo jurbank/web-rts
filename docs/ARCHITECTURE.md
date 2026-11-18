@@ -46,7 +46,7 @@ The simulation is a function of its inputs. Given the same scenario, seed, and c
 - **S5.** Iteration order is defined. Systems run in a fixed order and visit entities in id order. Nothing depends on `Map` or `Set` order unless insertion order is itself deterministic.
 - **S6.** `step` is synchronous. No promises, no `await`, no I/O.
 - **S7.** World state is plain data. It serializes to JSON and back without loss, and `sim` can hash it. No class instances holding closures, no references to DOM or renderer objects.
-- **S8.** Output is read only. `sim` exposes snapshots and a per-tick event list (unit died, building finished). Consumers never write to either.
+- **S8.** Output is read only. `sim` exposes snapshots and a per-tick event list (unit died, building finished). Consumers never write to either. In fog-enabled play, each viewer’s snapshot includes only the entities, fields and events that seat may know. A null viewer gets the full spectator view.
 - **S9.** Positions are a ground-plane coordinate plus height from terrain. Tilting the camera or adding real terrain must not change `sim`.
 
 Entity storage is one plain table in id order with systems as functions. Navigation is A* on a grid built from everything that does not move. Pick an ECS library only if profiling shows the need.

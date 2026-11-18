@@ -169,7 +169,7 @@ test("an ability waits for what it requires", () => {
     ];
   });
   const usable = () =>
-    takeSnapshot(world).entities.find((each) => each.id === soldier)!.abilityUsable[0];
+    takeSnapshot(world).entities.find((each) => each.id === soldier)!.abilityUsable?.[0];
   expect(usable()).toBe(false);
   run(world, TICK_RATE + 1, [research("weapons")]);
   expect(usable()).toBe(true);
