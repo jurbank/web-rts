@@ -34,3 +34,13 @@ dist-ssr
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Blender backups, save temporaries, and generated review files
+*.blend[0-9]
+*.blend[0-9][0-9]
+*.blend@
+art/blender/gallery.blend
+art/staging/
+
+# Reference screenshots from other games stay local. ART_DIRECTION.md describes them.
+docs/screen_shots/inspiration/
