@@ -6,7 +6,8 @@ The builder of an asset tends to approve it, so a fresh reviewer judges it. Star
 
 Keep the prompt short. The agent already knows the sheet layout and the questions.
 
-- The paths of the review sheets, `art/staging/renders/structures/<asset-id>-review.png`, rendered with `--with` naming the closest neighbors.
+- The paths of the review sheets, `art/staging/renders/structures/themes/<theme>/<asset-id>-review.png`, rendered with `--with` naming the closest neighbors.
+- The theme, so it reads `docs/themes/<theme>.md`. Review buildings from one theme per call.
 - Each building's role and its export summary line.
 - Deliberate choices it should not reverse, such as avoiding a protected emblem.
 

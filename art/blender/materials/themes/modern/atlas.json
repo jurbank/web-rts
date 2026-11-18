@@ -1,247 +1,236 @@
 {
+  "theme": "modern",
   "width": 4096,
   "height": 2048,
+  "lighting": "day",
+  "glow": null,
   "cards": {
-    "lot_two_bay": {
-      "x": 12,
-      "y": 12,
-      "width": 828,
-      "height": 716,
-      "shows": "Paved forecourt with a crosswalk, drain, and two marked vehicle bays at the street edge"
-    },
     "roof_flat_large": {
-      "x": 864,
+      "x": 12,
       "y": 12,
       "width": 455,
       "height": 455,
       "shows": "Flat membrane roof with seams, two drains, and weathering"
     },
     "roof_flat_small": {
-      "x": 1343,
+      "x": 491,
       "y": 12,
       "width": 299,
       "height": 376,
       "shows": "Smaller flat membrane roof with seams and weathering"
     },
-    "wall_office_entrance": {
-      "x": 12,
-      "y": 752,
-      "width": 460,
-      "height": 276,
-      "shows": "Two-storey concrete front: upper window band, glass lobby doors, side window, address plate"
-    },
-    "wall_office_rear": {
-      "x": 496,
-      "y": 752,
-      "width": 460,
-      "height": 276,
-      "shows": "Two-storey concrete rear: upper windows, service door, louvre"
-    },
-    "wall_office_side": {
-      "x": 980,
-      "y": 752,
-      "width": 455,
-      "height": 276,
-      "shows": "Two-storey concrete side with two rows of windows"
-    },
-    "wall_garage_two_bay": {
-      "x": 1459,
-      "y": 752,
-      "width": 291,
-      "height": 166,
-      "shows": "Single-storey front with two numbered roller doors"
-    },
-    "wall_garage_side": {
-      "x": 12,
-      "y": 1052,
-      "width": 376,
-      "height": 166,
-      "shows": "Single-storey side with high clerestory windows"
-    },
-    "wall_garage_rear": {
-      "x": 412,
-      "y": 1052,
-      "width": 291,
-      "height": 166,
-      "shows": "Single-storey rear with high windows and a service door"
-    },
-    "sign_police_roof": {
-      "x": 727,
-      "y": 1052,
-      "width": 342,
-      "height": 241,
-      "shows": "Rooftop police badge panel reading POLICE, PRECINCT 12"
-    },
-    "wall_metal_band": {
-      "x": 1093,
-      "y": 1052,
-      "width": 256,
-      "height": 54,
-      "shows": "Ribbed metal cladding band for a rooftop room"
-    },
-    "sign_police_fascia": {
-      "x": 1373,
-      "y": 1052,
-      "width": 258,
-      "height": 33,
-      "shows": "Canopy fascia reading POLICE STATION"
-    },
-    "roof_canopy": {
-      "x": 1655,
-      "y": 1052,
-      "width": 258,
-      "height": 85,
-      "shows": "Canopy top with a drip edge"
-    },
-    "hvac_side": {
-      "x": 12,
-      "y": 1317,
-      "width": 134,
-      "height": 45,
-      "shows": "Air handler side with louvres and a service panel"
-    },
-    "hvac_top": {
-      "x": 170,
-      "y": 1317,
-      "width": 134,
-      "height": 109,
-      "shows": "Air handler top with two fans"
-    },
-    "hvac_intake": {
-      "x": 328,
-      "y": 1317,
-      "width": 70,
-      "height": 83,
-      "shows": "Small louvred intake"
+    "apron_paved": {
+      "x": 814,
+      "y": 12,
+      "width": 512,
+      "height": 410,
+      "shows": "Plain paved apron with slab joints, a kerb edge, and stains"
     },
     "concrete": {
-      "x": 422,
-      "y": 1317,
+      "x": 1350,
+      "y": 12,
       "width": 180,
       "height": 125,
       "shows": "Plain weathered concrete"
     },
     "foundation": {
-      "x": 626,
-      "y": 1317,
+      "x": 1554,
+      "y": 12,
       "width": 260,
       "height": 34,
       "shows": "Foundation band with joints and a dirty base"
     },
     "coping": {
-      "x": 910,
-      "y": 1317,
+      "x": 12,
+      "y": 491,
       "width": 242,
       "height": 30,
       "shows": "Parapet coping strip"
     },
     "column": {
-      "x": 1176,
-      "y": 1317,
+      "x": 278,
+      "y": 491,
       "width": 95,
       "height": 95,
       "shows": "Column or pier finish"
     },
-    "metal_blue": {
-      "x": 1295,
-      "y": 1317,
-      "width": 100,
-      "height": 62,
-      "shows": "Painted blue metal"
-    },
     "metal_dark": {
-      "x": 1419,
-      "y": 1317,
+      "x": 397,
+      "y": 491,
       "width": 87,
       "height": 65,
       "shows": "Dark structural metal"
     },
-    "wall_ward_front": {
-      "x": 1530,
-      "y": 1317,
-      "width": 460,
-      "height": 241,
-      "shows": "Two-storey front: continuous upper window band, glazed entrance at the center, small ground-floor windows. Unused"
+    "wall_metal_band": {
+      "x": 508,
+      "y": 491,
+      "width": 256,
+      "height": 54,
+      "shows": "Ribbed metal cladding band for a rooftop room"
     },
-    "apron_paved": {
+    "roof_canopy": {
+      "x": 788,
+      "y": 491,
+      "width": 258,
+      "height": 85,
+      "shows": "Canopy top with a drip edge"
+    },
+    "hvac_side": {
+      "x": 1070,
+      "y": 491,
+      "width": 134,
+      "height": 45,
+      "shows": "Air handler side with louvres and a service panel"
+    },
+    "hvac_top": {
+      "x": 1228,
+      "y": 491,
+      "width": 134,
+      "height": 109,
+      "shows": "Air handler top with two fans"
+    },
+    "hvac_intake": {
+      "x": 1386,
+      "y": 491,
+      "width": 70,
+      "height": 83,
+      "shows": "Small louvred intake"
+    },
+    "lot_two_bay": {
       "x": 12,
-      "y": 1582,
-      "width": 512,
-      "height": 410,
-      "shows": "Plain paved apron with slab joints, a kerb edge, and stains"
+      "y": 624,
+      "width": 828,
+      "height": 716,
+      "shows": "Paved forecourt with a crosswalk, drain, and two marked vehicle bays at the street edge"
+    },
+    "wall_office_entrance": {
+      "x": 864,
+      "y": 624,
+      "width": 460,
+      "height": 276,
+      "shows": "Two-storey concrete front: upper window band, glass lobby doors, side window, address plate"
+    },
+    "wall_office_rear": {
+      "x": 1348,
+      "y": 624,
+      "width": 460,
+      "height": 276,
+      "shows": "Two-storey concrete rear: upper windows, service door, louvre"
+    },
+    "wall_office_side": {
+      "x": 12,
+      "y": 1364,
+      "width": 455,
+      "height": 276,
+      "shows": "Two-storey concrete side with two rows of windows"
+    },
+    "wall_garage_two_bay": {
+      "x": 491,
+      "y": 1364,
+      "width": 291,
+      "height": 166,
+      "shows": "Single-storey front with two numbered roller doors"
+    },
+    "wall_garage_side": {
+      "x": 806,
+      "y": 1364,
+      "width": 376,
+      "height": 166,
+      "shows": "Single-storey side with high clerestory windows"
+    },
+    "wall_garage_rear": {
+      "x": 1206,
+      "y": 1364,
+      "width": 291,
+      "height": 166,
+      "shows": "Single-storey rear with high windows and a service door"
+    },
+    "sign_police_roof": {
+      "x": 1521,
+      "y": 1364,
+      "width": 342,
+      "height": 241,
+      "shows": "Rooftop police badge panel reading POLICE, PRECINCT 12"
+    },
+    "sign_police_fascia": {
+      "x": 12,
+      "y": 1664,
+      "width": 258,
+      "height": 33,
+      "shows": "Canopy fascia reading POLICE STATION"
+    },
+    "metal_blue": {
+      "x": 294,
+      "y": 1664,
+      "width": 100,
+      "height": 62,
+      "shows": "Painted blue metal"
     },
     "sign_hospital_roof": {
-      "x": 548,
-      "y": 1582,
+      "x": 418,
+      "y": 1664,
       "width": 256,
       "height": 250,
       "shows": "Hospital rooftop helipad: a red H inside a white ring on a light panel"
     },
     "sign_hospital_fascia": {
-      "x": 828,
-      "y": 1582,
+      "x": 698,
+      "y": 1664,
       "width": 258,
       "height": 24,
       "shows": "Muted red canopy fascia reading EMERGENCY"
     },
-    "roof_barrel_seam": {
-      "x": 1110,
-      "y": 1582,
-      "width": 300,
-      "height": 300,
-      "shows": "Army olive corrugated metal for curved hut roofs, with five broad ribs across the curve"
-    },
-    "gable_steel_louvre": {
-      "x": 1434,
-      "y": 1582,
-      "width": 350,
-      "height": 100,
-      "shows": "Ribbed steel gable cladding with a louvre in the lower middle. Unused"
-    },
     "marking_ambulance_bays": {
-      "x": 1808,
-      "y": 1582,
+      "x": 980,
+      "y": 1664,
       "width": 228,
       "height": 80,
       "shows": "Paving decal with two outlined ambulance bays and a hatched kerb strip"
     },
     "wall_ward_slab": {
-      "x": 2060,
-      "y": 12,
+      "x": 1232,
+      "y": 1664,
       "width": 440,
       "height": 278,
       "shows": "Three-storey hospital ward slab: continuous window bands and a red stair-core stripe left of center"
     },
     "wall_ward_slab_end": {
-      "x": 2524,
-      "y": 12,
+      "x": 1696,
+      "y": 1664,
       "width": 150,
       "height": 278,
       "shows": "Narrow three-storey end wall with one small window per floor"
     },
     "wall_podium_entrance": {
-      "x": 2698,
+      "x": 2060,
       "y": 12,
       "width": 320,
       "height": 89,
       "shows": "Single-storey hospital podium front: red cornice band, glazed entrance left of center, windows to the right"
     },
+    "roof_barrel_seam": {
+      "x": 2404,
+      "y": 12,
+      "width": 300,
+      "height": 300,
+      "shows": "Army olive corrugated metal for curved hut roofs, with five broad ribs across the curve"
+    },
     "gable_quonset_end": {
-      "x": 3042,
+      "x": 2728,
       "y": 12,
       "width": 220,
       "height": 110,
       "shows": "Olive end wall of a half-round hut: centered personnel door, two small windows, stencilled number"
     },
     "marking_muster_yard": {
-      "x": 3286,
+      "x": 2972,
       "y": 12,
       "width": 360,
       "height": 100,
       "shows": "Paving decal for a muster yard: painted border, rows of formation marks, a walkway"
     },
     "flag_army": {
-      "x": 3670,
+      "x": 3356,
       "y": 12,
       "width": 94,
       "height": 60,

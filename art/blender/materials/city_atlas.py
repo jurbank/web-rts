@@ -1,20 +1,22 @@
-"""Paint the shared city texture atlas and its card map.
+"""Paint each theme's texture atlas, glow map, and card map.
 
 Run from the repo root:
 
     uv run --with pillow python art/blender/materials/city_atlas.py
 
-Each card is a painted surface that structures map faces onto. Reuse cards
-before adding one. Add new cards at the end of the last page and never resize,
-reorder, or remove an existing card: positions come from packing in order, so
-either moves cards that shipped models already point at. When the last page is
-full, start a new page. Pages sit side by side, each 2048 pixels square, so a
-new page widens the atlas and existing cards keep their pixels. Models mapped
-with atlas_cards.py pick up the new width when mapped again. Scale the U of any
-model mapped by hand.
+Each card is a painted surface that structures map faces onto. CARDS defines
+every card once. BASE lists the theme-neutral cards that every theme's atlas
+carries, and THEMES lists each theme's own cards and tool settings. Each theme
+gets art/blender/materials/themes/<theme>/atlas.jpg and atlas.json, plus
+atlas-glow.jpg when the theme glows. Cards pack in list order onto 2048-pixel
+pages laid side by side.
+
+Cards may move when lists change. Structures mapped with atlas_cards.py record
+which card each face uses, so atlas_cards.refresh() fits them again. Reuse cards
+before adding one, and remove a card only when no source uses it.
 
 Pillow is used because the signs need real font rendering. Only this script
-needs it, and only when the atlas changes.
+needs it, and only when an atlas changes.
 """
 import json
 import math
@@ -29,7 +31,7 @@ PAD = 12
 CONCRETE = (153, 149, 138)
 
 # name: ((width, height) in pixels, base color, what it shows)
-PAGES = [{
+CARDS = {
     'lot_two_bay': ((828, 716), (112, 111, 104), 'Paved forecourt with a crosswalk, drain, and two marked vehicle bays at the street edge'),
     'roof_flat_large': ((455, 455), (93, 101, 105), 'Flat membrane roof with seams, two drains, and weathering'),
     'roof_flat_small': ((299, 376), (95, 106, 108), 'Smaller flat membrane roof with seams and weathering'),
@@ -52,35 +54,54 @@ PAGES = [{
     'column': ((95, 95), (128, 133, 130), 'Column or pier finish'),
     'metal_blue': ((100, 62), (62, 81, 97), 'Painted blue metal'),
     'metal_dark': ((87, 65), (78, 86, 89), 'Dark structural metal'),
-    'wall_ward_front': ((460, 241), CONCRETE, 'Two-storey front: continuous upper window band, glazed entrance at the center, small ground-floor windows. Unused'),
     'apron_paved': ((512, 410), (112, 111, 104), 'Plain paved apron with slab joints, a kerb edge, and stains'),
     'sign_hospital_roof': ((256, 250), (150, 152, 146), 'Hospital rooftop helipad: a red H inside a white ring on a light panel'),
     'sign_hospital_fascia': ((258, 24), (128, 50, 45), 'Muted red canopy fascia reading EMERGENCY'),
     'roof_barrel_seam': ((300, 300), (80, 84, 66), 'Army olive corrugated metal for curved hut roofs, with five broad ribs across the curve'),
-    'gable_steel_louvre': ((350, 100), (90, 99, 97), 'Ribbed steel gable cladding with a louvre in the lower middle. Unused'),
     'marking_ambulance_bays': ((228, 80), (112, 111, 104), 'Paving decal with two outlined ambulance bays and a hatched kerb strip'),
-}, {
     'wall_ward_slab': ((440, 278), CONCRETE, 'Three-storey hospital ward slab: continuous window bands and a red stair-core stripe left of center'),
     'wall_ward_slab_end': ((150, 278), CONCRETE, 'Narrow three-storey end wall with one small window per floor'),
     'wall_podium_entrance': ((320, 89), CONCRETE, 'Single-storey hospital podium front: red cornice band, glazed entrance left of center, windows to the right'),
     'gable_quonset_end': ((220, 110), (80, 84, 68), 'Olive end wall of a half-round hut: centered personnel door, two small windows, stencilled number'),
     'marking_muster_yard': ((360, 100), (112, 111, 104), 'Paving decal for a muster yard: painted border, rows of formation marks, a walkway'),
     'flag_army': ((94, 60), (84, 96, 62), 'Olive flag with a cream star'),
-}]
-CARDS = {name: card for page in PAGES for name, card in page.items()}
+    'cyber_hospital_ward': ((420, 330), (77, 83, 89), 'Dark ward curtain wall with steel mullions, lit rooms, and glowing red light bands'),
+    'cyber_hospital_lobby': ((412, 115), (82, 87, 90), 'Trauma center entry with glazed doors, a glowing red light band, and metal panels'),
+    'cyber_hospital_pad': ((352, 352), (72, 76, 81), 'Air ambulance deck with a large cream H, glowing red edge lamps, and approach stripes'),
+    'cyber_clinic_street': ((480, 140), (58, 61, 66), 'Clinic street front: shuttered pharmacy counter under a small green cross, glazed clinic door, two hazard-framed ambulance bay roller doors'),
+    'cyber_clinic_tower': ((440, 176), (60, 63, 68), 'Two clinic floors of dark window tiles in recessed channels, a few lit cyan tiles, a stained teal panel field with a small cyan screen at the right'),
+    'cyber_clinic_upper': ((300, 170), (60, 63, 68), 'Upper clinic floor: dark window grid with two lit cyan tiles, ochre and black panel field with a large painted 07 at the right'),
+    'cyber_wall_channels': ((300, 170), (57, 60, 65), 'Charcoal concrete side or rear wall with recessed vertical channels, small dark windows, a pipe run, and rust streaks'),
+    'cyber_lift_shaft': ((72, 420), (54, 58, 64), 'Exterior lift shaft: steel frame with cross bracing, a glazed slot, and a cyan-lit cab near the top'),
+    'cyber_sign_pharmacy': ((80, 450), (34, 38, 44), 'Vertical sign blade: glowing green pharmacy cross at the top, CLINIC in glowing cyan letters down the strip'),
+    'cyber_landing_deck': ((300, 280), (62, 66, 72), 'Landing deck seen from above: steel plates, hazard ochre edge band with cyan lamps, a teal ring around a large cream cross'),
+    'cyber_canopy_fascia': ((256, 22), (40, 44, 50), 'Canopy fascia reading AMBULANCE over a glowing cyan strip'),
+    'cyber_apron_bays': ((560, 448), (38, 41, 45), 'Wet asphalt lot: two ochre ambulance bays front center, a pedestrian crossing at the left, a hatched service yard at the right, puddles'),
+    'cyber_roof_tar': ((300, 300), (50, 54, 58), 'Dark wet roof membrane with patched panels, seams, puddles with a pale sheen, rust, and stains'),
+    'cyber_trim_cyan': ((256, 20), (44, 48, 54), 'Dark steel edge trim with a thin glowing cyan lamp line'),
+    'cyber_metal_rust': ((128, 96), (84, 66, 52), 'Rusted brown sheet metal with ribs and streaks'),
+    'cyber_lamp': ((48, 48), (40, 44, 50), 'Lamp head: dark housing around a glowing cyan lens'),
+}
 
-REGIONS = {}
-for number, page in enumerate(PAGES):
-    x, y, row = PAD, PAD, 0
-    for name, ((w, h), _, _) in page.items():
-        if x + w + PAD > PAGE:
-            x, y, row = PAD, y + row + 2 * PAD, 0
-        assert y + h + PAD <= PAGE, f'{name} does not fit on page {number + 1}. Start a new page.'
-        REGIONS[name] = (number * PAGE + x, y)
-        x += w + 2 * PAD
-        row = max(row, h)
+# Theme-neutral cards in every theme's atlas.
+BASE = ['roof_flat_large', 'roof_flat_small', 'apron_paved', 'concrete', 'foundation', 'coping', 'column',
+        'metal_dark', 'wall_metal_band', 'roof_canopy', 'hvac_side', 'hvac_top', 'hvac_intake']
 
-atlas = Image.new('RGB', (PAGE * len(PAGES), PAGE), (86, 91, 89))
+# lighting: the review render preset. glow: whether the theme paints a glow map.
+THEMES = {
+    'modern': {'lighting': 'day', 'glow': False, 'cards': [
+        'lot_two_bay', 'wall_office_entrance', 'wall_office_rear', 'wall_office_side', 'wall_garage_two_bay',
+        'wall_garage_side', 'wall_garage_rear', 'sign_police_roof', 'sign_police_fascia', 'metal_blue',
+        'sign_hospital_roof', 'sign_hospital_fascia', 'marking_ambulance_bays', 'wall_ward_slab',
+        'wall_ward_slab_end', 'wall_podium_entrance', 'roof_barrel_seam', 'gable_quonset_end',
+        'marking_muster_yard', 'flag_army']},
+    'cyberpunk': {'lighting': 'night', 'glow': True, 'cards': [
+        'cyber_hospital_ward', 'cyber_hospital_lobby', 'cyber_hospital_pad',
+        'cyber_apron_bays', 'cyber_clinic_street', 'cyber_clinic_tower', 'cyber_clinic_upper', 'cyber_landing_deck',
+        'cyber_roof_tar', 'cyber_wall_channels', 'cyber_lift_shaft', 'cyber_sign_pharmacy', 'cyber_metal_rust',
+        'cyber_canopy_fascia', 'cyber_trim_cyan', 'cyber_lamp']},
+}
+
 resample = Image.Resampling.BICUBIC
 
 
@@ -145,12 +166,93 @@ def seams(d,w,h,spacing,lower):
         d.line((0,y,w,y),fill=(107,105,99),width=2)
         d.line((0,y+2,w,y+2),fill=(173,168,153),width=1)
 
+# Cyberpunk glow colors from docs/themes/cyberpunk.md, and the paint they show by day.
+CYAN, CYAN_PAINT = (53,214,224), (128,190,196)
+GREEN, GREEN_PAINT = (126,224,90), (128,176,104)
+OCHRE = (140,122,58)
+
+def rust(im, count, top=0):
+    """Rust streaks running down from rows near `top`."""
+    w,h=im.size
+    mask=Image.new('L',im.size)
+    d=ImageDraw.Draw(mask)
+    for _ in range(count):
+        x=rng.randrange(w)
+        y=top+rng.randrange(max(1,h//4))
+        d.line((x,y,x+rng.randrange(-2,3),y+rng.randrange(8,max(9,h//2))),fill=rng.randint(80,170),width=rng.randint(1,4))
+    im.paste((104,68,42),(0,0),mask.filter(ImageFilter.GaussianBlur(1.5)))
+
+def patches(im, count, region=None, sheen=False):
+    """Patched panels and wet stains. `sheen` adds pale reflections for wet roofs."""
+    w,h=im.size
+    x0,y0,x1,y1=region or (0,0,w,h)
+    d=ImageDraw.Draw(im)
+    for _ in range(count):
+        pw,ph=rng.randrange(18,60),rng.randrange(14,44)
+        x,y=rng.randrange(x0,max(x0+1,x1-pw)),rng.randrange(y0,max(y0+1,y1-ph))
+        tone=rng.choice([(72,76,80),(48,51,55),(66,62,56),(52,64,66)])
+        d.rectangle((x,y,x+pw,y+ph),fill=tone,outline=(34,36,40))
+        for bx,by in ((x+3,y+3),(x+pw-3,y+3),(x+3,y+ph-3),(x+pw-3,y+ph-3)):
+            d.point((bx,by),fill=(110,112,112))
+    mask=Image.new('L',im.size)
+    md=ImageDraw.Draw(mask)
+    for _ in range(count):
+        x,y=rng.randrange(w),rng.randrange(h)
+        md.ellipse((x-rng.randrange(8,30),y-rng.randrange(6,20),x+rng.randrange(8,30),y+rng.randrange(6,20)),fill=rng.randint(60,140))
+    im.paste((26,28,31),(0,0),mask.filter(ImageFilter.GaussianBlur(5)))
+    if sheen:
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for _ in range(count):
+            x,y=rng.randrange(w),rng.randrange(h)
+            md.line((x,y,x+rng.randrange(20,70),y+rng.randrange(-6,7)),fill=rng.randint(60,130),width=rng.randint(2,5))
+        im.paste((112,128,142),(0,0),mask.filter(ImageFilter.GaussianBlur(2)))
+
+def channels(d, h, xs, top=0):
+    """Recessed vertical channels in steel cladding."""
+    for x in xs:
+        d.rectangle((x-3,top,x+3,h),fill=(36,39,44))
+        d.line((x+4,top,x+4,h),fill=(84,88,93))
+
+def tiles(d, gd, x0, y0, cols, rows, size, gap, lit=()):
+    """Dark glass tiles, with the (col, row) pairs in `lit` glowing pale cyan."""
+    for row in range(rows):
+        for col in range(cols):
+            x,y=x0+col*(size[0]+gap),y0+row*(size[1]+gap)
+            box=(x,y,x+size[0]-1,y+size[1]-1)
+            if (col,row) in lit:
+                d.rectangle(box,fill=CYAN_PAINT)
+                gd.rectangle((x+1,y+1,x+size[0]-2,y+size[1]-2),fill=(150,226,230))
+            else:
+                d.rectangle(box,fill=(29,35,41))
+                d.line((x+1,y+1,x+size[0]-3,y+1),fill=(58,70,78))
+
+def shutter(d, x0, y0, x1, y1, up=0):
+    """A roller shutter, raised by `up` pixels."""
+    d.rectangle((x0,y0,x1,y1),fill=(30,33,37))
+    for y in range(y0+up,y1,5):
+        d.line((x0,y,x1,y),fill=(78,82,86))
+        d.line((x0,y+1,x1,y+1),fill=(58,62,66))
+
+def hazard(im, x0, y0, x1, y1, step=10):
+    """Ochre and black diagonal stripes filling a box."""
+    w,h=x1-x0+1,y1-y0+1
+    band=Image.new('RGB',(w,h),OCHRE)
+    bd=ImageDraw.Draw(band)
+    for x in range(-h,w+h,step):
+        bd.polygon([(x,h),(x+step//2,h),(x+step//2+h,0),(x+h,0)],fill=(26,26,24))
+    im.paste(band,(x0,y0))
+
+painted = {}
 for card, (size, base, _) in CARDS.items():
     # Each card seeds its own noise, so adding a card never repaints the others.
     rng = random.Random(card)
+    # Glow is painted beside the color, black where nothing glows.
+    glow=Image.new('RGB',size,(0,0,0))
+    gd=ImageDraw.Draw(glow)
     w,h=size
     is_wall=card.startswith(('wall_office_', 'wall_garage_', 'wall_ward_'))
-    broad={'roof_flat_large','lot_two_bay','roof_flat_small','apron_paved'}
+    broad={'roof_flat_large','lot_two_bay','roof_flat_small','apron_paved','cyber_apron_bays','cyber_roof_tar'}
     im=field(size,base,16 if card in broad else 8,4,12)
     d=ImageDraw.Draw(im)
 
@@ -159,8 +261,6 @@ for card, (size, base, _) in CARDS.items():
             lower=[78,164,h-17]
         elif card.startswith('wall_ward_slab'):
             lower=[h//3,2*h//3,h-17]
-        elif card.startswith('wall_ward_'):
-            lower=[h*47//100,h-17]
         else:
             lower=[37,h-16]
         seams(d,w,h,76,lower)
@@ -331,16 +431,6 @@ for card, (size, base, _) in CARDS.items():
                 d.line((x,3,x,h-3),fill=tuple(max(0,c-19) for c in base))
         grime(im,[(0,h-9,w,h,45)],7)
 
-    if card == 'wall_ward_front':
-        # The upper band spans the ward floor. The entrance sits at the center under a canopy.
-        d.rectangle((14,34,446,100),fill=(109,113,109))
-        for a,b in [(20,160),(166,300),(306,440)]:
-            glass(d,a,40,b,94,4)
-        d.rectangle((128,146,300,236),fill=(117,120,113))
-        glass(d,138,156,290,234,4,True)
-        for x0 in (24,356):
-            glass(d,x0,160,x0+80,200,2)
-        grime(im,[(12,98,446,108,48),(126,142,300,150,50),(0,0,w,7,47),(24,202,104,210,46),(356,202,436,210,46)],85)
 
     if card == 'apron_paved':
         for x in range(0,w,128):
@@ -380,14 +470,6 @@ for card, (size, base, _) in CARDS.items():
         d.polygon(star,fill=(150,148,118))
         grime(im,[(0,0,w,8,40),(0,h-8,w,h,40)],40)
 
-    if card == 'gable_steel_louvre':
-        for x in range(4,w,10):
-            d.line((x,0,x,h),fill=(74,82,80))
-            d.line((x+1,0,x+1,h),fill=(118,126,122))
-        d.rectangle((83,51,267,88),fill=(48,55,56))
-        for y in range(55,86,6):
-            d.rectangle((86,y,264,y+2),fill=(128,136,131))
-        grime(im,[(83,86,267,96,50),(0,h-6,w,h,45)],20)
 
     if card == 'marking_ambulance_bays':
         yellow=(171,158,104)
@@ -456,6 +538,269 @@ for card, (size, base, _) in CARDS.items():
             star.append((47+radius*math.cos(angle),31+radius*math.sin(angle)))
         d.polygon(star,fill=(214,206,170))
 
+    if card == 'cyber_hospital_ward':
+        for i, y in enumerate((26, 121, 216)):
+            d.rectangle((12,y,w-13,y+68),fill=(38,44,48))
+            for j, x in enumerate(range(21,w-44,56)):
+                glass(d,x,y+10,x+42,y+53,2)
+                if (i+j*2)%5 == 0:
+                    d.rectangle((x+7,y+19,x+19,y+45),fill=(147,129,108))
+                    gd.rectangle((x+7,y+19,x+19,y+45),fill=(150,118,84))
+                    d.line((x+7,y+35,x+19,y+35),fill=(100,89,81),width=3)
+                else:
+                    d.line((x+7,y+19,x+35,y+19),fill=(113,143,149),width=3)
+            d.line((14,y+70,w-15,y+70),fill=(114,118,119),width=2)
+            d.rectangle((16,y+76,w-17,y+77),fill=(51,55,58))
+        for x in (12,w-21):
+            d.rectangle((x,12,x+8,h-13),fill=(54,55,59))
+            d.rectangle((x+2,24,x+6,h-25),fill=(171,84,78))
+            gd.rectangle((x+2,24,x+6,h-25),fill=(255,96,84))
+        d.rectangle((112,11,307,23),fill=(50,54,61))
+        text(d,(w//2,16),'TRAUMA WARDS / 07',11,(190,181,167),True)
+        grime(im,[(0,h-24,w,h,60),(0,0,w,7,47)],32)
+
+    if card == 'cyber_hospital_lobby':
+        for x in range(5,w,49):
+            d.line((x,28,x,h),fill=(52,56,61),width=2)
+        d.rectangle((6,6,w-7,31),fill=(71,44,46))
+        d.line((8,31,w-9,31),fill=(176,94,82),width=3)
+        gd.line((8,31,w-9,31),fill=(255,96,84),width=3)
+        glass(d,29,44,134,92,3)
+        glass(d,148,42,265,113,4,True)
+        glass(d,281,44,382,92,3)
+        grime(im,[(0,h-8,w,h,45),(5,34,w-6,40,37)],18)
+
+    if card == 'cyber_hospital_pad':
+        ink=(198,193,175)
+        for x in (36,104,246,314):
+            d.line((x,12,x,h-13),fill=(56,60,66),width=2)
+            d.line((x+2,12,x+2,h-13),fill=(85,89,91))
+        for y in (46,146,213,305):
+            d.line((12,y,w-13,y),fill=(57,61,67),width=2)
+        d.rounded_rectangle((11,11,w-12,h-12),radius=18,outline=(132,68,67),width=6)
+        d.ellipse((51,51,w-52,h-52),outline=ink,width=8)
+        text(d,(w//2,h//2),'H',168,ink,True)
+        text(d,(w//2,37),'AIR AMBULANCE',21,(186,178,164),True)
+        for x in (21,w-22):
+            for y in range(35,h-25,56):
+                d.rounded_rectangle((x-5,y-7,x+5,y+7),radius=3,fill=(206,115,101))
+                gd.rounded_rectangle((x-5,y-7,x+5,y+7),radius=3,fill=(255,110,96))
+        for x in range(116,236,24):
+            d.line((x,h-36,x+10,h-24),fill=(165,143,108),width=4)
+        grime(im,[(0,0,w,9,43),(0,h-12,w,h,48),(42,260,309,287,35)],28)
+
+    if card == 'cyber_clinic_street':
+        # Spans the podium front from X=-2.4 to 1.0, about 141 pixels per unit.
+        d.rectangle((0,0,w,12),fill=(44,47,52))
+        d.line((0,13,w,13),fill=(86,90,95),width=2)
+        channels(d,h,(104,224,232,424),14)
+        d.rectangle((0,h-9,w,h),fill=(46,48,50))
+        # Pharmacy counter: shutter part raised over a lit counter, a small green cross above.
+        d.rectangle((12,46,94,h-9),fill=(70,74,80))
+        d.rectangle((16,50,90,80),fill=(29,35,41))
+        d.rectangle((20,60,86,72),fill=CYAN_PAINT)
+        gd.rectangle((20,60,86,72),fill=(120,200,206))
+        shutter(d,16,80,90,h-10)
+        d.rectangle((41,20,65,42),fill=(28,30,34))
+        d.rectangle((50,23,56,39),fill=GREEN_PAINT)
+        d.rectangle((44,28,62,34),fill=GREEN_PAINT)
+        gd.rectangle((50,23,56,39),fill=GREEN)
+        gd.rectangle((44,28,62,34),fill=GREEN)
+        # Clinic door with a lit hall behind dark glass.
+        d.rectangle((118,36,206,h-9),fill=(72,76,82))
+        d.rectangle((123,41,201,h-9),fill=(29,35,41))
+        d.rectangle((127,62,197,76),fill=CYAN_PAINT)
+        gd.rectangle((127,62,197,76),fill=(110,190,196))
+        for x in (149,162,175):
+            d.line((x,41,x,h-9),fill=(70,74,80),width=3)
+        text(d,(162,25),'CLINIC 24',15,(196,192,178),True)
+        # Ambulance bays: two roller doors in hazard frames.
+        for x0,x1 in ((258,330),(334,406)):
+            hazard(im,x0,34,x1,h-9,12)
+            shutter(d,x0+7,41,x1-7,h-9)
+        d.rectangle((328,34,336,h-9),fill=(44,47,52))
+        patches(im,5,(410,14,470,h-10))
+        rust(im,60,14)
+        grime(im,[(0,h-14,w,h,70),(0,14,w,22,50)],18)
+
+    if card == 'cyber_clinic_tower':
+        # Spans X=-2.2 to 0.8. The sign blade covers the first 70 pixels.
+        d.rectangle((0,0,w,7),fill=(42,45,50))
+        channels(d,h,(36,72,306),8)
+        for top in (20,98):
+            d.rectangle((78,top-6,302,top+52),fill=(42,46,52))
+            tiles(d,gd,84,top,8,1,(22,46),5,lit={(2,0),(6,0)} if top == 20 else {(4,0)})
+        d.rectangle((78,82,302,88),fill=(70,74,80))
+        # Stained teal panel field with a small screen.
+        d.rectangle((314,14,430,166),fill=(47,74,76))
+        for y in (62,114):
+            d.line((314,y,430,y),fill=(36,56,58),width=2)
+        d.line((372,14,372,166),fill=(36,56,58),width=2)
+        d.rectangle((326,24,418,54),fill=(20,26,30))
+        for i,(x,length) in enumerate([(332,30),(332,52),(332,40),(332,64)]):
+            y=29+i*6
+            d.line((x,y,x+length,y),fill=CYAN_PAINT,width=3)
+            gd.line((x,y,x+length,y),fill=CYAN,width=3)
+        text(d,(372,140),'MED 7',30,(176,184,170),True)
+        patches(im,6,(0,8,78,h))
+        rust(im,80,6)
+        grime(im,[(0,h-10,w,h,60),(0,0,w,8,40)],24)
+
+    if card == 'cyber_clinic_upper':
+        # Spans X=-1.85 to 0.15, about 150 pixels per unit.
+        d.rectangle((0,0,w,8),fill=(42,45,50))
+        patches(im,7,(0,10,190,h))
+        channels(d,h,(10,184),9)
+        for top in (30,98):
+            d.rectangle((18,top-5,176,top+44),fill=(42,46,52))
+        tiles(d,gd,22,30,7,1,(18,38),4,lit={(1,0)})
+        tiles(d,gd,22,98,7,1,(18,38),4,lit={(5,0)})
+        # Ochre panel field, under a third of the face, with a painted block number.
+        d.rectangle((196,12,292,160),fill=OCHRE)
+        for y in (60,108):
+            d.line((196,y,292,y),fill=(110,96,46),width=2)
+        text(d,(244,72),'07',86,(30,30,28),True)
+        hazard(im,196,134,292,160,14)
+        rust(im,60,8)
+        grime(im,[(0,h-10,w,h,60),(196,12,292,20,40)],26)
+
+    if card == 'cyber_wall_channels':
+        d.rectangle((0,0,w,7),fill=(42,45,50))
+        channels(d,h,range(24,w,50),8)
+        for top in (34,104):
+            tiles(d,gd,34,top,5,1,(18,30),32)
+        d.rectangle((270,0,282,h),fill=(84,66,52))
+        d.line((271,0,271,h),fill=(118,94,74))
+        for y in (30,90,150):
+            d.rectangle((266,y,286,y+5),fill=(60,48,40))
+        patches(im,8)
+        rust(im,90,6)
+        grime(im,[(0,h-12,w,h,60)],30)
+
+    if card == 'cyber_lift_shaft':
+        # Spans Z=0 to 3.0, 140 pixels per unit. The cab sits at deck level.
+        d.rectangle((0,0,10,h),fill=(74,79,85))
+        d.rectangle((w-11,0,w,h),fill=(74,79,85))
+        d.rectangle((15,8,w-16,h-24),fill=(29,35,41))
+        for y in range(8,h-90,70):
+            d.line((15,y,w-16,y+70),fill=(66,70,76),width=3)
+            d.line((w-16,y,15,y+70),fill=(66,70,76),width=3)
+        for y in (98,280):
+            d.rectangle((0,y,w,y+7),fill=(84,88,93))
+        d.rectangle((18,50,w-19,86),fill=CYAN_PAINT)
+        gd.rectangle((20,52,w-21,84),fill=(130,220,226))
+        d.line((18,68,w-19,68),fill=(60,70,76),width=2)
+        gd.ellipse((32,12,40,20),fill=CYAN)
+        d.ellipse((32,12,40,20),fill=CYAN_PAINT)
+        hazard(im,0,h-24,w-1,h-1,10)
+        rust(im,10,0)
+
+    if card == 'cyber_sign_pharmacy':
+        d.rectangle((0,0,w-1,h-1),outline=(70,74,80),width=4)
+        d.rectangle((10,10,w-11,84),fill=(22,26,30))
+        cx,cy=w//2,47
+        for box in ((cx-11,cy-31,cx+11,cy+31),(cx-31,cy-11,cx+31,cy+11)):
+            d.rectangle(box,fill=GREEN_PAINT)
+            gd.rectangle(box,fill=GREEN)
+        d.line((8,94,w-9,94),fill=(70,74,80),width=3)
+        for i,letter in enumerate('CLINIC'):
+            y=128+i*56
+            text(d,(cx,y),letter,56,CYAN_PAINT,True)
+            text(gd,(cx,y),letter,56,CYAN,True)
+        grime(im,[(0,h-10,w,h,40)],8)
+
+    if card == 'cyber_landing_deck':
+        # Seen from above. The top rows are the back of the deck, the bottom rows the front.
+        for x in range(0,w,40):
+            d.line((x,0,x,h),fill=(48,52,58),width=2)
+        for y in range(0,h,40):
+            d.line((0,y,w,y),fill=(48,52,58),width=2)
+        band=16
+        hazard(im,0,0,w-1,band,14)
+        hazard(im,0,h-band-1,w-1,h-1,14)
+        side=Image.new('RGB',(band,h),OCHRE)
+        sd=ImageDraw.Draw(side)
+        for y in range(-band,h,14):
+            sd.polygon([(0,y),(0,y+7),(band,y+7+band),(band,y+band)],fill=(26,26,24))
+        im.paste(side,(0,0))
+        im.paste(side,(w-band,0))
+        # Lamps at the corners and mid-edges only, so the ring doesn't read as a selection marker.
+        lamps=[(x,y) for x in (9,w//2,w-10) for y in (9,h-10)]+[(x,h//2) for x in (9,w-10)]
+        for x,y in lamps:
+            d.rounded_rectangle((x-5,y-5,x+5,y+5),radius=3,fill=(150,210,214))
+            gd.rounded_rectangle((x-5,y-5,x+5,y+5),radius=3,fill=CYAN)
+        cx,cy=w//2,h//2+8
+        d.ellipse((cx-96,cy-96,cx+96,cy+96),outline=(62,112,112),width=12)
+        cream=(222,216,194)
+        d.rectangle((cx-22,cy-68,cx+22,cy+68),fill=cream)
+        d.rectangle((cx-68,cy-22,cx+68,cy+22),fill=cream)
+        text(d,(cx,32),'DECK 2',18,(170,168,154),True)
+        grime(im,[(0,0,w,band+4,30),(band,band,w-band,h-band,22)],30)
+
+    if card == 'cyber_canopy_fascia':
+        d.rectangle((0,0,w,2),fill=(150,156,160))
+        text(d,(w//2,10),'AMBULANCE',17,(214,210,194),True)
+        d.rectangle((2,h-6,w-3,h-2),fill=CYAN_PAINT)
+        gd.rectangle((2,h-6,w-3,h-2),fill=CYAN)
+
+    if card == 'cyber_apron_bays':
+        # Seen from above, 112 pixels per unit: column = (X + 2.5) * 112, row = (2 - Y) * 112.
+        d.rectangle((0,0,w-1,h-1),outline=(70,72,74),width=6)
+        for x0,x1,label in ((210,272,'1'),(278,340,'2')):
+            d.rectangle((x0,308,x1,436),outline=OCHRE,width=4)
+            for y in (384,400):
+                d.line((x0+12,y+12,(x0+x1)//2,y,x1-12,y+12),fill=(118,104,52),width=4)
+            text(d,((x0+x1)//2,422),label,22,(168,164,148),True)
+        for x in range(26,184,18):
+            d.rectangle((x,380,x+8,432),fill=(104,106,104))
+        yard=im.crop((428,124,545,421))
+        yd=ImageDraw.Draw(yard)
+        for x in range(-300,120,22):
+            yd.line((x,297,x+297,0),fill=(96,86,46),width=3)
+        im.paste(yard,(428,124))
+        d.rectangle((424,120,548,424),outline=OCHRE,width=4)
+        for _ in range(7):
+            x,y=rng.randrange(20,w-60),rng.randrange(300,h-30)
+            rx,ry=rng.randrange(14,34),rng.randrange(6,14)
+            d.ellipse((x-rx,y-ry,x+rx,y+ry),fill=(46,52,60))
+            d.arc((x-rx+3,y-ry+2,x+rx-3,y+ry-2),200,330,fill=(112,126,140),width=3)
+        grime(im,[(200,300,350,440,30)],40)
+
+    if card == 'cyber_roof_tar':
+        for y in range(0,h,60):
+            d.line((0,y,w,y),fill=(40,43,47),width=3)
+        for x in range(0,w,75):
+            d.line((x,0,x,h),fill=(42,45,49),width=2)
+        for _ in range(6):
+            x,y=rng.randrange(10,w-80),rng.randrange(10,h-60)
+            shade=rng.randrange(44,62)
+            d.rectangle((x,y,x+rng.randrange(30,70),y+rng.randrange(20,50)),fill=(shade,shade+3,shade+6),outline=(36,38,42))
+        for _ in range(5):
+            x,y=rng.randrange(20,w-40),rng.randrange(20,h-30)
+            d.ellipse((x-22,y-9,x+22,y+9),fill=(32,36,41))
+            d.arc((x-22,y-9,x+22,y+9),200,320,fill=(78,88,98),width=2)
+        patches(im,10,sheen=True)
+        rust(im,30,0)
+        grime(im,[(0,0,w,10,40),(0,h-10,w,h,40),(0,0,10,h,40),(w-10,0,w,h,40)],30)
+
+    if card == 'cyber_trim_cyan':
+        d.line((0,1,w,1),fill=(84,88,94),width=2)
+        d.rectangle((0,8,w,12),fill=CYAN_PAINT)
+        gd.rectangle((0,8,w,12),fill=CYAN)
+        d.line((0,h-2,w,h-2),fill=(28,30,34),width=2)
+
+    if card == 'cyber_metal_rust':
+        for x in range(4,w,12):
+            d.line((x,0,x,h),fill=(64,50,40),width=2)
+            d.line((x+2,0,x+2,h),fill=(110,88,70))
+        rust(im,24,0)
+        grime(im,[(0,h-8,w,h,50)],10)
+
+    if card == 'cyber_lamp':
+        d.rectangle((2,2,w-3,h-3),outline=(74,79,85),width=3)
+        d.ellipse((10,10,w-11,h-11),fill=(170,225,228))
+        gd.ellipse((10,10,w-11,h-11),fill=CYAN)
+
     # Break up perfectly even paint without eroding the small lettering at game zoom.
     stipple=Image.new('L',im.size)
     sd=ImageDraw.Draw(stipple)
@@ -464,7 +809,12 @@ for card, (size, base, _) in CARDS.items():
         sd.line((x,y,x+rng.choice([0,1,2]),y),fill=rng.randrange(12,53))
     im.paste((55,55,49),(0,0),stipple)
 
-    x,y=REGIONS[card]
+    painted[card] = (im, glow)
+
+
+def paste(atlas, im, x, y):
+    """Paste a card and bleed its edges into the padding so mipmaps don't pick up neighbors."""
+    w, h = im.size
     atlas.paste(im,(x,y))
     atlas.paste(im.crop((0,0,1,h)).resize((PAD,h)),(x-PAD,y))
     atlas.paste(im.crop((w-1,0,w,h)).resize((PAD,h)),(x+w,y))
@@ -474,9 +824,40 @@ for card, (size, base, _) in CARDS.items():
     atlas.paste(strip,(x-PAD,y+h))
 
 
-atlas.save(HERE / 'city-atlas.jpg', quality=88, subsampling=0, optimize=True)
-cards = {
-    name: {'x': REGIONS[name][0], 'y': REGIONS[name][1], 'width': w, 'height': h, 'shows': shows}
-    for name, ((w, h), _, shows) in CARDS.items()
-}
-(HERE / 'city-atlas.json').write_text(json.dumps({'width': atlas.width, 'height': atlas.height, 'cards': cards}, indent=2) + '\n')
+def pack(names):
+    """Shelf-pack cards in order onto 2048-pixel pages, starting a page when one fills."""
+    regions, page, x, y, row = {}, 0, PAD, PAD, 0
+    for name in names:
+        w, h = CARDS[name][0]
+        if x + w + PAD > PAGE:
+            x, y, row = PAD, y + row + 2 * PAD, 0
+        if y + h + PAD > PAGE:
+            page, x, y, row = page + 1, PAD, PAD, 0
+        regions[name] = (page * PAGE + x, y)
+        x += w + 2 * PAD
+        row = max(row, h)
+    return regions, page + 1
+
+
+for theme, settings in THEMES.items():
+    names = BASE + settings['cards']
+    assert len(set(names)) == len(names), f'{theme} lists a card twice'
+    regions, pages = pack(names)
+    folder = HERE / 'themes' / theme
+    folder.mkdir(parents=True, exist_ok=True)
+    atlas = Image.new('RGB', (PAGE * pages, PAGE), (86, 91, 89))
+    glow = Image.new('RGB', atlas.size, (0, 0, 0))
+    for name in names:
+        paste(atlas, painted[name][0], *regions[name])
+        paste(glow, painted[name][1], *regions[name])
+    atlas.save(folder / 'atlas.jpg', quality=88, subsampling=0, optimize=True)
+    if settings['glow']:
+        glow.save(folder / 'atlas-glow.jpg', quality=90, subsampling=0, optimize=True)
+    cards = {
+        name: {'x': regions[name][0], 'y': regions[name][1], 'width': CARDS[name][0][0],
+               'height': CARDS[name][0][1], 'shows': CARDS[name][2]}
+        for name in names
+    }
+    document = {'theme': theme, 'width': atlas.width, 'height': atlas.height, 'lighting': settings['lighting'],
+                'glow': 'atlas-glow.jpg' if settings['glow'] else None, 'cards': cards}
+    (folder / 'atlas.json').write_text(json.dumps(document, indent=2) + '\n')

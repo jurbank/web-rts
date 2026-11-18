@@ -1,0 +1,212 @@
+{
+  "theme": "cyberpunk",
+  "width": 2048,
+  "height": 2048,
+  "lighting": "night",
+  "glow": "atlas-glow.jpg",
+  "cards": {
+    "roof_flat_large": {
+      "x": 12,
+      "y": 12,
+      "width": 455,
+      "height": 455,
+      "shows": "Flat membrane roof with seams, two drains, and weathering"
+    },
+    "roof_flat_small": {
+      "x": 491,
+      "y": 12,
+      "width": 299,
+      "height": 376,
+      "shows": "Smaller flat membrane roof with seams and weathering"
+    },
+    "apron_paved": {
+      "x": 814,
+      "y": 12,
+      "width": 512,
+      "height": 410,
+      "shows": "Plain paved apron with slab joints, a kerb edge, and stains"
+    },
+    "concrete": {
+      "x": 1350,
+      "y": 12,
+      "width": 180,
+      "height": 125,
+      "shows": "Plain weathered concrete"
+    },
+    "foundation": {
+      "x": 1554,
+      "y": 12,
+      "width": 260,
+      "height": 34,
+      "shows": "Foundation band with joints and a dirty base"
+    },
+    "coping": {
+      "x": 12,
+      "y": 491,
+      "width": 242,
+      "height": 30,
+      "shows": "Parapet coping strip"
+    },
+    "column": {
+      "x": 278,
+      "y": 491,
+      "width": 95,
+      "height": 95,
+      "shows": "Column or pier finish"
+    },
+    "metal_dark": {
+      "x": 397,
+      "y": 491,
+      "width": 87,
+      "height": 65,
+      "shows": "Dark structural metal"
+    },
+    "wall_metal_band": {
+      "x": 508,
+      "y": 491,
+      "width": 256,
+      "height": 54,
+      "shows": "Ribbed metal cladding band for a rooftop room"
+    },
+    "roof_canopy": {
+      "x": 788,
+      "y": 491,
+      "width": 258,
+      "height": 85,
+      "shows": "Canopy top with a drip edge"
+    },
+    "hvac_side": {
+      "x": 1070,
+      "y": 491,
+      "width": 134,
+      "height": 45,
+      "shows": "Air handler side with louvres and a service panel"
+    },
+    "hvac_top": {
+      "x": 1228,
+      "y": 491,
+      "width": 134,
+      "height": 109,
+      "shows": "Air handler top with two fans"
+    },
+    "hvac_intake": {
+      "x": 1386,
+      "y": 491,
+      "width": 70,
+      "height": 83,
+      "shows": "Small louvred intake"
+    },
+    "cyber_hospital_ward": {
+      "x": 1480,
+      "y": 491,
+      "width": 420,
+      "height": 330,
+      "shows": "Dark ward curtain wall with steel mullions, lit rooms, and glowing red light bands"
+    },
+    "cyber_hospital_lobby": {
+      "x": 12,
+      "y": 845,
+      "width": 412,
+      "height": 115,
+      "shows": "Trauma center entry with glazed doors, a glowing red light band, and metal panels"
+    },
+    "cyber_hospital_pad": {
+      "x": 448,
+      "y": 845,
+      "width": 352,
+      "height": 352,
+      "shows": "Air ambulance deck with a large cream H, glowing red edge lamps, and approach stripes"
+    },
+    "cyber_apron_bays": {
+      "x": 824,
+      "y": 845,
+      "width": 560,
+      "height": 448,
+      "shows": "Wet asphalt lot: two ochre ambulance bays front center, a pedestrian crossing at the left, a hatched service yard at the right, puddles"
+    },
+    "cyber_clinic_street": {
+      "x": 1408,
+      "y": 845,
+      "width": 480,
+      "height": 140,
+      "shows": "Clinic street front: shuttered pharmacy counter under a small green cross, glazed clinic door, two hazard-framed ambulance bay roller doors"
+    },
+    "cyber_clinic_tower": {
+      "x": 12,
+      "y": 1317,
+      "width": 440,
+      "height": 176,
+      "shows": "Two clinic floors of dark window tiles in recessed channels, a few lit cyan tiles, a stained teal panel field with a small cyan screen at the right"
+    },
+    "cyber_clinic_upper": {
+      "x": 476,
+      "y": 1317,
+      "width": 300,
+      "height": 170,
+      "shows": "Upper clinic floor: dark window grid with two lit cyan tiles, ochre and black panel field with a large painted 07 at the right"
+    },
+    "cyber_landing_deck": {
+      "x": 800,
+      "y": 1317,
+      "width": 300,
+      "height": 280,
+      "shows": "Landing deck seen from above: steel plates, hazard ochre edge band with cyan lamps, a teal ring around a large cream cross"
+    },
+    "cyber_roof_tar": {
+      "x": 1124,
+      "y": 1317,
+      "width": 300,
+      "height": 300,
+      "shows": "Dark wet roof membrane with patched panels, seams, puddles with a pale sheen, rust, and stains"
+    },
+    "cyber_wall_channels": {
+      "x": 1448,
+      "y": 1317,
+      "width": 300,
+      "height": 170,
+      "shows": "Charcoal concrete side or rear wall with recessed vertical channels, small dark windows, a pipe run, and rust streaks"
+    },
+    "cyber_lift_shaft": {
+      "x": 1772,
+      "y": 1317,
+      "width": 72,
+      "height": 420,
+      "shows": "Exterior lift shaft: steel frame with cross bracing, a glazed slot, and a cyan-lit cab near the top"
+    },
+    "cyber_sign_pharmacy": {
+      "x": 1868,
+      "y": 1317,
+      "width": 80,
+      "height": 450,
+      "shows": "Vertical sign blade: glowing green pharmacy cross at the top, CLINIC in glowing cyan letters down the strip"
+    },
+    "cyber_metal_rust": {
+      "x": 12,
+      "y": 1791,
+      "width": 128,
+      "height": 96,
+      "shows": "Rusted brown sheet metal with ribs and streaks"
+    },
+    "cyber_canopy_fascia": {
+      "x": 164,
+      "y": 1791,
+      "width": 256,
+      "height": 22,
+      "shows": "Canopy fascia reading AMBULANCE over a glowing cyan strip"
+    },
+    "cyber_trim_cyan": {
+      "x": 444,
+      "y": 1791,
+      "width": 256,
+      "height": 20,
+      "shows": "Dark steel edge trim with a thin glowing cyan lamp line"
+    },
+    "cyber_lamp": {
+      "x": 724,
+      "y": 1791,
+      "width": 48,
+      "height": 48,
+      "shows": "Lamp head: dark housing around a glowing cyan lens"
+    }
+  }
+}
