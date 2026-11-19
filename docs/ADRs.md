@@ -272,3 +272,39 @@ A theme is the look of a map: its lighting, ground, and civic buildings. A facti
 ## 2026-11-19 Model skills split by rig, and vehicles name their parts
 
 Art skills split by how a model moves, not by what it shows. `blender-rts-models` makes rigid models, structures and vehicles, which share the set atlas, the export checks, and the game-camera review. Models with a skeleton, such as infantry, animals, monsters, and walking mechs, will get their own skill once an ADR picks how the game animates crowds of them. Effects will get their own too, since they are mostly `render` code. A vehicle's GLB is a hierarchy: the hull at the root, each moving part a child mesh named in kebab-case with its origin on its pivot, and empties such as `muzzle` as sockets. It carries no animation, so `render` turns parts by name from the snapshot. Faces that show the owner use a material named `team`, which `render` multiplies by the player's color. Sources and exports sit under `<kind>/<set>/`.
+
+## 2026-11-19 Creatures play baked vertex frames on the GPU
+
+Infantry, animals, monsters, aliens, and walking mechs need skeletal motion, and a match may hold over a thousand units on a phone. Three.js draws each `SkinnedMesh` with its own draw call and poses its skeleton on the CPU every frame, which a phone cannot afford for a crowd. So creatures are animated in Blender with an ordinary armature and actions, and the export bakes each clip into vertex frames: every vertex's position and normal, sampled at a fixed rate. `render` draws each creature type as instances, and a vertex shader reads each instance's frame, so a crowd costs a few draw calls and almost no CPU.
+
+- Clips. Every creature has `idle`, `move`, `attack`, and `die`, and may add `gather`, `cast`, and `build`. They bake at 20 frames a second, and the shader blends neighboring frames, so playback is smooth at any display rate. A change of clip blends over 0.15 seconds by sampling both.
+- One GLB per creature, as for structures and vehicles. It carries the rest-pose mesh, the set's atlas, and the baked frames as binary data, with clip names, frame ranges, and rate in its extras. Sockets such as `muzzle` or a hand bake to a transform per frame, so effects attach without reading back from the GPU.
+- Size. A 500-vertex creature with 100 baked frames takes about 0.8 MB on the GPU, with positions and normals in half floats. Vertex and frame counts get budgets once a real phone is measured.
+- Team color is the `team` material, as on vehicles. Under instancing it becomes a per-instance color, so a creature type costs one draw call per material, not one per player.
+- A walking mech is both: legs and hips baked, and an upper body that turns on its own as a named rigid part, as on a vehicle.
+- Picking stays on the entity's radius, not the animated mesh, so an instance in mid-stride is as easy to tap as one standing still. A dying view is never pickable or selected (R4).
+- Clip, part, and socket names are a contract between the export and `render`. `data` and `sim` never name them. Projectiles and muzzle positions are visual only, and damage timing stays in `sim`.
+
+Animation is view state, chosen from snapshots, so it follows R1 and R2. Rebuilding `render` restarts clips and changes no outcome.
+
+- `render` plays `die` on a `died` event, `attack` on a `fired` event, and `move` while the interpolated position changes. Otherwise it plays the order's clip, such as `gather`, where the viewer's snapshot shows the order, or `idle`, since the fog ADR keeps orders private to their owner. Each entity's clip phase is offset by its id, so a crowd does not march in step.
+- Facing stays out of `sim`. `render` turns a unit along its motion, toward its target when it fires, and otherwise holds the last facing. A turn rate would be a gameplay rule and would need `sim`.
+- An attack clip releases within its first 0.1 seconds, since `render` learns of a shot one tick before drawing it. A longer wind-up would need `sim` to announce a shot ahead of time without exposing weapon cooldowns to other seats, which the fog ADR keeps private.
+- Every device plays the same clips from the same snapshots, so a phone shows every attack and death a desktop does. A device that must save work draws fewer vertices at far zoom, never fewer clips. `render` keys a clip by entity id and tick, and a later snapshot overrides an event's clip, so an event that arrives twice or not at all, as under prediction, does no harm. After a catch-up, such as a phone returning from a hidden tab, every device skips effects older than one clip by the same rule. No device class skips more.
+
+This needs two changes to `sim`'s events, which effects need too. Each gets a headless test that filters it for every viewer with fog on.
+
+- A `fired` event with the attacker, the weapon, and its target entity or point. It drives the attack clip, a turret's aim, muzzle flashes, and projectiles. Under fog, a viewer gets the attacker and weapon only if they see the attacker, and the target only if they see it. When the attacker is hidden, the event carries only the impact on the target, with no origin outside the viewer's sight. When the target is hidden, it carries only the direction of fire.
+- `died` carries the entity's position and names no killer. It goes to its owner, and to any viewer whose team sees that position on the tick it dies, by the same sight that filters the snapshot. A remembered building that dies out of sight announces nothing. This replaces the owner-only death notification in the fog ADR of 2026-11-17, under which an enemy's unit would vanish instead of falling. The same position rule covers `fired` when the attacker dies in the same tick. `render` keeps a dying view after the entity leaves the snapshot until its clip ends.
+
+Considered:
+
+- A `SkinnedMesh` with an `AnimationMixer` per unit. It is the simplest to author and blends freely, but costs a draw call and a CPU skeleton per unit. It may return for a handful of heroes.
+- Rigid-segment puppets, with limbs as separate rigid parts posed in code. They are cheap and share the vehicle path, but animals and monsters look stiff, and every limb costs a matrix per unit per frame on the CPU.
+- Bone matrices baked into a texture and skinned in the shader. This takes less memory for dense meshes and blends clips more cleanly, but needs a harder shader and bake. Revisit it if creatures outgrow the vertex budget.
+
+Left open:
+
+- The vertex and frame budgets, set against a real phone.
+- Whether structures and vehicles move to instancing in the same change as the shared set atlases the roadmap plans.
+- A turn rate and weapon wind-ups, if gameplay wants them in `sim`.
