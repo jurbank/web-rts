@@ -183,6 +183,9 @@ CARDS = {
     'cyber_samurai_power_band': ((432, 120), (25, 36, 47), 'Recessed ice-blue optical slots in a segmented black steel instrument band'),
     'cyber_samurai_separator': ((320, 320), (33, 46, 59), 'Circular separator lid, segmented blue optical ring, and concentric gunmetal service rings'),
     'cyber_samurai_forge_spine': ((224, 512), (36, 40, 46), 'Recessed longitudinal heat exchanger with amber channels and dark cross-bracing'),
+    'cyber_samurai_track': ((320, 96), (32, 37, 43), 'Dark steel tread shoes with raised steel ribs and staggered links'),
+    'cyber_samurai_blade': ((64, 160), (46, 67, 79), 'Satin blade with a continuous ice-blue edge'),
+    'cyber_samurai_lens': ((96, 64), (25, 36, 47), 'Ice-blue optical aperture recessed in a gunmetal frame'),
 }
 
 # Theme-neutral cards in every theme's atlas.
@@ -239,7 +242,8 @@ FACTIONS = {
         'cyber_samurai_forge_apron', 'cyber_samurai_refinery_court', 'cyber_samurai_loading_court',
         'cyber_samurai_tank_plate', 'cyber_samurai_forge_door', 'cyber_samurai_forge_vent', 'cyber_samurai_brass',
         'cyber_samurai_tech_shell', 'cyber_samurai_tech_wall', 'cyber_samurai_tech_edge',
-        'cyber_samurai_power_band', 'cyber_samurai_separator', 'cyber_samurai_forge_spine']},
+        'cyber_samurai_power_band', 'cyber_samurai_separator', 'cyber_samurai_forge_spine',
+        'cyber_samurai_track', 'cyber_samurai_blade', 'cyber_samurai_lens']},
 }
 
 
@@ -390,6 +394,8 @@ SURFACES |= {
     'cyber_samurai_tech_shell': (.44,.73), 'cyber_samurai_tech_wall': (.47,.62),
     'cyber_samurai_tech_edge': (.38,.74), 'cyber_samurai_power_band': (.41,.58),
     'cyber_samurai_separator': (.41,.65), 'cyber_samurai_forge_spine': (.48,.65),
+    'cyber_samurai_track': (.63,.7), 'cyber_samurai_blade': (.4,.58),
+    'cyber_samurai_lens': (.25,.15),
 }
 
 def finish(rough_metal):
@@ -2128,6 +2134,28 @@ for card, (size, base, _) in CARDS.items():
                       fill=(78, 136, 161))
             d.line((x+2, 44, x+30, 44), fill=(165, 206, 222), width=4)
             wash(glow, (x+2, 46, x+30, 67), (117, 176, 203), 3, 210)
+
+    if card == 'cyber_samurai_track':
+        for x in range(0, w, 20):
+            d.rectangle((x, 0, x+17, h-1), fill=(42, 48, 56))
+            d.rectangle((x+2, 13, x+14, h-14), fill=(59, 67, 76))
+            d.line((x+3, 15, x+3, h-16), fill=(86, 96, 104), width=2)
+            for y in (7, h-9):
+                d.line((x+3, y, x+12, y), fill=(101, 110, 117), width=2)
+
+    if card == 'cyber_samurai_blade':
+        d.rectangle((9, 0, 24, h-1), fill=(108, 141, 154))
+        d.rectangle((24, 0, 49, h-1), fill=(113, 171, 190))
+        d.rectangle((36, 0, 44, h-1), fill=(168, 208, 221))
+        gd.rectangle((26, 0, 49, h-1), fill=(111, 169, 194))
+        gd.rectangle((36, 0, 44, h-1), fill=(157, 202, 217))
+
+    if card == 'cyber_samurai_lens':
+        d.rounded_rectangle((9, 9, w-10, h-10), radius=11, fill=(48, 66, 79),
+                            outline=(111, 131, 145), width=3)
+        d.rounded_rectangle((16, 16, w-17, h-17), radius=8, fill=(86, 153, 179))
+        d.line((23, 21, w-24, 21), fill=(163, 206, 221), width=3)
+        gd.rounded_rectangle((18, 18, w-19, h-19), radius=6, fill=(117, 181, 206))
 
     if card == 'cyber_samurai_separator':
         c = w//2

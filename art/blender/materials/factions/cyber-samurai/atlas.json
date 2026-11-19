@@ -180,6 +180,27 @@
       "width": 224,
       "height": 512,
       "shows": "Recessed longitudinal heat exchanger with amber channels and dark cross-bracing"
+    },
+    "cyber_samurai_track": {
+      "x": 1060,
+      "y": 1500,
+      "width": 320,
+      "height": 96,
+      "shows": "Dark steel tread shoes with raised steel ribs and staggered links"
+    },
+    "cyber_samurai_blade": {
+      "x": 1404,
+      "y": 1500,
+      "width": 64,
+      "height": 160,
+      "shows": "Satin blade with a continuous ice-blue edge"
+    },
+    "cyber_samurai_lens": {
+      "x": 1492,
+      "y": 1500,
+      "width": 96,
+      "height": 64,
+      "shows": "Ice-blue optical aperture recessed in a gunmetal frame"
     }
   }
 }

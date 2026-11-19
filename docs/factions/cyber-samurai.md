@@ -62,6 +62,15 @@ All designs are provisional until approved. Vermilion gate accents are shared ac
 | War factory  | Two high armored shoulders framing a long recessed heat-exchanger spine                  | Visible amber channels, a wide vehicle shutter behind a two-post gate, and a lined rollout apron               |
 | Science lab  | Three increasingly narrow angular tiers around an open middle ring                       | A visible instrument core, a blade sensor mast, and a narrow gravel garden                                     |
 
+## Unit types
+
+Units carry satin blue-black armor in stepped, chamfered plates over dark joints. Keep the optical glow ice blue and recessed. Broad upper armor panels carry team color. The first infantry and vehicle designs are provisional.
+
+| Type           | Signature silhouette from above                                                            | Moving parts      | Required elements                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| Blade infantry | Clipped swept helmet, layered shoulder plates, and a short energy sword held forward       | Infantry skeleton | Team-colored shoulder caps, an inset ice-blue visor, overlapping waist armor, and a blade-tip socket |
+| Laser tank     | Low paired tracks under stepped armor and a broad turret with a long forked optical cannon | Turret, barrel    | Broad team-colored turret armor, an inset ice-blue emitter between the rails, and a muzzle socket    |
+
 ## References
 
 - **Stepped tower study.** Take the stacked black volumes, inset rose and blue instrument bands, and broad vertical armor channels. Compress the mass for the RTS camera and design original markings.
