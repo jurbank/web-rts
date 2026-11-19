@@ -119,6 +119,9 @@ CARDS = {
     'advanced_utopian_fascia': ((300, 76), (221, 220, 215), 'Glossy white entrance fascia with the faction emblem at the center'),
     'advanced_utopian_metal': ((96, 64), (210, 212, 212), 'Clean pale satin metal with faint brushing'),
     'advanced_utopian_lamp': ((48, 48), (169, 196, 198), 'Lamp lens filling the whole card, glowing soft ice'),
+    'advanced_utopian_armor': ((128, 128), (221, 220, 215), 'Unit armor: glossy white composite plates with clear panel seams, shaded toward the edges'),
+    'advanced_utopian_suit': ((96, 96), (52, 60, 72), 'Unit undersuit: dark blue-grey ribbed weave with faint seams'),
+    'advanced_utopian_visor': ((96, 48), (26, 33, 41), 'Unit visor: dark glass band glowing soft ice from within, brightest at the center'),
     'cyber_samurai_gravel': ((384, 384), (161, 156, 144), 'Court from above: pale gravel raked in straight lines inside a granite kerb'),
     'cyber_samurai_roof_tiles': ((512, 256), (59, 65, 72), 'Roof slope: dark steel tile rolls running down the slope, end caps along the bottom edge for the eave'),
     'cyber_samurai_stone': ((512, 192), (119, 115, 107), 'Sloped base: fitted grey granite in uneven courses, moss in some joints'),
@@ -201,7 +204,7 @@ FACTIONS = {
         'advanced_utopian_door', 'advanced_utopian_pool', 'advanced_utopian_silo_top',
         'advanced_utopian_glass', 'advanced_utopian_shell', 'advanced_utopian_shell_glazed', 'advanced_utopian_stone', 'advanced_utopian_fascia',
         'advanced_utopian_metal', 'advanced_utopian_underside', 'advanced_utopian_podium',
-        'advanced_utopian_lamp']},
+        'advanced_utopian_lamp', 'advanced_utopian_armor', 'advanced_utopian_suit', 'advanced_utopian_visor']},
     'toxic-industrial': {'lighting': 'day', 'glow': True, 'surface': True, 'cards': [
         'toxic_industrial_ground', 'toxic_industrial_roof', 'toxic_industrial_tank', 'toxic_industrial_scaffold',
         'toxic_industrial_banner', 'toxic_industrial_stack', 'toxic_industrial_concrete', 'toxic_industrial_cells',
@@ -304,6 +307,7 @@ SURFACES = {
     'advanced_utopian_apron_depot': MATTE, 'advanced_utopian_apron_factory': MATTE,
     'advanced_utopian_podium_top': MATTE, 'advanced_utopian_plaza': MATTE, 'advanced_utopian_stone': MATTE,
     'advanced_utopian_podium': MATTE, 'advanced_utopian_metal': SATIN, 'advanced_utopian_underside': (.4,0),
+    'advanced_utopian_suit': (.55,0), 'advanced_utopian_visor': MIRROR,
 }
 
 # The toxic industrial faction from docs/factions/toxic-industrial.md: soot, rust, furnace fire, and toxic sludge.
@@ -1421,6 +1425,28 @@ for card, (size, base, _) in CARDS.items():
 
     if card == 'advanced_utopian_lamp':
         gd.rectangle((0,0,w,h),fill=ICE)
+
+    if card == 'advanced_utopian_armor':
+        # Unit plates read at a few dozen pixels, so their seams are bolder than a building's panel lines.
+        for y in range(h):
+            d.line((0,y,w,y),fill=lerp((246,245,240),(222,221,216),abs(y-h/2)/(h/2)))
+        # One seam each way, so a part reads as a few large plates rather than a grid.
+        d.line((w//2,0,w//2,h),fill=(172,171,166),width=3)
+        d.line((0,h//2,w,h//2),fill=(172,171,166),width=3)
+        rd.line((w//2,0,w//2,h),fill=finish(SATIN),width=3)
+        rd.line((0,h//2,w,h//2),fill=finish(SATIN),width=3)
+
+    if card == 'advanced_utopian_suit':
+        for y in range(0,h,4):
+            d.line((0,y,w,y),fill=(64,73,86),width=2)
+        for x in (w//3,2*w//3):
+            d.line((x,0,x,h),fill=(38,45,55),width=2)
+
+    if card == 'advanced_utopian_visor':
+        d.rounded_rectangle((0,0,w-1,h-1),radius=12,fill=GLASS)
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).rounded_rectangle((10,10,w-11,h-11),radius=10,fill=255)
+        glow.paste(ICE,(0,0),mask.filter(ImageFilter.GaussianBlur(5)))
 
     if card == 'cyber_samurai_gravel':
         for y in range(4,h,7):

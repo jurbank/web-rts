@@ -20,7 +20,10 @@ LIBRARY = Path("art/blender/library")
 STAGING = Path("art/staging/models")
 RUNTIME = Path("apps/website/public/models")
 RENDERS = Path("art/staging/renders")
-KINDS = ("structures", "vehicles")
+# Rigid kinds export here. Skeletal kinds export with the blender-rts-creatures skill, which imports this module.
+RIGID_KINDS = ("structures", "vehicles")
+SKELETAL_KINDS = ("infantry", "creatures")
+KINDS = RIGID_KINDS + SKELETAL_KINDS
 # The review sheet: a close view and a lineup on top, desktop and phone crops at true pixel size below.
 SHEET_WIDTH = 1400
 SHEET_GAP = 8
@@ -45,8 +48,14 @@ TEXTURE_KEY = re.compile(r'"\w+Texture"')
 # The game multiplies the material named "team" by its player's color. Reviews show this sample color.
 TEAM_MATERIAL = "team"
 TEAM_SAMPLE = "#2f6fdf"
-# Vehicles drive in every direction, so their renders turn them to show the side as well as the front.
-VEHICLE_TURN = 35
+# Units move in every direction, so their renders turn them to show the side as well as the front.
+UNIT_TURN = 35
+# Provisional triangle budgets, set by how many copies of each kind a phone shows at once, until a real phone
+# is measured. A hero is a model only a few of which take the field, such as a MOBA hero or a boss monster.
+BUDGETS = {"structures": 2500, "vehicles": 2000, "infantry": 1000, "creatures": 1000}
+HERO_BUDGET = 4000
+# A creature's baked frames over all its clips, which set its GPU memory with its vertex count.
+FRAME_BUDGET = 100
 
 
 def asset_id(value):
@@ -207,6 +216,7 @@ def glb_summary(output):
     )
     if not triangles:
         raise ValueError("The exported model has no triangles")
+    vertices = sum(accessors[primitive["attributes"]["POSITION"]]["count"] for primitive in primitives)
 
     images = document.get("images", [])
     external = [image["uri"] for image in images if "uri" in image]
@@ -217,10 +227,27 @@ def glb_summary(output):
     glowing = sum(1 for material in materials if "emissiveTexture" in material)
     team = any(material.get("name") == TEAM_MATERIAL for material in materials)
     summary = (
-        f"{length:,} bytes, {triangles:,} triangles in mesh data, {len(primitives)} primitives, "
-        f"{len(images)} images, {textured} of {len(materials)} materials textured, {glowing} glowing"
+        f"{length:,} bytes, {triangles:,} triangles and {vertices:,} vertices in mesh data, "
+        f"{len(primitives)} primitives, {len(images)} images, {textured} of {len(materials)} materials textured, "
+        f"{glowing} glowing"
     )
-    return summary, len(images), glowing, team
+    return summary, len(images), glowing, team, triangles
+
+
+def budget(place, triangles, *, hero=False, over=None, blockout=False):
+    """How much of its kind's triangle budget a model uses. Over budget fails unless `over` says why."""
+    kind = "hero" if hero else place.parts[0]
+    limit = HERO_BUDGET if hero else BUDGETS[kind]
+    share = f"{triangles / limit:.0%} of the {kind} budget of {limit:,} triangles"
+    if triangles <= limit:
+        return share
+    if over:
+        return f"{share}, over because {over}"
+    if blockout:
+        return f"{share}, over"
+    raise ValueError(
+        f"{triangles:,} triangles is {share}. Simplify it, or pass --over-budget with the reason it needs more"
+    )
 
 
 def set_settings(root, place):
@@ -242,7 +269,7 @@ def vehicle_rig(objects):
     return f"moving parts: {', '.join(parts) or 'none'}; sockets: {', '.join(sockets) or 'none'}"
 
 
-def export_model(root, place, identifier, output, blockout):
+def export_model(root, place, identifier, output, blockout, hero=False, over=None):
     source = root / LIBRARY / place / f"{identifier}.blend"
     collection = load_asset(source, link=False)
     objects = set(collection.all_objects)
@@ -285,7 +312,8 @@ def export_model(root, place, identifier, output, blockout):
     )
     if "FINISHED" not in status:
         raise ValueError("Blender could not export the collection")
-    summary, images, glowing, team = glb_summary(output)
+    summary, images, glowing, team, triangles = glb_summary(output)
+    share = budget(place, triangles, hero=hero, over=over, blockout=blockout)
     if vehicle and not team and not blockout:
         raise ValueError(
             f"A vehicle shows its owner. Give the faces that take the player's color a material named {TEAM_MATERIAL!r}."
@@ -303,7 +331,7 @@ def export_model(root, place, identifier, output, blockout):
     size = " × ".join(f"{value:.3g}" for value in maximum - minimum)
     stage = ", untextured blockout" if blockout else ""
     rig = f", {rig}" if rig else ""
-    return f"{summary}, {size} Blender units (width × depth × height){rig}{stage}"
+    return f"{summary}, {share}, {size} Blender units (width × depth × height){rig}{stage}"
 
 
 def linear(color):
@@ -392,8 +420,8 @@ def import_glb(path, place):
     bpy.ops.import_scene.gltf(filepath=str(path))
     objects = [obj for obj in bpy.context.scene.objects if obj not in before]
     tint_team(objects)
-    if place.parts[0] == "vehicles":
-        turn = Matrix.Rotation(math.radians(VEHICLE_TURN), 4, "Z")
+    if place.parts[0] != "structures":
+        turn = Matrix.Rotation(math.radians(UNIT_TURN), 4, "Z")
         for obj in objects:
             if obj.parent is None:
                 obj.matrix_world = turn @ obj.matrix_world
@@ -537,6 +565,13 @@ def render_model(root, place, identifier, neighbors, distance, lighting):
     return [str(path[name]) for name in ("review", "close", "desktop", "phone")]
 
 
+def add_budget_arguments(command):
+    command.add_argument("--hero", action="store_true", help=f"Use the hero budget of {HERO_BUDGET:,} triangles")
+    command.add_argument(
+        "--over-budget", metavar="REASON", help="Allow an export over its budget, recording why in the summary"
+    )
+
+
 def main():
     if not bpy.app.background:
         raise SystemExit("Run this helper with Blender's --background flag")
@@ -549,13 +584,19 @@ def main():
     commands.choices["export"].add_argument(
         "--blockout", action="store_true", help="Allow an untextured export for shape review"
     )
+    add_budget_arguments(commands.choices["export"])
     render = commands.add_parser("render", help="Render a staged export from the game camera")
     render.add_argument("asset_id", type=asset_id)
     for command in (commands.choices["export"], render):
         which = command.add_mutually_exclusive_group(required=True)
         which.add_argument("--theme", type=asset_id, help="A theme, the look of a map")
         which.add_argument("--faction", type=asset_id, help="A faction, the look of one side")
-        command.add_argument("--kind", choices=KINDS, default="structures", help="What the model is")
+        command.add_argument(
+            "--kind",
+            choices=RIGID_KINDS,
+            default="structures",
+            help="What the model is. Skeletal kinds use the blender-rts-creatures skill.",
+        )
     render.add_argument(
         "--with",
         dest="neighbors",
@@ -604,7 +645,9 @@ def main():
         if options.command == "gallery":
             summary = build_gallery(root, output, destination)
         else:
-            summary = export_model(root, place, options.asset_id, output, options.blockout)
+            summary = export_model(
+                root, place, options.asset_id, output, options.blockout, options.hero, options.over_budget
+            )
         if options.replace:
             output.replace(destination)
         else:

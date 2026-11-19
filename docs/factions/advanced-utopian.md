@@ -67,6 +67,14 @@ All are provisional until the first one is approved. Types tell apart by shape a
 | War factory  | A long pill-shaped white shell with a tall curved glass vehicle door at its front                                                 | A skylight strip along the roof, a roll-out apron with soft lane lights                                       |
 | Science lab  | A round white pavilion under a glass dome that holds a glowing instrument                                                         | A slim sensor mast beside the dome, a reflecting pool                                                         |
 
+## Unit types
+
+Units wear the buildings' finish: rounded glossy white shells over a grey undersuit, dark glass that glows softly from within, and no seams that read as bolted on. Team color covers the broad shells on top. All are provisional until the first one is approved.
+
+| Type    | Signature silhouette from above                                                                        | Moving parts      | Required elements                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------- |
+| Soldier | Broad rounded team-colored shoulder shells, a white capsule pack behind, and a long slim rifle forward | Infantry skeleton | A dark visor band glowing soft ice, glossy white armor, a grey undersuit, a rifle emitter glowing soft ice |
+
 ## References
 
 `docs/screen_shots/inspiration/factions/advanced-utopian/structures/` holds four images of clean-energy future cities in daylight.

@@ -22,7 +22,7 @@ A model belongs to one set: a theme, the look of a map, or a faction, the comple
 
 Git tracks the sources, shared materials, and approved runtime exports. It ignores the gallery, staging exports and renders, and Blender's `.blend1` backups because they are generated.
 
-Register `art/blender/library/` once in Blender under **Preferences → File Paths → Asset Libraries** to browse all source assets. Optional Asset Browser catalogs can group entries by kind. Keep any catalog definition at the library root with the sources. Models with a skeleton will get their own kind folder and workflow.
+Register `art/blender/library/` once in Blender under **Preferences → File Paths → Asset Libraries** to browse all source assets. Optional Asset Browser catalogs can group entries by kind. Keep any catalog definition at the library root with the sources. Models with a skeleton sit beside them in `infantry/` and `creatures/`, and export with the `blender-rts-creatures` skill. The gallery shows every kind.
 
 The gallery arranges linked collection instances by kind and set. Each sits on its grid point exactly as authored, so an off-center or floating asset shows. Save a source edit and reopen the gallery to see it. Rebuild the gallery to pick up additions, removals, or renamed assets. Keep the gallery and source tree together when moving the project. The gallery is a generated review file. Save any custom review setup under a separate filename.
 
@@ -38,6 +38,19 @@ The gallery arranges linked collection instances by kind and set. Each sits on i
 ## Textures and performance
 
 Shipped models carry image textures, as `docs/ART_DIRECTION.md` asks for painted detail. Use shared flat colors and roughness values only while blocking out. Keep material slots few and combine compatible static details when it improves the exported primitive count. Once every part is mapped, `atlas_cards.join(objects, "<asset-id>", faction=...)` joins them into one mesh and keeps each face's card, so the building exports as one primitive and `refresh` still works. For a vehicle, join each moving part's pieces under that part's name instead. Its team piece is mapped like the rest, so `join` accepts it. Swap its material for one named `team` after mapping and before joining, since `apply` replaces the materials. `join` and `refresh` keep the slot. A Blender mesh count alone does not capture the renderer's draw work because a mesh can have several material primitives.
+
+### Budgets
+
+Each kind has a provisional triangle budget, set by how many copies of it a phone shows at once in the busiest view: a 6v6 zoomed out, with about 300 infantry, 60 vehicles, and 80 buildings, near 620,000 triangles in all. The export reports each model's share and fails over budget.
+
+| Kind                   | Triangles |
+| ---------------------- | --------- |
+| Infantry and creatures | 1,000     |
+| Vehicles               | 2,000     |
+| Structures             | 2,500     |
+| Heroes, with `--hero`  | 4,000     |
+
+A hero is a model only a few of which take the field, such as a MOBA hero or a boss monster. Pass `--over-budget "<reason>"` to export a model over its budget on purpose. The summary records the reason, so pass it only when the user agrees. Spend triangles where they change the silhouette from the game camera: on a unit a few dozen pixels tall, a 14-sided sphere looks like an 8-sided one. Cut segments on small parts first, then leave out faces nobody sees, such as caps inside joints. A Decimate modifier in the source keeps the full mesh editable, since the export applies modifiers, and its Planar mode with UVs delimited keeps each card's faces apart. The export also reports the vertex count after the exporter splits vertices at UV seams and hard edges, and the primitive count, one draw call each. These numbers are guesses until a stress scene runs on a real phone, as `docs/ARCHITECTURE.md` asks.
 
 ### Set atlases
 
