@@ -1,0 +1,164 @@
+{
+  "faction": "toxic-industrial",
+  "width": 2048,
+  "height": 2048,
+  "lighting": "day",
+  "glow": "atlas-glow.jpg",
+  "surface": "atlas-surface.jpg",
+  "cards": {
+    "toxic_industrial_ground": {
+      "x": 12,
+      "y": 12,
+      "width": 384,
+      "height": 384,
+      "shows": "Yard from above: churned mud with tire ruts, slag patches, and an oily puddle"
+    },
+    "toxic_industrial_roof": {
+      "x": 420,
+      "y": 12,
+      "width": 512,
+      "height": 256,
+      "shows": "Tarred corrugated roof with rust at the seams and soot gathering toward the top"
+    },
+    "toxic_industrial_tank": {
+      "x": 956,
+      "y": 12,
+      "width": 256,
+      "height": 256,
+      "shows": "Stained steel tank side: weld seams, rivets, rust and yellow drips, a glowing green sight glass"
+    },
+    "toxic_industrial_scaffold": {
+      "x": 1236,
+      "y": 12,
+      "width": 256,
+      "height": 256,
+      "shows": "Unfinished sooty concrete floors behind a scaffold cage of poles and planks"
+    },
+    "toxic_industrial_banner": {
+      "x": 1516,
+      "y": 12,
+      "width": 96,
+      "height": 256,
+      "shows": "Tall hanging banner: soot black cloth with faded ochre borders and the faction crest"
+    },
+    "toxic_industrial_stack": {
+      "x": 1636,
+      "y": 12,
+      "width": 192,
+      "height": 256,
+      "shows": "Smokestack side: concrete with darker rings near the top, a painted ladder, soot thickening upward"
+    },
+    "toxic_industrial_concrete": {
+      "x": 12,
+      "y": 420,
+      "width": 512,
+      "height": 192,
+      "shows": "Board-formed raw concrete: plank grain, form-tie holes with rust runs, slit windows, a few lit, soot from the top, a stencilled block number"
+    },
+    "toxic_industrial_cells": {
+      "x": 548,
+      "y": 420,
+      "width": 480,
+      "height": 160,
+      "shows": "Brutalist cell facade: rows of identical deep-set window cells in a concrete grid, a few lit orange, soot from the top"
+    },
+    "toxic_industrial_sludge": {
+      "x": 1052,
+      "y": 420,
+      "width": 256,
+      "height": 128,
+      "shows": "Sludge pond from above: oily surface glowing toxic green toward the middle"
+    },
+    "toxic_industrial_emblem": {
+      "x": 1332,
+      "y": 420,
+      "width": 128,
+      "height": 128,
+      "shows": "Faction crest on soot: a faded ochre gear ring around three smokestacks of different heights"
+    },
+    "toxic_industrial_stack_top": {
+      "x": 1484,
+      "y": 420,
+      "width": 128,
+      "height": 128,
+      "shows": "Stack mouth from above: a sooty rim around a dark throat glowing orange"
+    },
+    "toxic_industrial_furnace": {
+      "x": 1636,
+      "y": 420,
+      "width": 128,
+      "height": 96,
+      "shows": "Furnace mouth: a heavy steel frame around a hot orange opening"
+    },
+    "toxic_industrial_steel": {
+      "x": 1788,
+      "y": 420,
+      "width": 128,
+      "height": 96,
+      "shows": "Corroded steel plate with rust streaks"
+    },
+    "toxic_industrial_hazard": {
+      "x": 12,
+      "y": 636,
+      "width": 256,
+      "height": 48,
+      "shows": "Faded ochre and black hazard stripes, scuffed"
+    },
+    "toxic_industrial_pad": {
+      "x": 292,
+      "y": 636,
+      "width": 512,
+      "height": 512,
+      "shows": "Drop-off pad from above: sooty concrete slabs, three faded white bays, a hazard stripe band along the front, oil stains, mud at the edges"
+    },
+    "toxic_industrial_apron": {
+      "x": 828,
+      "y": 636,
+      "width": 384,
+      "height": 512,
+      "shows": "Roll-out apron from above: a concrete lane with faded white lines and chevrons through rutted mud, hazard stripes at the door end"
+    },
+    "toxic_industrial_slab_top": {
+      "x": 1236,
+      "y": 636,
+      "width": 384,
+      "height": 384,
+      "shows": "Flat concrete roof from above: board seams, two drains, soot, the faction crest painted large in faded ochre"
+    },
+    "toxic_industrial_tank_top": {
+      "x": 1644,
+      "y": 636,
+      "width": 256,
+      "height": 256,
+      "shows": "Tank lid from above: corroded steel rings of rivets around a central hatch, soot and rust"
+    },
+    "toxic_industrial_blast_door": {
+      "x": 12,
+      "y": 1172,
+      "width": 256,
+      "height": 192,
+      "shows": "Steel blast door: two ribbed leaves drawn apart on a furnace-lit interior, hazard stripes along the bottom"
+    },
+    "toxic_industrial_concrete_plain": {
+      "x": 292,
+      "y": 1172,
+      "width": 512,
+      "height": 192,
+      "shows": "Board-formed raw concrete with no openings: plank grain, rusty form-tie holes, yellow drips, heavy soot from the top"
+    },
+    "toxic_industrial_slab": {
+      "x": 828,
+      "y": 1172,
+      "width": 256,
+      "height": 256,
+      "shows": "Plain flat concrete roof or berm top from above: board seams, a drain, soot and oil stains"
+    },
+    "toxic_industrial_wall_top": {
+      "x": 1108,
+      "y": 1172,
+      "width": 512,
+      "height": 32,
+      "shows": "Compound wall coping from above: sooty concrete under coils of razor wire"
+    }
+  }
+}

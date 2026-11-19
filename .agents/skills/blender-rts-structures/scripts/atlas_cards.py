@@ -15,6 +15,7 @@ object's extent on that side, so text reads correctly from outside.
 
 Each mesh records the card every face uses. After the atlas is repainted and
 cards move, refresh(obj, theme=...) or refresh(obj, faction=...) fits the UVs again without re-mapping.
+join(objects, name, ...) merges a building's mapped parts into one mesh, keeping each face's card.
 """
 import json
 from pathlib import Path
@@ -210,3 +211,34 @@ def refresh(obj, *, theme=None, faction=None, root=Path.cwd()):
             v = (before["y"] + before["height"] - 0.5 - (1 - uv.y) * old["height"]) / (before["height"] - 1)
             layer.data[loop].uv = _uv(document["cards"][name], document["width"], document["height"], u, v)
     record(mesh, names, document)
+
+
+def join(objects, name, *, theme=None, faction=None, root=Path.cwd()):
+    """Join meshes mapped with apply() into one object named `name`, keeping each face's card.
+
+    The building then exports as one primitive, and refresh() still fits its UVs.
+    """
+    names = []
+    for obj in objects:
+        mesh = obj.data
+        if CARD_RECORD not in mesh or CARD_ATTRIBUTE not in mesh.attributes:
+            raise ValueError(f"{obj.name} has no card record. Map it with apply() first")
+        old = json.loads(mesh[CARD_RECORD])
+        indices = [0] * len(mesh.polygons)
+        mesh.attributes[CARD_ATTRIBUTE].data.foreach_get("value", indices)
+        for card in old["names"]:
+            if card not in names:
+                names.append(card)
+        merged = [names.index(old["names"][index]) for index in indices]
+        mesh.attributes.new("atlas_card_join", "INT", "FACE").data.foreach_set("value", merged)
+    target = objects[0]
+    with bpy.context.temp_override(active_object=target, selected_editable_objects=list(objects)):
+        bpy.ops.object.join()
+    target.name = target.data.name = name
+    mesh = target.data
+    merged = [0] * len(mesh.polygons)
+    mesh.attributes["atlas_card_join"].data.foreach_get("value", merged)
+    mesh.attributes.remove(mesh.attributes["atlas_card_join"])
+    document, _ = atlas(root, theme, faction)
+    record(mesh, [names[index] for index in merged], document)
+    return target

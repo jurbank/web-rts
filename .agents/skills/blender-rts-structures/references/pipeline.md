@@ -38,7 +38,7 @@ The gallery arranges linked collection instances by category and structure set. 
 
 ## Textures and performance
 
-Shipped structures carry image textures, as `docs/ART_DIRECTION.md` asks for painted detail. Use shared flat colors and roughness values only while blocking out. Keep material slots few and combine compatible static details when it improves the exported primitive count. A Blender mesh count alone does not capture the renderer's draw work because a mesh can have several material primitives.
+Shipped structures carry image textures, as `docs/ART_DIRECTION.md` asks for painted detail. Use shared flat colors and roughness values only while blocking out. Keep material slots few and combine compatible static details when it improves the exported primitive count. Once every part is mapped, `atlas_cards.join(objects, "<asset-id>", faction=...)` joins them into one mesh and keeps each face's card, so the building exports as one primitive and `refresh` still works. A Blender mesh count alone does not capture the renderer's draw work because a mesh can have several material primitives.
 
 ### Set atlases
 

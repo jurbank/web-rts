@@ -34,3 +34,5 @@ Tool settings for each set, such as a theme's review lighting or a faction's sur
 - [Modern](themes/modern.md): a near-future city in daylight.
 - [Cyberpunk](themes/cyberpunk.md): a dense neon megacity at night.
 - [Advanced utopian](factions/advanced-utopian.md): a sleek clean-energy faction of glossy white shells and lit glass.
+- [Cyber samurai](factions/cyber-samurai.md): a warrior clan of stepped cybernetic fortresses, blue-black armor, and lacquered gates.
+- [Toxic industrial](factions/toxic-industrial.md): an authoritarian industrial state of sooty brutalist concrete, stacks, and tanks over slag and mud.

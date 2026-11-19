@@ -119,6 +119,53 @@ CARDS = {
     'advanced_utopian_fascia': ((300, 76), (221, 220, 215), 'Glossy white entrance fascia with the faction emblem at the center'),
     'advanced_utopian_metal': ((96, 64), (210, 212, 212), 'Clean pale satin metal with faint brushing'),
     'advanced_utopian_lamp': ((48, 48), (169, 196, 198), 'Lamp lens filling the whole card, glowing soft ice'),
+    'cyber_samurai_gravel': ((384, 384), (161, 156, 144), 'Court from above: pale gravel raked in straight lines inside a granite kerb'),
+    'cyber_samurai_roof_tiles': ((512, 256), (59, 65, 72), 'Roof slope: dark steel tile rolls running down the slope, end caps along the bottom edge for the eave'),
+    'cyber_samurai_stone': ((512, 192), (119, 115, 107), 'Sloped base: fitted grey granite in uneven courses, moss in some joints'),
+    'cyber_samurai_wall_screens': ((480, 160), (30, 28, 29), 'Black lacquer frame holding paper screen bays in a fine grid, most lit warm from inside'),
+    'cyber_samurai_wall_armor': ((480, 160), (30, 28, 29), 'Rows of overlapping gunmetal armor plates laced with crimson cord, between black lacquer posts'),
+    'cyber_samurai_plaster': ((256, 128), (207, 200, 184), 'Pale plaster band over black lacquered boards, under a lacquer beam'),
+    'cyber_samurai_emblem': ((128, 128), (30, 28, 29), 'Faction crest on black lacquer: a brass ring broken at the top around an upright crimson-lit blade'),
+    'cyber_samurai_lantern': ((64, 96), (217, 201, 163), 'Paper lantern side with dark ribs and caps, glowing warm'),
+    'cyber_samurai_lacquer': ((128, 96), (30, 28, 29), 'Plain black lacquer with faint grain'),
+    'cyber_samurai_vermilion': ((128, 96), (168, 57, 43), 'Vermilion lacquer post or beam with brass bands near each end'),
+    'cyber_samurai_eave': ((512, 48), (30, 28, 29), 'Eave edge: black lacquer fascia with a brass top edge and a thin crimson line of light along the bottom'),
+    'cyber_samurai_lamp': ((48, 48), (224, 72, 60), 'Lamp lens filling the whole card, glowing crimson'),
+    'toxic_industrial_ground': ((384, 384), (92, 81, 69), 'Yard from above: churned mud with tire ruts, slag patches, and an oily puddle'),
+    'toxic_industrial_roof': ((512, 256), (58, 56, 53), 'Tarred corrugated roof with rust at the seams and soot gathering toward the top'),
+    'toxic_industrial_tank': ((256, 256), (77, 71, 64), 'Stained steel tank side: weld seams, rivets, rust and yellow drips, a glowing green sight glass'),
+    'toxic_industrial_scaffold': ((256, 256), (64, 61, 57), 'Unfinished sooty concrete floors behind a scaffold cage of poles and planks'),
+    'toxic_industrial_stack': ((192, 256), (110, 106, 99), 'Smokestack side: concrete with darker rings near the top, a painted ladder, soot thickening upward'),
+    'toxic_industrial_concrete': ((512, 192), (108, 104, 96), 'Board-formed raw concrete: plank grain, form-tie holes with rust runs, slit windows, a few lit, soot from the top, a stencilled block number'),
+    'toxic_industrial_cells': ((480, 160), (122, 118, 110), 'Brutalist cell facade: rows of identical deep-set window cells in a concrete grid, a few lit orange, soot from the top'),
+    'toxic_industrial_banner': ((96, 256), (42, 40, 38), 'Tall hanging banner: soot black cloth with faded ochre borders and the faction crest'),
+    'toxic_industrial_sludge': ((256, 128), (44, 47, 42), 'Sludge pond from above: oily surface glowing toxic green toward the middle'),
+    'toxic_industrial_emblem': ((128, 128), (42, 40, 38), 'Faction crest on soot: a faded ochre gear ring around three smokestacks of different heights'),
+    'toxic_industrial_stack_top': ((128, 128), (110, 106, 99), 'Stack mouth from above: a sooty rim around a dark throat glowing orange'),
+    'toxic_industrial_furnace': ((128, 96), (42, 40, 38), 'Furnace mouth: a heavy steel frame around a hot orange opening'),
+    'toxic_industrial_steel': ((128, 96), (77, 71, 64), 'Corroded steel plate with rust streaks'),
+    'toxic_industrial_hazard': ((256, 48), (140, 122, 58), 'Faded ochre and black hazard stripes, scuffed'),
+    'toxic_industrial_pad': ((512, 512), (104, 100, 93), 'Drop-off pad from above: sooty concrete slabs, three faded white bays, a hazard stripe band along the front, oil stains, mud at the edges'),
+    'toxic_industrial_apron': ((384, 512), (92, 81, 69), 'Roll-out apron from above: a concrete lane with faded white lines and chevrons through rutted mud, hazard stripes at the door end'),
+    'toxic_industrial_slab_top': ((384, 384), (104, 100, 93), 'Flat concrete roof from above: board seams, two drains, soot, the faction crest painted large in faded ochre'),
+    'toxic_industrial_tank_top': ((256, 256), (77, 71, 64), 'Tank lid from above: corroded steel rings of rivets around a central hatch, soot and rust'),
+    'toxic_industrial_blast_door': ((256, 192), (77, 71, 64), 'Steel blast door: two ribbed leaves drawn apart on a furnace-lit interior, hazard stripes along the bottom'),
+    'toxic_industrial_concrete_plain': ((512, 192), (104, 100, 93), 'Board-formed raw concrete with no openings: plank grain, rusty form-tie holes, yellow drips, heavy soot from the top'),
+    'toxic_industrial_slab': ((256, 256), (100, 96, 89), 'Plain flat concrete roof or berm top from above: board seams, a drain, soot and oil stains'),
+    'toxic_industrial_wall_top': ((512, 32), (100, 96, 89), 'Compound wall coping from above: sooty concrete under coils of razor wire'),
+    'cyber_samurai_loading_court': ((560, 440), (126, 120, 108), 'Granite-bordered court with two painted drop-off bays and a central loading lane'),
+    'cyber_samurai_forge_apron': ((480, 560), (88, 87, 82), 'Dark stone rollout apron with white guide lines and a painted clan crest'),
+    'cyber_samurai_refinery_court': ((480, 480), (146, 140, 126), 'Raked gravel process yard with dark stone service path and white safety markings'),
+    'cyber_samurai_forge_door': ((384, 192), (53, 56, 60), 'Armored steel shutter with overlapping panels, lock seam and painted threshold marks'),
+    'cyber_samurai_forge_vent': ((384, 96), (38, 34, 34), 'Slim amber furnace light recessed behind dark steel vent baffles'),
+    'cyber_samurai_tank_plate': ((384, 192), (73, 78, 84), 'Laced gunmetal vessel shell with broad bands and brass fasteners'),
+    'cyber_samurai_brass': ((96, 96), (134, 108, 63), 'Satin brass for transfer pipes and ridge fittings'),
+    'cyber_samurai_tech_shell': ((416, 288), (58, 70, 84), 'Chamfered blue-black cladding with gunmetal panels, bright bevels, and rose service tracers'),
+    'cyber_samurai_tech_wall': ((384, 224), (45, 55, 66), 'Deep armored service wall with blue optical slots, pale ceramic and overlapping panels'),
+    'cyber_samurai_tech_edge': ((224, 128), (86, 102, 115), 'Satin machined edge with bevel highlights and darker outer seams'),
+    'cyber_samurai_power_band': ((432, 120), (25, 36, 47), 'Recessed ice-blue optical slots in a segmented black steel instrument band'),
+    'cyber_samurai_separator': ((320, 320), (33, 46, 59), 'Circular separator lid, segmented blue optical ring, and concentric gunmetal service rings'),
+    'cyber_samurai_forge_spine': ((224, 512), (36, 40, 46), 'Recessed longitudinal heat exchanger with amber channels and dark cross-bracing'),
 }
 
 # Theme-neutral cards in every theme's atlas.
@@ -155,6 +202,22 @@ FACTIONS = {
         'advanced_utopian_glass', 'advanced_utopian_shell', 'advanced_utopian_shell_glazed', 'advanced_utopian_stone', 'advanced_utopian_fascia',
         'advanced_utopian_metal', 'advanced_utopian_underside', 'advanced_utopian_podium',
         'advanced_utopian_lamp']},
+    'toxic-industrial': {'lighting': 'day', 'glow': True, 'surface': True, 'cards': [
+        'toxic_industrial_ground', 'toxic_industrial_roof', 'toxic_industrial_tank', 'toxic_industrial_scaffold',
+        'toxic_industrial_banner', 'toxic_industrial_stack', 'toxic_industrial_concrete', 'toxic_industrial_cells',
+        'toxic_industrial_sludge',
+        'toxic_industrial_emblem', 'toxic_industrial_stack_top', 'toxic_industrial_furnace', 'toxic_industrial_steel',
+        'toxic_industrial_hazard', 'toxic_industrial_pad', 'toxic_industrial_apron',
+        'toxic_industrial_slab_top', 'toxic_industrial_tank_top', 'toxic_industrial_blast_door',
+        'toxic_industrial_concrete_plain', 'toxic_industrial_slab', 'toxic_industrial_wall_top']},
+    'cyber-samurai': {'lighting': 'day', 'glow': True, 'surface': True, 'cards': [
+        'cyber_samurai_gravel', 'cyber_samurai_roof_tiles', 'cyber_samurai_stone', 'cyber_samurai_wall_screens',
+        'cyber_samurai_wall_armor', 'cyber_samurai_plaster', 'cyber_samurai_emblem', 'cyber_samurai_lantern',
+        'cyber_samurai_lacquer', 'cyber_samurai_vermilion', 'cyber_samurai_eave', 'cyber_samurai_lamp',
+        'cyber_samurai_forge_apron', 'cyber_samurai_refinery_court', 'cyber_samurai_loading_court',
+        'cyber_samurai_tank_plate', 'cyber_samurai_forge_door', 'cyber_samurai_forge_vent', 'cyber_samurai_brass',
+        'cyber_samurai_tech_shell', 'cyber_samurai_tech_wall', 'cyber_samurai_tech_edge',
+        'cyber_samurai_power_band', 'cyber_samurai_separator', 'cyber_samurai_forge_spine']},
 }
 
 
@@ -243,6 +306,66 @@ SURFACES = {
     'advanced_utopian_podium': MATTE, 'advanced_utopian_metal': SATIN, 'advanced_utopian_underside': (.4,0),
 }
 
+# The toxic industrial faction from docs/factions/toxic-industrial.md: soot, rust, furnace fire, and toxic sludge.
+SOOT, ASH, CORRODED, RUST = (42,40,38), (110,106,99), (77,71,64), (107,74,51)
+STAIN, MUD, SLAG, OILY = (140,138,62), (92,81,69), (61,58,54), (44,47,42)
+FURNACE, FURNACE_PAINT, TOXIC, TOXIC_PAINT = (232,135,58), (190,120,70), (168,196,60), (130,150,70)
+SURFACES |= {
+    'toxic_industrial_ground': (.95,0), 'toxic_industrial_roof': (.7,0), 'toxic_industrial_tank': (.4,1),
+    'toxic_industrial_scaffold': (.9,0), 'toxic_industrial_stack': (.9,0), 'toxic_industrial_concrete': (.9,0),
+    'toxic_industrial_cells': (.9,0), 'toxic_industrial_banner': (.95,0), 'toxic_industrial_sludge': (.1,0), 'toxic_industrial_emblem': (.9,0),
+    'toxic_industrial_stack_top': (.9,0), 'toxic_industrial_furnace': (.6,1), 'toxic_industrial_steel': (.6,1),
+    'toxic_industrial_hazard': (.85,0), 'toxic_industrial_pad': (.9,0), 'toxic_industrial_apron': (.95,0),
+    'toxic_industrial_slab_top': (.9,0), 'toxic_industrial_tank_top': (.45,1), 'toxic_industrial_blast_door': (.55,1),
+    'toxic_industrial_concrete_plain': (.9,0), 'toxic_industrial_slab': (.9,0), 'toxic_industrial_wall_top': (.8,1),
+}
+
+def soot(im, reach=1.0, strength=200):
+    """Soot darkening a card from the top down over `reach` of its height."""
+    w,h=im.size
+    mask=Image.new('L',im.size)
+    d=ImageDraw.Draw(mask)
+    for y in range(int(h*reach)):
+        d.line((0,y,w,y),fill=round(strength*(1-y/(h*reach))**1.6))
+    im.paste(SOOT,(0,0),mask)
+
+def drips(im, count):
+    """Yellow chemical drips running down from random points."""
+    w,h=im.size
+    mask=Image.new('L',im.size)
+    md=ImageDraw.Draw(mask)
+    for _ in range(count):
+        x,y=rng.randrange(w),rng.randrange(h//2)
+        md.line((x,y,x+rng.randint(-2,2),y+rng.randrange(20,h//2)),fill=rng.randint(80,160),width=rng.randint(3,6))
+    im.paste(STAIN,(0,0),mask.filter(ImageFilter.GaussianBlur(1.5)))
+
+def smokestacks(d, c, cy, r, color):
+    """The toxic industrial crest: a gear ring around three smokestacks of different heights."""
+    for k in range(12):
+        a=math.radians(k*30)
+        d.line((c+r*.8*math.cos(a),cy+r*.8*math.sin(a),c+r*math.cos(a),cy+r*math.sin(a)),fill=color,width=max(3,r//6))
+    d.ellipse((c-r*.82,cy-r*.82,c+r*.82,cy+r*.82),outline=color,width=max(2,r//8))
+    for dx,top in ((-.32,-.35),(0,-.6),(.32,-.15)):
+        d.rectangle((c+(dx-.09)*r,cy+top*r,c+(dx+.09)*r,cy+.45*r),fill=color)
+
+# The cyber samurai faction from docs/factions/cyber-samurai.md: black lacquer, steel tiles, warm screens, crimson lines.
+LACQUER, LACQUER_EDGE, TILE, TILE_LIGHT = (30,28,29), (58,53,55), (59,65,72), (106,113,121)
+PLATE, CORD, VERMILION, BRASS = (74,79,85), (143,47,42), (168,57,43), (160,132,82)
+PAPER, PLASTER, GRANITE, JOINT, MOSS_JOINT = (217,201,163), (207,200,184), (119,115,107), (79,76,71), (79,90,62)
+LANTERN, CRIMSON, CRIMSON_PAINT = (242,184,102), (224,72,60), (196,86,76)
+SURFACES |= {
+    'cyber_samurai_gravel': (.9,0), 'cyber_samurai_roof_tiles': (.45,1), 'cyber_samurai_stone': (.9,0),
+    'cyber_samurai_wall_screens': (.3,0), 'cyber_samurai_wall_armor': (.4,1), 'cyber_samurai_plaster': (.85,0),
+    'cyber_samurai_emblem': (.3,0), 'cyber_samurai_lantern': (.85,0), 'cyber_samurai_lacquer': (.3,0),
+    'cyber_samurai_vermilion': (.3,0), 'cyber_samurai_eave': (.3,0), 'cyber_samurai_lamp': (.3,0),
+    'cyber_samurai_loading_court': (.9,0), 'cyber_samurai_forge_apron': (.9,0),
+    'cyber_samurai_refinery_court': (.9,0), 'cyber_samurai_forge_door': (.4,1),
+    'cyber_samurai_forge_vent': (.45,1), 'cyber_samurai_tank_plate': (.4,1), 'cyber_samurai_brass': (.3,1),
+    'cyber_samurai_tech_shell': (.44,.73), 'cyber_samurai_tech_wall': (.47,.62),
+    'cyber_samurai_tech_edge': (.38,.74), 'cyber_samurai_power_band': (.41,.58),
+    'cyber_samurai_separator': (.41,.65), 'cyber_samurai_forge_spine': (.48,.65),
+}
+
 def finish(rough_metal):
     """A surface-map color: green is roughness and blue is metallic."""
     rough, metal = rough_metal
@@ -259,6 +382,18 @@ def emblem(d, glow, c, cy, r):
     mask=Image.new('L',glow.size)
     ImageDraw.Draw(mask).polygon(leaf,fill=230)
     glow.paste(ICE,(0,0),mask.filter(ImageFilter.GaussianBlur(max(1,r/20))))
+
+def crest(d, glow, c, cy, r):
+    """The cyber samurai crest: a brass ring broken at the top around an upright blade that glows crimson."""
+    d.arc((c-r,cy-r,c+r,cy+r),-58,238,fill=BRASS,width=max(3,r//5))
+    k=r/40
+    blade=[(c,cy-38*k),(c+5*k,cy-28*k),(c+5*k,cy+16*k),(c-5*k,cy+16*k),(c-5*k,cy-28*k)]
+    d.polygon(blade,fill=CRIMSON_PAINT)
+    d.rectangle((c-15*k,cy+16*k,c+15*k,cy+22*k),fill=BRASS)
+    d.rectangle((c-3*k,cy+22*k,c+3*k,cy+34*k),fill=LACQUER_EDGE)
+    mask=Image.new('L',glow.size)
+    ImageDraw.Draw(mask).polygon(blade,fill=240)
+    glow.paste(CRIMSON,(0,0),mask.filter(ImageFilter.GaussianBlur(max(1,r/30))))
 
 def lerp(start, end, t):
     return tuple(round(a+(b-a)*t) for a,b in zip(start,end))
@@ -1286,6 +1421,571 @@ for card, (size, base, _) in CARDS.items():
 
     if card == 'advanced_utopian_lamp':
         gd.rectangle((0,0,w,h),fill=ICE)
+
+    if card == 'cyber_samurai_gravel':
+        for y in range(4,h,7):
+            d.line((0,y,w,y),fill=(140,135,124),width=2)
+            d.line((0,y+2,w,y+2),fill=(184,179,167))
+        d.rectangle((0,0,w-1,h-1),outline=GRANITE,width=16)
+        d.rectangle((15,15,w-16,h-16),outline=JOINT,width=2)
+        for x in range(0,w,48):
+            d.line((x,0,x,15),fill=JOINT,width=2)
+            d.line((x,h-16,x,h),fill=JOINT,width=2)
+
+    if card == 'cyber_samurai_roof_tiles':
+        for y in range(0,h-24,30):
+            d.line((0,y,w,y),fill=(44,49,55),width=2)
+        for x in range(0,w,24):
+            d.rectangle((x,0,x+9,h-24),fill=(70,77,85))
+            d.line((x+3,0,x+3,h-24),fill=TILE_LIGHT,width=2)
+            d.line((x+10,0,x+10,h-24),fill=(36,40,45),width=3)
+            d.rectangle((x-1,h-24,x+11,h),fill=(36,40,45))
+            d.ellipse((x,h-22,x+10,h-6),fill=TILE_LIGHT,outline=(36,40,45),width=2)
+        rd.rectangle((0,h-24,w,h),fill=finish((.45,1)))
+
+    if card == 'cyber_samurai_stone':
+        y=0
+        while y<h:
+            row=rng.randint(26,40)
+            x=-rng.randrange(40)
+            while x<w:
+                block=rng.randint(44,92)
+                tone=lerp(GRANITE,rng.choice(((98,95,88),(136,132,123),(112,110,104))),rng.random()*.6)
+                d.rounded_rectangle((x+2,y+2,x+block-2,y+row-2),radius=5,fill=tone)
+                d.line((x+4,y+3,x+block-6,y+3),fill=lerp(tone,(170,166,156),.4),width=2)
+                if rng.random()<.22:
+                    d.line((x+block-1,y+rng.randrange(row),x+block-1,y+row),fill=MOSS_JOINT,width=4)
+                x+=block
+            d.line((0,y,w,y),fill=JOINT,width=2)
+            y+=row
+
+    if card == 'cyber_samurai_wall_screens':
+        for x0 in range(0,w,96):
+            d.rectangle((x0+10,12,x0+86,h-14),fill=(150,138,110))
+            lit=rng.random()<.75
+            if lit:
+                d.rectangle((x0+10,12,x0+86,h-14),fill=PAPER)
+                wash(glow,(x0+16,18,x0+80,h-20),LANTERN,6,rng.randint(150,210))
+            for x in range(x0+10,x0+87,19):
+                d.line((x,12,x,h-14),fill=LACQUER,width=2)
+            for y in range(12,h-13,22):
+                d.line((x0+10,y,x0+86,y),fill=LACQUER,width=2)
+            d.rectangle((x0,0,x0+9,h),fill=LACQUER_EDGE)
+            d.rectangle((x0+87,0,x0+95,h),fill=LACQUER_EDGE)
+        d.rectangle((0,0,w,11),fill=LACQUER_EDGE)
+        d.rectangle((0,h-13,w,h),fill=LACQUER_EDGE)
+
+    if card == 'cyber_samurai_wall_armor':
+        for y0 in range(10,h-10,22):
+            shift=8 if (y0//22)%2 else 0
+            for x0 in range(-shift,w,16):
+                d.rectangle((x0+1,y0,x0+15,y0+24),fill=PLATE,outline=(40,43,47))
+                d.line((x0+2,y0+1,x0+14,y0+1),fill=(120,126,132),width=2)
+            d.line((0,y0+24,w,y0+24),fill=(32,34,38),width=2)
+        for x in range(40,w,80):
+            for y0 in range(10,h-10,22):
+                d.line((x-4,y0+4,x+4,y0+12),fill=CORD,width=3)
+                d.line((x+4,y0+4,x-4,y0+12),fill=CORD,width=3)
+                rd.line((x-4,y0+4,x+4,y0+12),fill=finish((.85,0)),width=3)
+                rd.line((x+4,y0+4,x-4,y0+12),fill=finish((.85,0)),width=3)
+            d.line((x,10,x,h-10),fill=CORD,width=2)
+            rd.line((x,10,x,h-10),fill=finish((.85,0)),width=2)
+        for x0 in range(0,w,160):
+            d.rectangle((x0,0,x0+9,h),fill=LACQUER_EDGE)
+            rd.rectangle((x0,0,x0+9,h),fill=finish((.3,0)))
+        for box in ((0,0,w,9),(0,h-10,w,h)):
+            d.rectangle(box,fill=LACQUER_EDGE)
+            rd.rectangle(box,fill=finish((.3,0)))
+
+    if card == 'cyber_samurai_plaster':
+        d.rectangle((0,0,w,14),fill=LACQUER_EDGE)
+        rd.rectangle((0,0,w,14),fill=finish((.3,0)))
+        d.line((0,15,w,15),fill=BRASS,width=2)
+        top=int(h*.78)
+        d.rectangle((0,top,w,h),fill=LACQUER)
+        rd.rectangle((0,top,w,h),fill=finish((.3,0)))
+        for y in range(top+8,h,9):
+            d.line((0,y,w,y),fill=LACQUER_EDGE)
+        for x in range(0,w,64):
+            d.rectangle((x,top,x+5,h),fill=LACQUER_EDGE)
+
+    if card == 'cyber_samurai_emblem':
+        d.ellipse((4,4,w-5,h-5),fill=(42,39,40),outline=LACQUER_EDGE,width=3)
+        crest(d,glow,w//2,h//2,46)
+
+    if card == 'cyber_samurai_lantern':
+        gd.rectangle((0,10,w,h-10),fill=LANTERN)
+        for y in range(18,h-10,10):
+            d.line((0,y,w,y),fill=(150,128,92))
+        d.rectangle((0,0,w,9),fill=LACQUER)
+        d.rectangle((0,h-9,w,h),fill=LACQUER)
+        for box in ((0,0,w,9),(0,h-9,w,h)):
+            gd.rectangle(box,fill=(0,0,0))
+            rd.rectangle(box,fill=finish((.3,0)))
+
+    if card == 'cyber_samurai_lacquer':
+        for y in range(0,h,4):
+            d.line((0,y,w,y),fill=rng.choice(((28,26,27),(33,31,32),(30,28,29))))
+
+    if card == 'cyber_samurai_vermilion':
+        for box in ((0,8,w,18),(0,h-19,w,h-9)):
+            d.rectangle(box,fill=BRASS)
+            rd.rectangle(box,fill=finish((.3,1)))
+
+    if card == 'cyber_samurai_eave':
+        d.rectangle((0,0,w,6),fill=BRASS)
+        rd.rectangle((0,0,w,6),fill=finish((.3,1)))
+        for x in range(0,w,64):
+            d.rectangle((x,10,x+3,h-12),fill=LACQUER_EDGE)
+        d.rectangle((0,h-8,w,h-4),fill=CRIMSON_PAINT)
+        gd.rectangle((0,h-8,w,h-4),fill=CRIMSON)
+
+    if card == 'cyber_samurai_lamp':
+        gd.rectangle((0,0,w,h),fill=CRIMSON)
+
+    if card in ('cyber_samurai_loading_court', 'cyber_samurai_forge_apron', 'cyber_samurai_refinery_court'):
+        paint = (222, 214, 194)
+        yard = card != 'cyber_samurai_forge_apron'
+        if yard:
+            for y in range(18, h-16, 8):
+                d.line((18, y, w-18, y), fill=(129, 124, 112), width=2)
+                d.line((18, y+2, w-18, y+2), fill=(161, 155, 140))
+        else:
+            for y in range(32, h, 42):
+                d.line((0, y, w, y), fill=JOINT, width=2)
+                for x in range(20+(y//42)%2*29, w, 58):
+                    d.line((x, y, x, y+42), fill=JOINT, width=2)
+        d.rectangle((0, 0, w-1, h-1), outline=GRANITE, width=16)
+        d.rectangle((15, 15, w-16, h-16), outline=JOINT, width=2)
+        if card == 'cyber_samurai_loading_court':
+            d.rectangle((w//2-73, h//2-34, w//2+73, h-18), fill=(92, 91, 84))
+            for left, right in ((42, w//2-89), (w//2+89, w-42)):
+                for x, inward in ((left, 1), (right, -1)):
+                    d.line((x+inward*33, h-46, x, h-46, x, h//2+14, x+inward*33, h//2+14),
+                           fill=paint, width=5)
+                for x in (left+30, right-30):
+                    d.line((x, h//2+29, x, h//2+46), fill=paint, width=4)
+            for y in range(h//2+18, h-30, 50):
+                d.line((w//2, y, w//2, y+20), fill=paint, width=4)
+        elif card == 'cyber_samurai_forge_apron':
+            for x in (w//4, w*3//4):
+                d.line((x, h//2-30, x, h-24), fill=paint, width=6)
+                d.line((x+7, h//2-30, x+7, h-24), fill=(151, 144, 129), width=2)
+            crest(d, Image.new('RGB', im.size), w//2, h-74, 24)
+        else:
+            left, right = int(w*.20), int(w*.46)
+            d.rectangle((left, h//2, right, h-16), fill=(91, 89, 82))
+            for x in (left+7, right-7):
+                d.line((x, h//2+5, x, h-19), fill=paint, width=3)
+            for x in range(right+24, w-24, 20):
+                d.line((x, h-75, x+13, h-57), fill=paint, width=3)
+
+    if card == 'cyber_samurai_forge_door':
+        for y in range(17, h-12, 34):
+            d.rectangle((9, y, w-10, y+31), fill=(86, 88, 89), outline=(31, 32, 34), width=2)
+            d.line((11, y+2, w-12, y+2), fill=(147, 145, 133), width=3)
+        for x in (10, w//2-5, w-14):
+            d.rectangle((x, 8, x+4, h-9), fill=LACQUER)
+        d.rectangle((0, 0, w-1, h-1), outline=LACQUER_EDGE, width=9)
+        for x in range(20, w-26, 25):
+            d.line((x, h-16, x+9, h-16), fill=(175, 159, 116), width=3)
+
+    if card == 'cyber_samurai_forge_vent':
+        d.rectangle((8, 18, w-9, h-19), fill=(109, 60, 32), outline=LACQUER_EDGE, width=4)
+        for x in range(14, w-16, 24):
+            d.rectangle((x, 27, x+13, h-28), fill=(202, 123, 66))
+            wash(glow, (x+2, 29, x+10, h-30), LANTERN, 2, 220)
+            d.line((x+15, 20, x+15, h-21), fill=(112, 104, 93), width=2)
+        for y in (35, 62):
+            d.line((8, y, w-9, y), fill=LACQUER, width=4)
+            gd.line((8, y, w-9, y), fill=(0, 0, 0), width=4)
+
+    if card == 'cyber_samurai_tank_plate':
+        for x in range(24, w-12, 48):
+            d.line((x, 0, x, h), fill=(42, 45, 49), width=2)
+            d.line((x+2, 0, x+2, h), fill=TILE_LIGHT, width=1)
+        for y in (16, h//2, h-18):
+            d.rectangle((0, y-5, w, y+5), fill=LACQUER_EDGE)
+            d.line((0, y+5, w, y+5), fill=(39, 42, 46), width=2)
+            for x in range(14, w, 27):
+                d.ellipse((x, y-2, x+4, y+2), fill=BRASS)
+                rd.ellipse((x, y-2, x+4, y+2), fill=finish((.3,1)))
+
+    if card == 'cyber_samurai_brass':
+        for y in range(0, h, 5):
+            d.line((0, y, w, y), fill=rng.choice(((137, 111, 66), (143, 118, 72), (130, 105, 61))))
+
+    if card == 'toxic_industrial_ground':
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for _ in range(9):
+            x,y,r=rng.randrange(w),rng.randrange(h),rng.randint(16,64)
+            md.polygon([(x+r*rng.uniform(.5,1.2)*math.cos(a),y+r*rng.uniform(.4,1)*math.sin(a))
+                        for a in (k*math.pi/5 for k in range(10))],fill=rng.randint(90,200))
+        im.paste(SLAG,(0,0),mask.filter(ImageFilter.GaussianBlur(5)))
+        for x0 in (110,150,250,290):
+            d.line((x0,0,x0+rng.randint(-20,20),h),fill=(66,58,50),width=9)
+            d.line((x0+5,0,x0+rng.randint(-15,25),h),fill=(108,96,82),width=2)
+        puddle=[(30,262),(70,238),(132,246),(156,280),(118,318),(60,306)]
+        d.polygon(puddle,fill=OILY)
+        rd.polygon(puddle,fill=finish((.1,0)))
+        d.line((62,258,118,252),fill=(78,70,92),width=3)
+
+    if card == 'toxic_industrial_roof':
+        for x in range(0,w,16):
+            d.line((x,0,x,h),fill=(38,36,34),width=3)
+            d.line((x+5,0,x+5,h),fill=(80,77,72),width=2)
+        for y in (h//3,2*h//3):
+            d.line((0,y,w,y),fill=(34,32,30),width=3)
+        rust(im,24,h//3)
+        soot(im,.6,150)
+
+    if card == 'toxic_industrial_tank':
+        for y in range(48,h,52):
+            d.line((0,y-3,w,y-3),fill=(150,142,128),width=3)
+            d.line((0,y,w,y),fill=(52,48,44),width=3)
+            for x in range(6,w,14):
+                d.point((x,y-7),fill=(170,160,144))
+        d.rectangle((0,0,w,8),fill=(140,132,120))
+        for x in range(64,w,64):
+            d.line((x,0,x,h),fill=(56,52,47),width=2)
+        rust(im,22,0)
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for _ in range(9):
+            x=rng.randrange(w)
+            md.line((x,140,x+rng.randint(-2,2),140+rng.randrange(30,100)),fill=rng.randint(90,180),width=rng.randint(3,6))
+        im.paste(STAIN,(0,0),mask.filter(ImageFilter.GaussianBlur(1.5)))
+        c=w//2
+        d.rounded_rectangle((c-12,70,c+12,170),radius=6,fill=(38,36,34))
+        d.rounded_rectangle((c-7,90,c+7,165),radius=4,fill=TOXIC_PAINT)
+        rd.rounded_rectangle((c-7,90,c+7,165),radius=4,fill=finish((.1,0)))
+        wash(glow,(c-5,92,c+5,163),TOXIC,3,220)
+        soot(im,.35,140)
+
+    if card == 'toxic_industrial_scaffold':
+        for y in range(0,h,42):
+            d.rectangle((0,y,w,y+8),fill=(88,84,78))
+            for x in range(6,w,30):
+                if rng.random()<.12:
+                    d.rectangle((x,y+12,x+18,y+36),fill=FURNACE_PAINT)
+                    wash(glow,(x+2,y+14,x+16,y+34),FURNACE,3,170)
+        for y in range(20,h,42):
+            d.line((0,y,w,y),fill=(150,140,118),width=4)
+            d.line((0,y+3,w,y+3),fill=(70,66,60))
+        for x in range(18,w,46):
+            d.line((x,0,x,h),fill=(126,120,108),width=4)
+        for y in range(0,h,42):
+            for x in range(18,w-46,92):
+                d.line((x,y,x+46,y+42),fill=(112,106,96),width=2)
+        soot(im,.5,120)
+
+    if card == 'toxic_industrial_stack':
+        for y in (24,48,72):
+            d.rectangle((0,y,w,y+10),fill=(70,66,61))
+        d.rectangle((w//2-12,0,w//2+12,h),outline=(150,144,132),width=3)
+        for y in range(4,h,14):
+            d.line((w//2-12,y,w//2+12,y),fill=(150,144,132),width=2)
+        for y in range(96,h,36):
+            d.line((0,y,w,y),fill=(92,88,82))
+        soot(im,.9,235)
+
+    if card in ('toxic_industrial_concrete', 'toxic_industrial_cells', 'toxic_industrial_concrete_plain'):
+        # Board-formed: each plank leaves its own tone and a faint seam.
+        for y in range(0,h,12):
+            tone=rng.randint(-7,7)
+            im.paste((150,146,138) if tone>0 else (90,87,82),(0,y),Image.new('L',(w,12),abs(tone)*12))
+            d.line((0,y,w,y),fill=(98,95,89))
+
+    if card == 'toxic_industrial_concrete':
+        ties=[(x,y) for x in range(32,w,64) for y in (30,102,170)]
+        for x,y in ties:
+            d.ellipse((x-3,y-3,x+3,y+3),fill=(58,55,51))
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for x,y in ties:
+            if rng.random()<.6:
+                md.line((x,y+4,x+rng.randint(-1,1),y+rng.randrange(14,44)),fill=rng.randint(90,170),width=3)
+        im.paste(RUST,(0,0),mask.filter(ImageFilter.GaussianBlur(1.2)))
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for x0 in range(64,w,128):
+            md.rectangle((x0-16,40,x0+16,158),fill=170)
+        im.paste(SOOT,(0,0),mask.filter(ImageFilter.GaussianBlur(9)))
+        for x0 in range(64,w,128):
+            d.rectangle((x0-8,52,x0+8,150),fill=(66,63,58))
+            lit=rng.random()<.4
+            d.rectangle((x0-5,56,x0+5,150),fill=FURNACE_PAINT if lit else (24,23,22))
+            if lit:
+                wash(glow,(x0-3,60,x0+3,146),FURNACE,3,180)
+        text(d,(w-70,36),'B-12',40,(178,174,164),True)
+        drips(im,8)
+        soot(im,1,245)
+        grime(im,[(0,h-20,w,h,90)],30)
+
+    if card == 'toxic_industrial_concrete_plain':
+        ties=[(x,y) for x in range(32,w,64) for y in (30,102,170)]
+        for x,y in ties:
+            d.ellipse((x-3,y-3,x+3,y+3),fill=(58,55,51))
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for x,y in ties:
+            if rng.random()<.6:
+                md.line((x,y+4,x+rng.randint(-1,1),y+rng.randrange(14,44)),fill=rng.randint(90,170),width=3)
+        im.paste(RUST,(0,0),mask.filter(ImageFilter.GaussianBlur(1.2)))
+        drips(im,10)
+        soot(im,1,245)
+        grime(im,[(0,h-20,w,h,90)],30)
+
+    if card == 'toxic_industrial_cells':
+        for row in range(4):
+            for col in range(12):
+                x,y=col*40,row*40
+                d.rectangle((x+7,y+7,x+33,y+33),fill=(46,44,41))
+                d.polygon([(x+7,y+7),(x+33,y+7),(x+28,y+13),(x+12,y+13)],fill=(30,29,27))
+                if rng.random()<.08:
+                    d.rectangle((x+13,y+14,x+28,y+33),fill=FURNACE_PAINT)
+                    wash(glow,(x+15,y+16,x+26,y+31),FURNACE,3,170)
+                else:
+                    d.rectangle((x+13,y+14,x+28,y+33),fill=(22,22,21))
+                d.line((x+7,y+34,x+33,y+34),fill=(150,146,136),width=2)
+        rust(im,18,0)
+        soot(im,.7,190)
+
+    if card == 'toxic_industrial_banner':
+        d.rectangle((0,0,w,10),fill=CORRODED)
+        rd.rectangle((0,0,w,10),fill=finish((.6,1)))
+        for x in (8,w-14):
+            d.rectangle((x,10,x+5,h),fill=OCHRE)
+        smokestacks(d,w//2,72,34,OCHRE)
+        d.rectangle((w//2-4,128,w//2+4,h-16),fill=OCHRE)
+        soot(im,.4,90)
+
+    if card == 'toxic_industrial_sludge':
+        d.rounded_rectangle((0,0,w-1,h-1),radius=36,fill=(58,62,40))
+        d.rounded_rectangle((18,16,w-19,h-17),radius=28,fill=TOXIC_PAINT)
+        for _ in range(8):
+            x,y=rng.randrange(30,w-60),rng.randrange(24,h-24)
+            d.arc((x,y,x+rng.randint(20,50),y+12),190,350,fill=(96,110,56),width=3)
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).rounded_rectangle((34,30,w-35,h-31),radius=22,fill=170)
+        glow.paste(TOXIC,(0,0),mask.filter(ImageFilter.GaussianBlur(14)))
+
+    if card == 'toxic_industrial_emblem':
+        smokestacks(d,w//2,h//2,50,STAIN)
+
+    if card == 'toxic_industrial_stack_top':
+        c=w//2
+        d.ellipse((4,4,w-5,h-5),fill=(64,61,57))
+        d.ellipse((22,22,w-23,h-23),fill=(24,22,21))
+        d.ellipse((38,38,w-39,h-39),fill=FURNACE_PAINT)
+        mask=Image.new('L',glow.size)
+        ImageDraw.Draw(mask).ellipse((36,36,w-37,h-37),fill=200)
+        glow.paste(FURNACE,(0,0),mask.filter(ImageFilter.GaussianBlur(8)))
+
+    if card == 'toxic_industrial_furnace':
+        d.rectangle((0,0,w-1,h-1),outline=CORRODED,width=14)
+        d.rectangle((14,14,w-15,h-15),fill=FURNACE_PAINT)
+        rd.rectangle((0,0,w-1,h-1),outline=finish((.6,1)),width=14)
+        rd.rectangle((14,14,w-15,h-15),fill=finish((.9,0)))
+        wash(glow,(18,22,w-19,h-15),FURNACE,8,240)
+        rust(im,6,0)
+
+    if card == 'toxic_industrial_steel':
+        rust(im,14,0)
+        soot(im,.5,110)
+
+    if card == 'toxic_industrial_hazard':
+        hazard(im,0,0,w-1,h-1,24)
+        soot(im,1,90)
+        grime(im,[],14)
+
+    if card in ('toxic_industrial_pad', 'toxic_industrial_slab_top', 'toxic_industrial_slab'):
+        joints(d,w,h,64,(78,75,70),(124,120,112),range(64,h,64))
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for _ in range(4):
+            x,y=rng.randrange(w),rng.randrange(h)
+            r=rng.randint(10,24)
+            md.ellipse((x-r,y-r*.6,x+r,y+r*.6),fill=rng.randint(60,110))
+        for k in range(24):
+            md.rectangle((k,k,w-1-k,h-1-k),outline=round(150*(1-k/24)))
+        im.paste(SOOT,(0,0),mask.filter(ImageFilter.GaussianBlur(5)))
+
+    if card == 'toxic_industrial_pad':
+        bay=(w-60)//3
+        for i in range(3):
+            x0=30+i*bay
+            d.rectangle((x0+8,90,x0+bay-8,h-110),outline=(146,142,132),width=7)
+            for k in range(3):
+                y=150+k*60
+                m=x0+bay//2
+                d.line((m-28,y+18,m,y,m+28,y+18),fill=(146,142,132),width=7)
+        hazard(im,20,h-88,w-21,h-60,20)
+        d.rectangle((0,0,w-1,h-1),outline=MUD,width=18)
+        soot(im,.15,90)
+
+    if card == 'toxic_industrial_apron':
+        for x0 in (60,110,w-120,w-70):
+            d.line((x0,0,x0+rng.randint(-12,12),h),fill=(66,58,50),width=9)
+        d.rectangle((96,0,w-97,h),fill=(100,96,89))
+        joints(d,w,h,192,(78,75,70),(124,120,112),range(64,h,64))
+        for x in (112,w-113):
+            d.line((x,0,x,h),fill=(128,124,114),width=3)
+        hazard(im,96,0,w-97,28,20)
+        mask=Image.new('L',im.size)
+        md=ImageDraw.Draw(mask)
+        for x0 in (150,w-150):
+            md.line((x0,0,x0+rng.randint(-10,10),h),fill=170,width=26)
+        for _ in range(8):
+            x,y,r=rng.randrange(96,w-96),rng.randrange(h),rng.randint(16,46)
+            md.ellipse((x-r,y-r*.5,x+r,y+r*.5),fill=rng.randint(80,170))
+        im.paste(SOOT,(0,0),mask.filter(ImageFilter.GaussianBlur(5)))
+        mud=Image.new('L',im.size)
+        ud=ImageDraw.Draw(mud)
+        for _ in range(6):
+            y=rng.randrange(h)
+            ud.line((96,y,w-96,y+rng.randint(-30,30)),fill=rng.randint(90,170),width=rng.randint(8,18))
+        im.paste(MUD,(0,0),mud.filter(ImageFilter.GaussianBlur(4)))
+
+    if card == 'toxic_industrial_slab_top':
+        for x,y in ((60,60),(w-60,h-60)):
+            d.ellipse((x-12,y-12,x+12,y+12),fill=(36,34,32),outline=(70,66,61),width=3)
+        smokestacks(d,w//2,h//2,110,OCHRE)
+        soot(im,.3,80)
+
+    if card == 'toxic_industrial_slab':
+        for x,y in ((70,80),):
+            d.ellipse((x-10,y-10,x+10,y+10),fill=(36,34,32),outline=(70,66,61),width=3)
+        soot(im,.4,90)
+
+    if card == 'toxic_industrial_wall_top':
+        d.rectangle((0,8,w,h-8),fill=(34,32,30))
+        for x in range(0,w,8):
+            d.polygon([(x,8),(x+4,2),(x+8,8)],fill=(34,32,30))
+            d.polygon([(x,h-8),(x+4,h-2),(x+8,h-8)],fill=(34,32,30))
+        for x in range(-8,w,16):
+            d.arc((x,8,x+22,h-8),200,300,fill=(150,146,138),width=2)
+        soot(im,1,60)
+
+    if card == 'toxic_industrial_tank_top':
+        c=w//2
+        for r in (122,96,64):
+            d.ellipse((c-r,c-r,c+r,c+r),outline=(140,132,120),width=4)
+            for k in range(int(r/4)):
+                a=math.radians(k*360/int(r/4))
+                d.point((c+(r-7)*math.cos(a),c+(r-7)*math.sin(a)),fill=(118,110,98))
+        d.ellipse((c-26,c-26,c+26,c+26),fill=(52,48,44),outline=(110,102,92),width=4)
+        rust(im,10,0)
+        mask=Image.new('L',im.size)
+        ImageDraw.Draw(mask).ellipse((c-90,c-90,c+90,c+90),fill=110)
+        im.paste(SOOT,(0,0),mask.filter(ImageFilter.GaussianBlur(30)))
+
+    if card == 'toxic_industrial_blast_door':
+        c=w//2
+        for y in range(12,h-30,22):
+            d.rectangle((0,y,w,y+8),fill=(62,58,52))
+            d.line((0,y,w,y),fill=(110,104,94),width=2)
+        for y in range(14,h-30):
+            d.line((c-34,y,c+34,y),fill=lerp((90,52,30),FURNACE_PAINT,y/(h-30)))
+        rd.rectangle((c-34,14,c+34,h-30),fill=finish((.9,0)))
+        for y in range(20,h-34,18):
+            d.line((c-30,y,c+30,y),fill=(70,44,30),width=3)
+        wash(glow,(c-32,18,c+32,h-32),FURNACE,8,250)
+        hazard(im,0,h-30,w-1,h-1,20)
+        rust(im,14,0)
+        soot(im,.5,140)
+
+    if card == 'cyber_samurai_tech_shell':
+        seam = (20, 26, 35)
+        bevel = (110, 130, 145)
+        d.rectangle((3, 4, w-4, h-5), outline=seam, width=7)
+        d.line((14, 14, w-15, 14), fill=bevel, width=3)
+        d.line((14, h-15, w-15, h-15), fill=(78, 97, 112), width=4)
+        d.polygon([(24, 26), (w-46, 26), (w-22, 50), (w-22, h-80),
+                   (w-57, h-45), (37, h-45), (24, h-59)],
+                  fill=(70, 84, 100), outline=seam, width=4)
+        d.polygon([(48, 49), (w-82, 49), (w-50, 79), (w-50, h-95),
+                   (w-72, h-73), (48, h-73)], fill=(48, 59, 73), outline=(87, 105, 122), width=2)
+        d.polygon([(76, 56), (w-88, 56), (w-67, 78), (w-67, 109),
+                   (w-148, 109), (w-176, 82), (76, 82)], fill=(81, 96, 112))
+        d.line((49, h-46, 75, h-46, 106, h-77, 160, h-77), fill=bevel, width=4)
+        d.line((w-31, 68, w-31, h-97), fill=(117, 133, 146), width=4)
+        for x in range(118, w-76, 36):
+            d.line((x, h-64, x, h-56), fill=(115, 133, 147), width=3)
+        for line in (((26, h-65), (26, 94), (60, 60), (89, 60)),
+                     ((w-42, h-53), (w-79, h-25), (w-147, h-25))):
+            d.line(line, fill=(24, 30, 41), width=12)
+            d.line(line, fill=(165, 73, 88), width=5)
+            gd.line(line, fill=(128, 49, 63), width=4)
+        d.line((114, 127, 114, 168, 132, 185, w-89, 185), fill=(25, 31, 39), width=3)
+        d.line((132, 189, w-89, 189), fill=(92, 109, 124), width=2)
+
+    if card == 'cyber_samurai_tech_wall':
+        edge = (105, 125, 140)
+        seam = (23, 29, 36)
+        d.rectangle((3, 5, w-4, h-6), outline=seam, width=7)
+        d.line((13, 14, w-14, 14), fill=edge, width=4)
+        d.line((13, h-15, w-14, h-15), fill=edge, width=3)
+        for x in (20, 142, 264):
+            d.polygon([(x, 26), (x+84, 26), (x+103, 45), (x+103, 173),
+                       (x+83, 194), (x, 194)], fill=(63, 77, 91), outline=seam, width=4)
+            d.line((x+4, 29, x+81, 29, x+99, 47), fill=edge, width=3)
+            d.rectangle((x+12, 48, x+88, 72), fill=(23, 32, 40))
+            for u in range(x+18, x+82, 16):
+                d.rectangle((u, 54, u+10, 61), fill=(113, 166, 187))
+                gd.rectangle((u, 55, u+10, 60), fill=(57, 109, 135))
+            d.line((x+13, 110, x+36, 110, x+50, 125, x+86, 125), fill=seam, width=3)
+            d.polygon([(x+12, 155), (x+27, 143), (x+38, 143), (x+38, 179),
+                       (x+12, 179)], fill=(155, 167, 168))
+            rd.rectangle((x+14, 156, x+35, 177), fill=finish((.82,0)))
+
+    if card == 'cyber_samurai_tech_edge':
+        d.rectangle((0, 0, w-1, h-1), outline=(35, 42, 51), width=6)
+        d.rectangle((10, 11, w-11, 24), fill=(111, 129, 143))
+        d.line((10, 12, w-11, 12), fill=(153, 170, 180), width=3)
+        d.line((10, h-22, w-11, h-22), fill=(51, 64, 76), width=5)
+        d.line((10, h-16, w-11, h-16), fill=(100, 120, 133), width=2)
+        for x in range(29, w-25, 41):
+            d.line((x, h-36, x+9, h-36), fill=(119, 139, 153), width=2)
+
+    if card == 'cyber_samurai_power_band':
+        d.rectangle((3, 9, w-4, h-10), outline=(100, 120, 137), width=5)
+        d.rectangle((13, 26, w-14, h-29), fill=(12, 24, 34))
+        rd.rectangle((13, 26, w-14, h-29), fill=finish((.25,0)))
+        for x in range(25, w-30, 42):
+            d.polygon([(x, 42), (x+33, 42), (x+33, 67), (x+27, 76), (x, 76)],
+                      fill=(78, 136, 161))
+            d.line((x+2, 44, x+30, 44), fill=(165, 206, 222), width=4)
+            wash(glow, (x+2, 46, x+30, 67), (117, 176, 203), 3, 210)
+
+    if card == 'cyber_samurai_separator':
+        c = w//2
+        for r, color in ((155, (28, 37, 49)), (145, (109, 127, 141)),
+                         (137, (59, 77, 94)), (117, (22, 38, 51)), (100, (79, 101, 120)),
+                         (95, (44, 62, 79)), (72, (23, 38, 52)), (52, (75, 98, 115)),
+                         (47, (34, 51, 66))):
+            d.ellipse((c-r, c-r, c+r, c+r), fill=color)
+        for a in range(0, 360, 45):
+            d.arc((c-128, c-128, c+128, c+128), a+6, a+35, fill=(123, 176, 199), width=9)
+            gd.arc((c-128, c-128, c+128, c+128), a+6, a+35, fill=(98, 164, 192), width=7)
+            d.arc((c-82, c-82, c+82, c+82), a+2, a+40, fill=(96, 115, 128), width=4)
+        d.polygon([(c, c-31), (c+26, c), (c, c+31), (c-26, c)],
+                  fill=(69, 120, 141), outline=(110, 162, 184), width=3)
+        gd.line((c-10, c, c+10, c), fill=(124, 176, 199), width=5)
+
+    if card == 'cyber_samurai_forge_spine':
+        d.rectangle((5, 6, w-6, h-7), outline=(105, 117, 126), width=5)
+        d.rectangle((18, 18, w-19, h-19), fill=(20, 26, 33))
+        for x in (33, 66, 134, 167):
+            d.rectangle((x, 26, x+22, h-27), fill=(117, 77, 55))
+            for y in range(39, h-48, 51):
+                d.rectangle((x+4, y, x+17, y+33), fill=(217, 151, 96))
+                wash(glow, (x+6, y+2, x+15, y+30), LANTERN, 2, 210)
+                d.line((x+4, y+34, x+17, y+34), fill=(100, 69, 55), width=3)
+        d.rectangle((96, 29, 128, h-30), fill=(57, 69, 83), outline=(76, 90, 104), width=3)
+        for y in range(38, h-40, 44):
+            d.line((102, y, 122, y), fill=(110, 124, 136), width=3)
 
     # Break up perfectly even paint without eroding the small lettering at game zoom.
     # The advanced utopian faction is spotless, so its cards skip it.

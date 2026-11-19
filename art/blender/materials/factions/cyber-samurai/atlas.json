@@ -1,0 +1,185 @@
+{
+  "faction": "cyber-samurai",
+  "width": 2048,
+  "height": 2048,
+  "lighting": "day",
+  "glow": "atlas-glow.jpg",
+  "surface": "atlas-surface.jpg",
+  "cards": {
+    "cyber_samurai_gravel": {
+      "x": 12,
+      "y": 12,
+      "width": 384,
+      "height": 384,
+      "shows": "Court from above: pale gravel raked in straight lines inside a granite kerb"
+    },
+    "cyber_samurai_roof_tiles": {
+      "x": 420,
+      "y": 12,
+      "width": 512,
+      "height": 256,
+      "shows": "Roof slope: dark steel tile rolls running down the slope, end caps along the bottom edge for the eave"
+    },
+    "cyber_samurai_stone": {
+      "x": 956,
+      "y": 12,
+      "width": 512,
+      "height": 192,
+      "shows": "Sloped base: fitted grey granite in uneven courses, moss in some joints"
+    },
+    "cyber_samurai_wall_screens": {
+      "x": 1492,
+      "y": 12,
+      "width": 480,
+      "height": 160,
+      "shows": "Black lacquer frame holding paper screen bays in a fine grid, most lit warm from inside"
+    },
+    "cyber_samurai_wall_armor": {
+      "x": 12,
+      "y": 420,
+      "width": 480,
+      "height": 160,
+      "shows": "Rows of overlapping gunmetal armor plates laced with crimson cord, between black lacquer posts"
+    },
+    "cyber_samurai_plaster": {
+      "x": 516,
+      "y": 420,
+      "width": 256,
+      "height": 128,
+      "shows": "Pale plaster band over black lacquered boards, under a lacquer beam"
+    },
+    "cyber_samurai_emblem": {
+      "x": 796,
+      "y": 420,
+      "width": 128,
+      "height": 128,
+      "shows": "Faction crest on black lacquer: a brass ring broken at the top around an upright crimson-lit blade"
+    },
+    "cyber_samurai_lantern": {
+      "x": 948,
+      "y": 420,
+      "width": 64,
+      "height": 96,
+      "shows": "Paper lantern side with dark ribs and caps, glowing warm"
+    },
+    "cyber_samurai_lacquer": {
+      "x": 1036,
+      "y": 420,
+      "width": 128,
+      "height": 96,
+      "shows": "Plain black lacquer with faint grain"
+    },
+    "cyber_samurai_vermilion": {
+      "x": 1188,
+      "y": 420,
+      "width": 128,
+      "height": 96,
+      "shows": "Vermilion lacquer post or beam with brass bands near each end"
+    },
+    "cyber_samurai_eave": {
+      "x": 1340,
+      "y": 420,
+      "width": 512,
+      "height": 48,
+      "shows": "Eave edge: black lacquer fascia with a brass top edge and a thin crimson line of light along the bottom"
+    },
+    "cyber_samurai_lamp": {
+      "x": 1876,
+      "y": 420,
+      "width": 48,
+      "height": 48,
+      "shows": "Lamp lens filling the whole card, glowing crimson"
+    },
+    "cyber_samurai_forge_apron": {
+      "x": 12,
+      "y": 604,
+      "width": 480,
+      "height": 560,
+      "shows": "Dark stone rollout apron with white guide lines and a painted clan crest"
+    },
+    "cyber_samurai_refinery_court": {
+      "x": 516,
+      "y": 604,
+      "width": 480,
+      "height": 480,
+      "shows": "Raked gravel process yard with dark stone service path and white safety markings"
+    },
+    "cyber_samurai_loading_court": {
+      "x": 1020,
+      "y": 604,
+      "width": 560,
+      "height": 440,
+      "shows": "Granite-bordered court with two painted drop-off bays and a central loading lane"
+    },
+    "cyber_samurai_tank_plate": {
+      "x": 1604,
+      "y": 604,
+      "width": 384,
+      "height": 192,
+      "shows": "Laced gunmetal vessel shell with broad bands and brass fasteners"
+    },
+    "cyber_samurai_forge_door": {
+      "x": 12,
+      "y": 1188,
+      "width": 384,
+      "height": 192,
+      "shows": "Armored steel shutter with overlapping panels, lock seam and painted threshold marks"
+    },
+    "cyber_samurai_forge_vent": {
+      "x": 420,
+      "y": 1188,
+      "width": 384,
+      "height": 96,
+      "shows": "Slim amber furnace light recessed behind dark steel vent baffles"
+    },
+    "cyber_samurai_brass": {
+      "x": 828,
+      "y": 1188,
+      "width": 96,
+      "height": 96,
+      "shows": "Satin brass for transfer pipes and ridge fittings"
+    },
+    "cyber_samurai_tech_shell": {
+      "x": 948,
+      "y": 1188,
+      "width": 416,
+      "height": 288,
+      "shows": "Chamfered blue-black cladding with gunmetal panels, bright bevels, and rose service tracers"
+    },
+    "cyber_samurai_tech_wall": {
+      "x": 1388,
+      "y": 1188,
+      "width": 384,
+      "height": 224,
+      "shows": "Deep armored service wall with blue optical slots, pale ceramic and overlapping panels"
+    },
+    "cyber_samurai_tech_edge": {
+      "x": 1796,
+      "y": 1188,
+      "width": 224,
+      "height": 128,
+      "shows": "Satin machined edge with bevel highlights and darker outer seams"
+    },
+    "cyber_samurai_power_band": {
+      "x": 12,
+      "y": 1500,
+      "width": 432,
+      "height": 120,
+      "shows": "Recessed ice-blue optical slots in a segmented black steel instrument band"
+    },
+    "cyber_samurai_separator": {
+      "x": 468,
+      "y": 1500,
+      "width": 320,
+      "height": 320,
+      "shows": "Circular separator lid, segmented blue optical ring, and concentric gunmetal service rings"
+    },
+    "cyber_samurai_forge_spine": {
+      "x": 812,
+      "y": 1500,
+      "width": 224,
+      "height": 512,
+      "shows": "Recessed longitudinal heat exchanger with amber channels and dark cross-bracing"
+    }
+  }
+}
