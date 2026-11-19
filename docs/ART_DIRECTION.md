@@ -17,9 +17,16 @@ These rules hold in every set. Each theme's look lives in `docs/themes/<theme>.m
 - **Accents are the set's choice.** Each set decides whether its building types carry accent colors, and lists them in its file. Signs, trims, doors, and markings use them.
 - **Footprints come from the game.** A building keeps the gameplay footprint from its game definition in every set. Only its look changes.
 
+## Units
+
+- **The top says the role.** A unit gets a few dozen pixels on a phone and turns to face every direction, so its outline from above tells its role, as a roof does for a building. Exaggerate what does, such as an oversized turret, a long barrel, or a wide scoop.
+- **Each unit type looks unique within its faction.** Its silhouette differs from every other type in its faction, as buildings' do.
+- **The owner reads first.** A unit carries its team color on a broad area of its top, so its owner reads at phone size. Its faction's accents and glow stay below it.
+- **Sizes come from the game.** A unit fits within its definition's radius.
+
 ## Factions
 
-- **A faction is complete on its own.** Its file sets its shape language, materials, surface finish, palette, glow, signage, and emblem, and its building types, with no reference to any theme or other faction.
+- **A faction is complete on its own.** Its file sets its shape language, materials, surface finish, palette, glow, signage, and emblem, and its building and unit types, with no reference to any theme or other faction.
 - **A faction reads on every map.** It must read by shape in the game's daylight and keep its own look under any theme's lighting, so its review renders both day and night.
 - **Factions differ by shape first.** Players learn each faction's buildings, so a faction's version of a role needn't share a cue with another faction's. Rules and rosters come from game data.
 
@@ -27,7 +34,7 @@ These rules hold in every set. Each theme's look lives in `docs/themes/<theme>.m
 
 Each theme file has these sections: Identity, Shape language, Materials, Palette, Glow, Lighting, Signage, Building types, References, and Avoid. Building types is a table with each type's signature silhouette feature, accent color, and required elements.
 
-Each faction file has the same sections, with Surfaces in place of Lighting: how matte, glossy, or metallic each material is, since a faction brings its own finish to every map. Building types is a table with each type's signature silhouette feature and required elements, plus accents if the faction uses them.
+Each faction file has the same sections, with Surfaces in place of Lighting: how matte, glossy, or metallic each material is, since a faction brings its own finish to every map. Building types is a table with each type's signature silhouette feature and required elements, plus accents if the faction uses them. A Unit types section after it is a table with each unit type's signature silhouette feature from above, moving parts, and required elements. Add it with the faction's first unit.
 
 Tool settings for each set, such as a theme's review lighting or a faction's surface finish, sit with its atlas in `art/blender/materials/city_atlas.py`.
 

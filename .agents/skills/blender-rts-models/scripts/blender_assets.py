@@ -1,4 +1,4 @@
-"""Build a linked review gallery, stage one static structure GLB, or render a staged GLB for review."""
+"""Build a linked review gallery, stage one rigid model GLB, or render a staged GLB for review."""
 import argparse
 import json
 import math
@@ -11,14 +11,16 @@ from tempfile import TemporaryDirectory
 
 import bpy
 from bpy_extras.object_utils import world_to_camera_view
-from mathutils import Vector
+from mathutils import Matrix, Vector
 import numpy
 
 
+# Each path continues with a place: the model's kind, then its set, such as vehicles/factions/cyber-samurai.
 LIBRARY = Path("art/blender/library")
-STAGING = Path("art/staging/models/structures")
-RUNTIME = Path("apps/website/public/models/structures")
-RENDERS = Path("art/staging/renders/structures")
+STAGING = Path("art/staging/models")
+RUNTIME = Path("apps/website/public/models")
+RENDERS = Path("art/staging/renders")
+KINDS = ("structures", "vehicles")
 # The review sheet: a close view and a lineup on top, desktop and phone crops at true pixel size below.
 SHEET_WIDTH = 1400
 SHEET_GAP = 8
@@ -34,13 +36,17 @@ MIN_DISTANCE = 8
 THEMES = Path("themes")
 FACTIONS = Path("factions")
 MATERIALS = Path("art/blender/materials")
-CATEGORIES = ("structures", "units", "creatures")
 ASSET_ID = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 # A foundation may sink this far below Z=0 to meet uneven terrain.
 GROUND_SKIRT = 0.25
 # The footprint center may drift this fraction of the asset's width or depth, for overhangs.
 CENTER_TOLERANCE = 0.1
 TEXTURE_KEY = re.compile(r'"\w+Texture"')
+# The game multiplies the material named "team" by its player's color. Reviews show this sample color.
+TEAM_MATERIAL = "team"
+TEAM_SAMPLE = "#2f6fdf"
+# Vehicles drive in every direction, so their renders turn them to show the side as well as the front.
+VEHICLE_TURN = 35
 
 
 def asset_id(value):
@@ -49,20 +55,26 @@ def asset_id(value):
     return value
 
 
-def structure_ref(value, default_set):
-    """An ID in the default set, a theme/ID, or factions/<faction>/ID."""
+def model_ref(value, default_place):
+    """An ID in the default place, a theme/ID, or factions/<faction>/ID, after an optional kind such as structures:."""
+    kind, _, value = value.rpartition(":")
+    if kind and kind not in KINDS:
+        raise argparse.ArgumentTypeError(f"Expected a kind from {', '.join(KINDS)}, got {kind!r}")
+    kind = Path(kind or default_place.parts[0])
     parts = value.split("/")
     if len(parts) == 1:
-        return default_set, asset_id(parts[0])
+        return kind / model_set(default_place), asset_id(parts[0])
     if len(parts) == 2:
-        return THEMES / asset_id(parts[0]), asset_id(parts[1])
+        return kind / THEMES / asset_id(parts[0]), asset_id(parts[1])
     if len(parts) == 3 and parts[0] in ("themes", "factions"):
-        return Path(parts[0]) / asset_id(parts[1]), asset_id(parts[2])
-    raise argparse.ArgumentTypeError(f"Expected ID, theme/ID, or factions/<faction>/ID, got {value!r}")
+        return kind / parts[0] / asset_id(parts[1]), asset_id(parts[2])
+    raise argparse.ArgumentTypeError(
+        f"Expected ID, theme/ID, or factions/<faction>/ID, optionally after <kind>:, got {value!r}"
+    )
 
 
-def set_folder(folder, structure_set):
-    return folder / structure_set
+def model_set(place):
+    return Path(*place.parts[1:])
 
 
 def load_asset(source, *, link):
@@ -100,15 +112,16 @@ def build_gallery(root, output, destination):
     library = root / LIBRARY
     scene = bpy.context.scene
     groups = {}
-    folders = [(category, library / category) for category in CATEGORIES]
-    for kind in (THEMES, FACTIONS):
-        sets = library / "structures" / kind
-        if sets.is_dir():
-            folders.extend(
-                (f"structures/{kind}/{asset_id(folder.name)}", folder)
-                for folder in sorted(sets.iterdir())
-                if folder.is_dir()
-            )
+    folders = []
+    for kind in KINDS:
+        for sets in (THEMES, FACTIONS):
+            parent = library / kind / sets
+            if parent.is_dir():
+                folders.extend(
+                    (f"{kind}/{sets}/{asset_id(folder.name)}", folder)
+                    for folder in sorted(parent.iterdir())
+                    if folder.is_dir()
+                )
     for category, folder in folders:
         instances = []
         for source in sorted(folder.glob("*.blend")):
@@ -202,24 +215,35 @@ def glb_summary(output):
     materials = document.get("materials", [])
     textured = sum(1 for material in materials if TEXTURE_KEY.search(json.dumps(material)))
     glowing = sum(1 for material in materials if "emissiveTexture" in material)
+    team = any(material.get("name") == TEAM_MATERIAL for material in materials)
     summary = (
         f"{length:,} bytes, {triangles:,} triangles in mesh data, {len(primitives)} primitives, "
         f"{len(images)} images, {textured} of {len(materials)} materials textured, {glowing} glowing"
     )
-    return summary, len(images), glowing
+    return summary, len(images), glowing, team
 
 
-def set_settings(root, structure_set):
-    path = root / MATERIALS / structure_set / "atlas.json"
+def set_settings(root, place):
+    path = root / MATERIALS / model_set(place) / "atlas.json"
     if not path.is_file():
         raise ValueError(
-            f"No atlas for {structure_set}. Add it to THEMES or FACTIONS in art/blender/materials/city_atlas.py"
+            f"No atlas for {model_set(place)}. Add it to THEMES or FACTIONS in art/blender/materials/city_atlas.py"
         )
     return json.loads(path.read_text())
 
 
-def export_structure(root, structure_set, identifier, output, blockout):
-    source = root / set_folder(LIBRARY / "structures", structure_set) / f"{identifier}.blend"
+def vehicle_rig(objects):
+    """Name a vehicle's moving parts and sockets, which the game finds by name."""
+    for obj in objects:
+        if not ASSET_ID.fullmatch(obj.name):
+            raise ValueError(f"Name the vehicle part {obj.name!r} in lowercase kebab-case, such as turret or muzzle")
+    parts = sorted(obj.name for obj in objects if obj.type == "MESH" and obj.parent is not None)
+    sockets = sorted(obj.name for obj in objects if obj.type == "EMPTY")
+    return f"moving parts: {', '.join(parts) or 'none'}; sockets: {', '.join(sockets) or 'none'}"
+
+
+def export_model(root, place, identifier, output, blockout):
+    source = root / LIBRARY / place / f"{identifier}.blend"
     collection = load_asset(source, link=False)
     objects = set(collection.all_objects)
     bpy.context.scene.collection.children.link(collection)
@@ -233,6 +257,8 @@ def export_structure(root, structure_set, identifier, output, blockout):
             or (obj.parent is not None and obj.parent not in objects)
         ):
             raise ValueError(f"{obj.name} requires a specialized export or belongs outside the asset collection")
+    vehicle = place.parts[0] == "vehicles"
+    rig = vehicle_rig(objects) if vehicle else ""
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
     evaluated = [obj.evaluated_get(depsgraph) for obj in objects]
@@ -259,20 +285,25 @@ def export_structure(root, structure_set, identifier, output, blockout):
     )
     if "FINISHED" not in status:
         raise ValueError("Blender could not export the collection")
-    summary, images, glowing = glb_summary(output)
+    summary, images, glowing, team = glb_summary(output)
+    if vehicle and not team and not blockout:
+        raise ValueError(
+            f"A vehicle shows its owner. Give the faces that take the player's color a material named {TEAM_MATERIAL!r}."
+        )
     if not images and not blockout:
         raise ValueError(
             "The export has no image textures. docs/ART_DIRECTION.md calls for painted detail, and "
             "procedural shaders do not survive export, so bake them. Pass --blockout to stage an untextured blockout."
         )
-    if set_settings(root, structure_set)["glow"] and not glowing and not blockout:
+    if set_settings(root, place)["glow"] and not glowing and not blockout:
         raise ValueError(
-            f"{structure_set} glows, but the export has no emissive texture. Map it with atlas_cards.py, "
+            f"{model_set(place)} glows, but the export has no emissive texture. Map it with atlas_cards.py, "
             "whose material links the set's glow map."
         )
     size = " × ".join(f"{value:.3g}" for value in maximum - minimum)
     stage = ", untextured blockout" if blockout else ""
-    return f"{summary}, {size} Blender units (width × depth × height){stage}"
+    rig = f", {rig}" if rig else ""
+    return f"{summary}, {size} Blender units (width × depth × height){rig}{stage}"
 
 
 def linear(color):
@@ -337,21 +368,47 @@ def stage_like_game(scene, lighting):
     scene.render.image_settings.file_format = "PNG"
 
 
-def import_glb(path):
+def tint_team(objects):
+    """Multiply the team material by a sample player color, as the game does with the real one."""
+    for material in {slot.material for obj in objects for slot in obj.material_slots if slot.material}:
+        if material.name.split(".")[0] != TEAM_MATERIAL or not material.use_nodes:
+            continue
+        nodes, links = material.node_tree.nodes, material.node_tree.links
+        base = next(node for node in nodes if node.type == "BSDF_PRINCIPLED").inputs["Base Color"]
+        tint = nodes.new("ShaderNodeMix")
+        tint.data_type = "RGBA"
+        tint.blend_type = "MULTIPLY"
+        tint.inputs["Factor"].default_value = 1
+        tint.inputs["B"].default_value = linear(TEAM_SAMPLE)
+        if base.links:
+            links.new(base.links[0].from_socket, tint.inputs["A"])
+        else:
+            tint.inputs["A"].default_value = base.default_value
+        links.new(tint.outputs["Result"], base)
+
+
+def import_glb(path, place):
     before = set(bpy.context.scene.objects)
     bpy.ops.import_scene.gltf(filepath=str(path))
     objects = [obj for obj in bpy.context.scene.objects if obj not in before]
+    tint_team(objects)
+    if place.parts[0] == "vehicles":
+        turn = Matrix.Rotation(math.radians(VEHICLE_TURN), 4, "Z")
+        for obj in objects:
+            if obj.parent is None:
+                obj.matrix_world = turn @ obj.matrix_world
+        bpy.context.view_layer.update()
     corners = [corner for obj in objects for corner in mesh_corners(obj, obj.matrix_world)]
     return objects, *bounds(corners, path.stem)
 
 
-def find_export(root, structure_set, identifier):
+def find_export(root, place, identifier):
     for folder in (RUNTIME, STAGING):
-        path = root / set_folder(folder, structure_set) / f"{identifier}.glb"
+        path = root / folder / place / f"{identifier}.glb"
         if path.is_file():
             return path
     raise ValueError(
-        f"No export of {identifier} in {set_folder(RUNTIME, structure_set)} or {set_folder(STAGING, structure_set)}"
+        f"No export of {identifier} in {RUNTIME / place} or {STAGING / place}"
     )
 
 
@@ -397,20 +454,20 @@ def asset_crop(scene, camera, minimum, maximum, pixels, limit):
     return pixels[y:y + crop_height, x:x + crop_width]
 
 
-def render_structure(root, structure_set, identifier, neighbors, distance, lighting):
+def render_model(root, place, identifier, neighbors, distance, lighting):
     """Render the staged GLB, not the source, so anything the exporter dropped shows."""
-    source = root / set_folder(STAGING, structure_set) / f"{identifier}.glb"
+    source = root / STAGING / place / f"{identifier}.glb"
     if not source.is_file():
         raise ValueError(f"Export {identifier} before rendering it. Missing {source}")
     scene = bpy.context.scene
-    _, minimum, maximum = import_glb(source)
+    _, minimum, maximum = import_glb(source, place)
 
     # Line neighbors up to the right of the asset, left to right in the order given.
     lineup = [(minimum, maximum)]
     hidden = []
     edge, gap = maximum.x, max(1.0, (maximum - minimum).x * 0.3)
-    for neighbor_set, neighbor in neighbors:
-        objects, low, high = import_glb(find_export(root, neighbor_set, neighbor))
+    for neighbor_place, neighbor in neighbors:
+        objects, low, high = import_glb(find_export(root, neighbor_place, neighbor), neighbor_place)
         shift = edge + gap - low.x
         for obj in objects:
             if obj.parent is None:
@@ -419,7 +476,7 @@ def render_structure(root, structure_set, identifier, neighbors, distance, light
         hidden += objects
         lineup.append((low + Vector((shift, 0, 0)), high + Vector((shift, 0, 0))))
         edge = high.x + shift
-    default = set_settings(root, structure_set)["lighting"]
+    default = set_settings(root, place)["lighting"]
     stage_like_game(scene, lighting or default)
 
     camera = bpy.data.objects.new("Game camera", bpy.data.cameras.new("Game camera"))
@@ -434,7 +491,7 @@ def render_structure(root, structure_set, identifier, neighbors, distance, light
     half_angle = math.tan(math.radians(FIELD_OF_VIEW) / 2)
     reach = (maximum - minimum).length / 2
     close = max(MIN_DISTANCE, reach / math.sin(math.radians(FIELD_OF_VIEW) / 2) * 1.15)
-    folder = root / set_folder(RENDERS, structure_set)
+    folder = root / RENDERS / place
     folder.mkdir(parents=True, exist_ok=True)
     # A lighting other than the set's default gets its own files, so both sheets can sit side by side.
     stem = identifier if lighting in (None, default) else f"{identifier}-{lighting}"
@@ -498,12 +555,13 @@ def main():
         which = command.add_mutually_exclusive_group(required=True)
         which.add_argument("--theme", type=asset_id, help="A theme, the look of a map")
         which.add_argument("--faction", type=asset_id, help="A faction, the look of one side")
+        command.add_argument("--kind", choices=KINDS, default="structures", help="What the model is")
     render.add_argument(
         "--with",
         dest="neighbors",
         default="",
-        help="Comma-separated IDs in the same set, theme/ID, or factions/<faction>/ID references to approved or "
-        "staged structures",
+        help="Comma-separated IDs in the same kind and set, theme/ID, or factions/<faction>/ID references to "
+        "approved or staged models, each optionally after another kind, as in structures:war-factory",
     )
     render.add_argument(
         "--lighting", choices=sorted(LIGHTING), help="Review lighting, instead of the set's default"
@@ -519,23 +577,23 @@ def main():
         arguments.error(f"{root} has no {LIBRARY} folder. Run from the web-rts root or pass --root.")
     bpy.ops.wm.read_factory_settings(use_empty=True)
     if options.command != "gallery":
-        structure_set = THEMES / options.theme if options.theme else FACTIONS / options.faction
+        place = Path(options.kind) / (THEMES / options.theme if options.theme else FACTIONS / options.faction)
 
     if options.command == "render":
         try:
             neighbors = [
-                structure_ref(item.strip(), structure_set) for item in options.neighbors.split(",")
+                model_ref(item.strip(), place) for item in options.neighbors.split(",")
             ] if options.neighbors else []
         except argparse.ArgumentTypeError as error:
             render.error(str(error))
-        print("\n".join(render_structure(
-            root, structure_set, options.asset_id, neighbors, options.distance, options.lighting
+        print("\n".join(render_model(
+            root, place, options.asset_id, neighbors, options.distance, options.lighting
         )))
         return
     if options.command == "gallery":
         destination = root / "art/blender/gallery.blend"
     else:
-        destination = root / set_folder(STAGING, structure_set) / f"{options.asset_id}.glb"
+        destination = root / STAGING / place / f"{options.asset_id}.glb"
 
     if not options.replace and destination.exists():
         arguments.error(f"{destination} already exists. Pass --replace to overwrite it.")
@@ -546,7 +604,7 @@ def main():
         if options.command == "gallery":
             summary = build_gallery(root, output, destination)
         else:
-            summary = export_structure(root, structure_set, options.asset_id, output, options.blockout)
+            summary = export_model(root, place, options.asset_id, output, options.blockout)
         if options.replace:
             output.replace(destination)
         else:
