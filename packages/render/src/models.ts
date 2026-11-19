@@ -187,6 +187,12 @@ export function createModelLibrary() {
       return typeof entry === "string" ? undefined : entry;
     },
 
+    /** Whether any model asked for is still on its way. */
+    get loading(): boolean {
+      for (const entry of entries.values()) if (entry === "loading") return true;
+      return false;
+    },
+
     dispose(): void {
       disposed = true;
       for (const item of disposables) item.dispose();

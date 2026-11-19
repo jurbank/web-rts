@@ -14,7 +14,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 11;
+export const FORMAT_VERSION = 12;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -128,6 +128,12 @@ export const definitionSchema = z.object({
       cooldown: positive,
       /** How far an idle unit looks for a target. Defaults to `range`. */
       acquireRange: positive.optional(),
+      /**
+       * A kind of shot, such as `bullet`, `laser`, or `flame`, that the
+       * attacker's faction draws its own way. It names no art and changes no
+       * rule. Absent draws a generic shot for the weapon's range.
+       */
+      shot: idSchema.optional(),
     })
     .optional(),
   gatherer: z.object({ capacity: positive, gatherTime: positive }).optional(),

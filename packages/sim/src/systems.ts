@@ -23,7 +23,16 @@ import {
 
 /** What happened during one tick, for consumers to react to (S8). */
 export type SimEvent =
-  | { type: "died"; id: number; definitionId: string; playerId: string | null }
+  /** Where it stood when it died. */
+  | {
+      type: "died";
+      id: number;
+      definitionId: string;
+      playerId: string | null;
+      x: number;
+      y: number;
+    }
+  | FiredEvent
   | { type: "completed"; id: number }
   | { type: "produced"; id: number; buildingId: number; playerId?: string | null }
   | { type: "researched"; playerId: string; upgradeId: string; level: number }
@@ -33,6 +42,18 @@ export type SimEvent =
   | { type: "merged"; id: number; from: readonly number[]; playerId?: string }
   | { type: "defeated"; playerId: string }
   | { type: "ended"; winningTeam: string | null };
+
+/**
+ * A weapon shot, whose hit lands the same tick. Under fog a viewer gets `from`
+ * only if it sees the attacker and `to` only if it sees the target. When it
+ * sees the attacker but not the target, `direction` is the way the shot went.
+ */
+export interface FiredEvent {
+  type: "fired";
+  from?: { id: number; definitionId: string; playerId: string | null; x: number; y: number };
+  to?: { id: number; playerId: string | null; x: number; y: number };
+  direction?: Point;
+}
 
 /** The least a weapon hit deals, however much armor the target has. */
 const MIN_DAMAGE = 0.5;
@@ -173,7 +194,12 @@ function runPath(world: World, entity: Entity, order: { pathId: string; next: nu
   }
 }
 
-function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "attack" }>): void {
+function runAttack(
+  world: World,
+  entity: Entity,
+  order: Extract<Order, { type: "attack" }>,
+  events: SimEvent[],
+): void {
   const definition = definitionOf(world, entity);
   const { weapon } = definition;
   const target = findEntity(world, order.targetId);
@@ -218,6 +244,17 @@ function runAttack(world: World, entity: Entity, order: Extract<Order, { type: "
     target.health -= damage > 0 ? Math.max(MIN_DAMAGE, damage - armor) : 0;
     recordHit(world, target, entity);
     entity.cooldown = toTicks(statOf(world, entity, "cooldown") ?? weapon.cooldown);
+    events.push({
+      type: "fired",
+      from: {
+        id: entity.id,
+        definitionId: entity.definitionId,
+        playerId: entity.playerId,
+        x: entity.x,
+        y: entity.y,
+      },
+      to: { id: target.id, playerId: target.playerId, x: target.x, y: target.y },
+    });
   }
 }
 
@@ -544,7 +581,7 @@ export function runOrders(world: World, events: SimEvent[]): void {
         clearPath(entity);
         break;
       case "attack":
-        runAttack(world, entity, order);
+        runAttack(world, entity, order, events);
         break;
       case "cast":
         runCast(world, entity, order, events);
@@ -635,6 +672,8 @@ export function removeDead(world: World, events: SimEvent[]): void {
       id: entity.id,
       definitionId: entity.definitionId,
       playerId: entity.playerId,
+      x: entity.x,
+      y: entity.y,
     });
     const { experience, bounty, respawn } = definitionOf(world, entity);
     if (experience > 0) shareExperience(world, entity, experience, events);

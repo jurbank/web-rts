@@ -2,6 +2,7 @@ import type { Definition, Modifier, Scenario } from "data";
 import { addItem, freshId, removeItem, setItem } from "editor";
 import { Button } from "./Hud.tsx";
 import { FIELD, NumberField, Panel, TextField, type Edit } from "./editorFields.tsx";
+import { SHOT_KINDS } from "render";
 import { LOOKS } from "./factions.ts";
 import { SELECT, useEditor } from "./store.ts";
 
@@ -187,6 +188,24 @@ export function DefinitionPanel(props: { document: Scenario; index: number; edit
             onCommit={(acquireRange) => setWeapon({ acquireRange })}
             onClear={() => setWeapon({ acquireRange: undefined })}
           />
+          <label className="flex items-center justify-between gap-2">
+            Shot
+            <select
+              aria-label="Shot"
+              className={`${FIELD} w-32`}
+              value={weapon.shot ?? ""}
+              onChange={(event) =>
+                setWeapon({ shot: event.target.value === "" ? undefined : event.target.value })
+              }
+            >
+              <option value="">By range</option>
+              {[...new Set([...SHOT_KINDS, ...(weapon.shot ? [weapon.shot] : [])])].map((shot) => (
+                <option key={shot} value={shot}>
+                  {shot}
+                </option>
+              ))}
+            </select>
+          </label>
         </>
       )}
       <NumberField

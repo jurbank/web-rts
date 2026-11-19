@@ -1,6 +1,7 @@
 import type { Scenario } from "data";
 import { createRenderer, type ScreenPoint } from "render";
-import { createWorld, type Command, type EntitySnapshot } from "sim";
+import { FACTION_RECIPES } from "./factionEffects.ts";
+import { createWorld, TICK_SECONDS, type Command, type EntitySnapshot } from "sim";
 import { scenarioGuides } from "./guides.ts";
 import { buildHudView, type HudView, type OrderMode } from "./hud.ts";
 import { attachInput, showBox, type Shortcut } from "./input.ts";
@@ -57,6 +58,8 @@ export function createGame(
   const loop = createGameLoop(createWorld(scenario, seed, seats, choices), localPlayerId);
   const renderer = createRenderer(elements.scene, elements.overlay, scenario, {
     models: (definitionId, playerId) => modelFor(scenario, factions, definitionId, playerId),
+    effectStyle: (playerId) => (playerId === null ? undefined : factions[playerId]),
+    recipes: FACTION_RECIPES,
   });
   const guides = scenarioGuides(scenario);
 
@@ -305,6 +308,9 @@ export function createGame(
     const alpha = loop.advance((time - lastTime) / 1000);
     lastTime = time;
     publishView();
+    for (const { tick, events } of loop.takeEvents()) {
+      renderer.receive(tick, events, (loop.current.tick - tick) * TICK_SECONDS);
+    }
     renderer.draw(loop.previous, loop.current, alpha, { selectedIds, debug, ...guides });
     frameId = requestAnimationFrame(frame);
   });

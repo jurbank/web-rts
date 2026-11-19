@@ -50,6 +50,12 @@ The finish is half the look, so the atlas carries a roughness and metallic map.
 - **Emblem and instruments:** the emblem's leaf and a lab's instrument may glow a little brighter in the same ice, still soft.
 - **How much:** at most a fifth of the visible surface. Never an outline, a trim line, or a lit edge. Leave the white shells and roofs unlit so the shape reads.
 
+## Effects
+
+- **Shots:** slim pulses of white light with a pale ice `#d6f2f0` edge, quick and straight. A soft ice ring at the muzzle, never a flame.
+- **Impacts:** a small clean ring and sparks that dissolve, with no smoke.
+- **Explosions:** a white and pale ice burst that flares and collapses inward, with clean shell fragments and a faint haze that clears fast. No fire, soot, or scorch marks that stay.
+
 ## Signage
 
 - **Emblem:** a ring around a rising leaf, invented, with the ring painted white and the leaf glowing softly. It sits at the center of each roof or courtyard and above the main entrance, and reads as a simple shape from the game camera.

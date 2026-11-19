@@ -69,6 +69,8 @@ const migrations: Record<number, Migration> = {
   9: (document) => ({ ...document, formatVersion: 10 }),
   /** Setup options, placements and spawns that take a chosen definition, and faction locks are opt-in. */
   10: (document) => ({ ...document, formatVersion: 11 }),
+  /** A weapon's kind of shot is optional, and one without it draws a generic shot. */
+  11: (document) => ({ ...document, formatVersion: 12 }),
 };
 
 /**

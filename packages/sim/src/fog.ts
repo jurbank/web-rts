@@ -166,10 +166,23 @@ export function seesBuildSite(
 }
 
 export function seesEntity(world: World, playerId: string | null, entity: Entity): boolean {
+  return seesAt(world, playerId, entity);
+}
+
+/**
+ * Whether a viewer sees something owned by `owner` standing at a point. Its own
+ * team's things always, and others where its team has sight. Deaths and shots
+ * use it for entities already gone from the world.
+ */
+export function seesAt(
+  world: World,
+  viewer: string | null,
+  at: Point & { playerId: string | null },
+): boolean {
   return (
     !world.fog ||
-    (playerId !== null && teamOf(world, playerId) === teamOf(world, entity.playerId)) ||
-    seesPoint(world, playerId, entity)
+    (viewer !== null && teamOf(world, viewer) === teamOf(world, at.playerId)) ||
+    seesPoint(world, viewer, at)
   );
 }
 

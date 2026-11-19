@@ -1,6 +1,7 @@
 import type { CommandType } from "data";
-import { fogSnapshot, seesEntity, seesPoint, type FogSnapshot } from "./fog.ts";
-import { usableAbilities, type SimEvent } from "./systems.ts";
+import { fogSnapshot, seesAt, seesEntity, seesPoint, type FogSnapshot } from "./fog.ts";
+import { atan2, cos, PI, sin } from "./math.ts";
+import { usableAbilities, type FiredEvent, type SimEvent } from "./systems.ts";
 import { refusedCommands } from "./triggers.ts";
 import {
   countOwned,
@@ -98,11 +99,7 @@ export function takeSnapshot(
   const owned = countOwned(world);
   return {
     tick: world.tick,
-    events: events
-      .filter((event) => !fog || eventForViewer(world, event, viewer!))
-      .map((event) =>
-        event.type === "merged" ? { ...event, from: [...event.from] } : { ...event },
-      ),
+    events: fog ? eventsForViewer(world, events, viewer!) : events.map(copyEvent),
     ...(fog && { fog }),
     entities: entities.map((entity) => {
       const end = entity.path[entity.path.length - 1];
@@ -170,24 +167,93 @@ export function takeSnapshot(
   };
 }
 
-/** Match results are public. Research, production and merges include owner-only information. */
-function eventForViewer(world: World, event: SimEvent, viewer: string): boolean {
+function copyEvent(event: SimEvent): SimEvent {
+  switch (event.type) {
+    case "merged":
+      return { ...event, from: [...event.from] };
+    case "fired":
+      return {
+        type: "fired",
+        ...(event.from && { from: { ...event.from } }),
+        ...(event.to && { to: { ...event.to } }),
+        ...(event.direction && { direction: { ...event.direction } }),
+      };
+    default:
+      return { ...event };
+  }
+}
+
+/**
+ * The part of an event a fog viewer may know, or null. Match results are
+ * public. Research, production and merges include owner-only information.
+ * Deaths and shots show where the viewer sees them.
+ */
+function eventForViewer(world: World, event: SimEvent, viewer: string): SimEvent | null {
   switch (event.type) {
     case "ended":
     case "defeated":
-      return true;
+      return copyEvent(event);
     case "researched":
-    case "died":
     case "produced":
     case "merged":
-      return event.playerId === viewer;
+      return event.playerId === viewer ? copyEvent(event) : null;
+    case "died":
+      return seesWhere(world, viewer, event) ? copyEvent(event) : null;
+    case "fired":
+      return firedForViewer(world, event, viewer);
     case "completed":
     case "respawned":
     case "leveled": {
       const entity = findEntity(world, event.id);
-      return entity !== undefined && seesEntity(world, viewer, entity);
+      return entity !== undefined && seesEntity(world, viewer, entity) ? copyEvent(event) : null;
     }
   }
+}
+
+/**
+ * What a fog viewer may know of a tick's events. Shots from hidden attackers
+ * come last, by target, so their order does not hint at the attackers' ids.
+ */
+function eventsForViewer(world: World, events: readonly SimEvent[], viewer: string): SimEvent[] {
+  const seen: SimEvent[] = [];
+  const unattributed: FiredEvent[] = [];
+  for (const event of events) {
+    const filtered = eventForViewer(world, event, viewer);
+    if (filtered?.type === "fired" && filtered.from === undefined) unattributed.push(filtered);
+    else if (filtered !== null) seen.push(filtered);
+  }
+  unattributed.sort((a, b) => a.to!.id - b.to!.id);
+  return [...seen, ...unattributed];
+}
+
+/** Whether the viewer sees an entity, or the place it stood if it left the world this tick. */
+function seesWhere(
+  world: World,
+  viewer: string,
+  event: { id: number; playerId: string | null; x: number; y: number },
+): boolean {
+  return seesAt(world, viewer, findEntity(world, event.id) ?? event);
+}
+
+/**
+ * Directions of fire are rounded to this many a turn. At weapon ranges a step
+ * is a few units wide, so two shooters' bearings cannot pinpoint a hidden target.
+ */
+const DIRECTIONS = 16;
+
+/** A shot from a hidden attacker shows only its impact, and one at a hidden target only its direction. */
+function firedForViewer(world: World, { from, to }: FiredEvent, viewer: string): SimEvent | null {
+  const shooter = from !== undefined && seesWhere(world, viewer, from);
+  const struck = to !== undefined && seesWhere(world, viewer, to);
+  if (!shooter && !struck) return null;
+  if (shooter && struck) return { type: "fired", from: { ...from! }, to: { ...to! } };
+  if (struck) return { type: "fired", to: { ...to! } };
+  const dx = to!.x - from!.x;
+  const dy = to!.y - from!.y;
+  if (dx === 0 && dy === 0) return { type: "fired", from: { ...from! } };
+  const step = (2 * PI) / DIRECTIONS;
+  const angle = Math.round(atan2(dy, dx) / step) * step;
+  return { type: "fired", from: { ...from! }, direction: { x: cos(angle), y: sin(angle) } };
 }
 
 function locked(world: World, player: PlayerState, owned: Owned): string[] {

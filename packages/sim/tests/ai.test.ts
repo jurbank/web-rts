@@ -23,6 +23,7 @@ test("the ai gathers, builds a barracks, trains soldiers, researches, and defeat
     "defeated",
     "died",
     "ended",
+    "fired",
     "produced",
     "researched",
   ]);

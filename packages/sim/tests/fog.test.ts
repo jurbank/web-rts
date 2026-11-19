@@ -140,15 +140,123 @@ test("a fog viewer receives only public fields on visible non-owned entities and
     expect(Object.keys(entity).sort()).toEqual(publicKeys);
   expect(red.entities[1]).toHaveProperty("abilityUsable");
   expect(red.players[2]).toEqual({ id: "blue", team: "east", defeated: false });
-  expect(red.events).toEqual([]);
+  expect(red.events.map((event) => event.type)).toEqual(["fired"]);
   expect(red.variables).toEqual({ phase: 2 });
   expect(red.timers).toEqual({ clock: null });
   expect(takeSnapshot(world, "blue", events).events).toEqual([
     { type: "researched", playerId: "blue", upgradeId: "optics", level: 1 },
+    { type: "fired", to: { id: 3, playerId: "blue", x: 15.5, y: 5.5 } },
   ]);
   expect(takeSnapshot(world, null, events).entities).toHaveLength(4);
   expect(() => takeSnapshot(world, "missing")).toThrow("viewer");
   expect(saveWorld(world)).toBe(before);
+});
+
+test("a shot shows each viewer only the ends it sees", () => {
+  const world = match({
+    placements: [
+      at("scout", "ally", 13.5),
+      at("guard", "red", 10.5),
+      { definitionId: "tower", playerId: "blue", x: 15.5, y: 7 },
+      { definitionId: "scout", playerId: "gold", x: 10.5, y: 8 },
+    ],
+  });
+  const events = step(world, [
+    { type: "attack", playerId: "red", tick: 0, unitIds: [2], targetId: 3 },
+  ]);
+  const from = { id: 2, definitionId: "guard", playerId: "red", x: 10.5, y: 5.5 };
+  const to = { id: 3, playerId: "blue", x: 15.5, y: 7 };
+  expect(events).toEqual([{ type: "fired", from, to }]);
+  expect(takeSnapshot(world, null, events).events).toEqual([{ type: "fired", from, to }]);
+  expect(takeSnapshot(world, "red", events).events).toEqual([{ type: "fired", from, to }]);
+  expect(takeSnapshot(world, "ally", events).events).toEqual([{ type: "fired", from, to }]);
+  expect(takeSnapshot(world, "blue", events).events).toEqual([{ type: "fired", to }]);
+  // Rounded to 1/16 of a turn: one step, not the exact bearing of the hidden tower.
+  const turn = (2 * Math.PI) / 16;
+  expect(takeSnapshot(world, "gold", events).events).toEqual([
+    {
+      type: "fired",
+      from,
+      direction: {
+        x: expect.closeTo(Math.cos(turn), 9),
+        y: expect.closeTo(Math.sin(turn), 9),
+      },
+    },
+  ]);
+});
+
+test("shots from hidden attackers come last, by target, not by attacker", () => {
+  const world = match({
+    placements: [
+      at("guard", "red", 4.5),
+      at("guard", "red", 6.5),
+      at("tower", "blue", 10.5),
+      at("tower", "blue", 8.5),
+      { definitionId: "scout", playerId: "ally", x: 9.5, y: 5.5 },
+      { definitionId: "scout", playerId: "blue", x: 30.5, y: 5.5 },
+    ],
+  });
+  const events = step(world, [
+    { type: "attack", playerId: "red", tick: 0, unitIds: [1], targetId: 4 },
+    { type: "attack", playerId: "red", tick: 0, unitIds: [2], targetId: 3 },
+  ]);
+  expect(events.map((event) => event.type === "fired" && event.to!.id)).toEqual([4, 3]);
+  expect(
+    takeSnapshot(world, "blue", events).events.map(
+      (event) => event.type === "fired" && [event.from?.id, event.to!.id],
+    ),
+  ).toEqual([
+    [undefined, 3],
+    [undefined, 4],
+  ]);
+});
+
+test("a death shows to its team and to viewers who see where it fell, and a remembered building falls silently", () => {
+  const world = match({
+    placements: [
+      at("scout", "ally", 13.5),
+      at("guard", "red", 10.5),
+      at("tower", "blue", 15.5),
+      at("scout", "gold", 35.5),
+    ],
+    definitions: [scout, tower, { ...guard, weapon: undefined }],
+  });
+  step(world);
+  world.entities[1].health = 0;
+  let events = step(world);
+  const guardDied = {
+    type: "died",
+    id: 2,
+    definitionId: "guard",
+    playerId: "red",
+    x: 10.5,
+    y: 5.5,
+  };
+  expect(takeSnapshot(world, "ally", events).events).toEqual([guardDied]);
+  expect(takeSnapshot(world, "blue", events).events).toEqual([]);
+
+  world.entities[1].health = 0;
+  events = step(world);
+  const towerDied = {
+    type: "died",
+    id: 3,
+    definitionId: "tower",
+    playerId: "blue",
+    x: 15.5,
+    y: 5.5,
+  };
+  expect(takeSnapshot(world, "red", events).events).toEqual([towerDied]);
+  expect(takeSnapshot(world, "blue", events).events).toEqual([towerDied]);
+  expect(takeSnapshot(world, "gold", events).events).toEqual([]);
+
+  const unseen = match({ definitions: [scout, tower, { ...guard, weapon: undefined }] });
+  advance(unseen, 10, [move("ally", 1, 13.5)]);
+  advance(unseen, 10, [move("ally", 1, 4.5)]);
+  expect(takeSnapshot(unseen, "red").fog!.buildings.map(({ id }) => id)).toEqual([3]);
+  unseen.entities[2].health = 0;
+  events = step(unseen);
+  expect(events.map((event) => event.type)).toEqual(["died"]);
+  expect(takeSnapshot(unseen, "red", events).events).toEqual([]);
 });
 
 test("a region reveal affects subsequent trigger conditions, survives reload, and leaves a last sighting after expiry", () => {

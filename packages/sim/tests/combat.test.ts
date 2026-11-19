@@ -31,20 +31,29 @@ test("an attack order closes to weapon range, deals damage on cooldown, and kill
     id: victim,
     definitionId: "worker",
     playerId: "blue",
+    x: 40,
+    y: 40,
   });
   expect(world.entities.some((candidate) => candidate.id === victim)).toBe(false);
   expect(attacker.orders).toEqual([]);
 });
 
-test("damage arrives once per cooldown", () => {
+test("damage arrives once per cooldown, each shot announced as it fires", () => {
   const world = duel(25);
-  run(world, 1, [
+  const first = run(world, 1, [
     { type: "attack", playerId: "red", tick: 0, unitIds: [soldier], targetId: victim },
   ]);
   expect(entity(world, victim).health).toBe(32);
-  run(world, 23);
+  expect(first).toEqual([
+    {
+      type: "fired",
+      from: { id: soldier, definitionId: "soldier", playerId: "red", x: 20, y: 40 },
+      to: { id: victim, playerId: "blue", x: 25, y: 40 },
+    },
+  ]);
+  expect(run(world, 23)).toEqual([]);
   expect(entity(world, victim).health).toBe(32);
-  run(world, 1);
+  expect(run(world, 1).map((event) => event.type)).toEqual(["fired"]);
   expect(entity(world, victim).health).toBe(24);
 });
 

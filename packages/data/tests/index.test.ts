@@ -10,6 +10,7 @@ import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmishV8 from "./fixtures/skirmish-v8.json" with { type: "json" };
 import skirmishV9 from "./fixtures/skirmish-v9.json" with { type: "json" };
 import skirmishV10 from "./fixtures/skirmish-v10.json" with { type: "json" };
+import skirmishV11 from "./fixtures/skirmish-v11.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
 
 function fixture(): Record<string, any> {
@@ -37,6 +38,26 @@ test("format 10 migrates with no options and every faction open", () => {
   expect(scenario).toEqual(loadScenario(fixture()));
   expect(scenario.options).toEqual([]);
   expect(scenario.players.every((player) => !player.lockFaction)).toBe(true);
+});
+
+test("format 11 migrates with no shot kinds", () => {
+  const scenario = loadScenario(skirmishV11);
+  expect(scenario.formatVersion).toBe(FORMAT_VERSION);
+  expect(scenario.definitions.every((definition) => definition.weapon?.shot === undefined)).toBe(
+    true,
+  );
+  expect(scenario).toEqual(loadScenario(fixture()));
+});
+
+test("a weapon may name a kind of shot", () => {
+  const scenario = fixture();
+  const soldier = scenario.definitions.find(({ id }: { id: string }) => id === "soldier");
+  soldier.weapon.shot = "laser";
+  expect(loadScenario(scenario).definitions.find(({ id }) => id === "soldier")!.weapon!.shot).toBe(
+    "laser",
+  );
+  soldier.weapon.shot = "Not An Id";
+  expect(issues(scenario)).not.toEqual([]);
 });
 
 test("options are checked against their choices and the definitions they start", () => {

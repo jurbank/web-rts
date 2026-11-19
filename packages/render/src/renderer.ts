@@ -1,5 +1,5 @@
-import type { Scenario } from "data";
-import type { Point, Snapshot } from "sim";
+import type { Definition, Scenario } from "data";
+import type { FiredEvent, Point, SimEvent, Snapshot } from "sim";
 import {
   BoxGeometry,
   BufferGeometry,
@@ -29,6 +29,9 @@ import { createCrowd, type BakedPose } from "./crowd.ts";
 import { createFogLayer } from "./fog.ts";
 import { createCameraRig, type ScreenPoint } from "./camera.ts";
 import { createModelLibrary, type BakedModel, type Model } from "./models.ts";
+import { createEffects } from "./effects/effects.ts";
+import { RECIPES, type Recipe, type RecipeName } from "./effects/recipes.ts";
+import { GROUND_ORDER } from "./effects/blocks.ts";
 
 /** A labelled spot on the ground, such as a start point. */
 export interface Marker extends Readonly<Point> {
@@ -64,12 +67,42 @@ export interface Overlay {
 export interface RendererOptions {
   /** The URL of the GLB that draws an entity, by its definition and owner. Entities without one draw as boxes. */
   models?: (definitionId: string, playerId: string | null) => string | undefined;
+  /**
+   * The style a player's effects take, such as their faction. A shot or death
+   * plays the recipe named `<style>/<kind>` when `recipes` has it, and the
+   * generic recipe of its kind otherwise.
+   */
+  effectStyle?: (playerId: string | null) => string | undefined;
+  /** Recipes by name beyond the generic ones, such as `cyber-samurai/laser`. */
+  recipes?: Readonly<Record<string, Recipe>>;
+  /** Milliseconds now. A fixed clock steps clips and effects exactly, as an effect sheet does. */
+  now?: () => number;
+}
+
+/** What the last frame cost to draw. */
+export interface RenderStats {
+  readonly drawCalls: number;
+  readonly triangles: number;
+  /** Live effect parts. */
+  readonly particles: number;
 }
 
 export interface Renderer {
   /** Takes definitions and players that changed since creation, as the editor's do. */
   setContent(content: Pick<Scenario, "definitions" | "players">): void;
   resize(width: number, height: number, pixelRatio: number): void;
+  /**
+   * Starts what a tick's events call for, such as an attack or a death. Pass
+   * each tick's events in order before the frame that draws them. A tick
+   * passed again, as after a rewind, starts nothing twice. `elapsed` is how
+   * many seconds ago the tick happened, when a frame catches up on several.
+   */
+  receive(tick: number, events: readonly SimEvent[], elapsed?: number): void;
+  stats(): RenderStats;
+  /** Whether a model it asked for is still loading. */
+  loading(): boolean;
+  /** Plays clips and effects slower, below 1, for review. Snapshots still decide where things are. */
+  setTimeScale(scale: number): void;
   /** Draws the state `alpha` of the way from `previous` to `current`. */
   draw(previous: Snapshot, current: Snapshot, alpha: number, overlay: Overlay): void;
   /** The entity under a screen point, or the nearest one within `slop` pixels. */
@@ -112,8 +145,8 @@ interface EntityView {
   facing: number;
   /** Seconds since it last moved. */
   still: number;
-  /** Seconds until an attacking unit swings again. */
-  swing: number;
+  /** It fired since its last frame, so its attack clip starts over. */
+  fired: boolean;
   motion: Motion;
 }
 
@@ -127,6 +160,7 @@ interface Motion {
 }
 
 interface Dying {
+  id: number;
   model: BakedModel;
   x: number;
   y: number;
@@ -140,6 +174,15 @@ interface Dying {
 const GRID_SPACING = 4;
 const UNIT_HEIGHT = 0.8;
 const STRUCTURE_HEIGHT = 1.6;
+/** The longest frame clips and effects advance by, the same cap the game loop steps with. */
+const MAX_FRAME_SECONDS = 0.25;
+/** A weapon this short strikes instead of shooting. */
+const MELEE_RANGE = 1.5;
+
+/** How tall an entity stands, for where its shots start and land. */
+const heightOf = (definition: Definition | undefined) =>
+  definition?.speed === undefined ? STRUCTURE_HEIGHT : UNIT_HEIGHT;
+
 const NEUTRAL_COLOR = "#8a8f98";
 const BAR_WIDTH = 30;
 const GUIDE_COLOR = "rgba(255, 255, 255, 0.55)";
@@ -177,6 +220,7 @@ export function createRenderer(
   const groundMesh = new Mesh(groundGeometry, groundMaterial);
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.position.set(map.width / 2, 0, map.height / 2);
+  groundMesh.renderOrder = GROUND_ORDER;
   scene.add(groundMesh);
   const fogLayer = createFogLayer(groundGeometry, map.width, map.height);
   scene.add(fogLayer.mesh);
@@ -184,7 +228,9 @@ export function createRenderer(
   const gridGeometry = new BufferGeometry();
   gridGeometry.setAttribute("position", new Float32BufferAttribute(gridLines(map), 3));
   const gridMaterial = new LineBasicMaterial({ color: "#56675b" });
-  scene.add(new LineSegments(gridGeometry, gridMaterial));
+  const grid = new LineSegments(gridGeometry, gridMaterial);
+  grid.renderOrder = GROUND_ORDER;
+  scene.add(grid);
 
   const boxGeometry = new BoxGeometry(1, 1, 1);
   const ringGeometry = new RingGeometry(1.25, 1.45, 32);
@@ -195,6 +241,11 @@ export function createRenderer(
   const materials = new Map<string, MeshLambertMaterial>();
   const library = createModelLibrary();
   const crowd = createCrowd(scene);
+  const effects = createEffects(scene);
+  /** Slows clips and effects, for reviewing them. */
+  let timeScale = 1;
+  /** The newest tick received, so a tick passed again starts nothing twice. */
+  let receivedTick = -1;
 
   /** Loads every model the scenario can show now, so no device waits for one when it first comes into view. */
   function preload(content: Pick<Scenario, "definitions" | "players">): void {
@@ -208,8 +259,8 @@ export function createRenderer(
   preload(scenario);
   const teamMaterials = new Map<string, Material>();
   let dying: Dying[] = [];
-  let eventsTick = -1;
-  let lastTime = performance.now();
+  const now = options.now ?? (() => performance.now());
+  let lastTime = now();
   const matrix = new Matrix4();
   const rotation = new Quaternion();
   const up = new Vector3(0, 1, 0);
@@ -270,7 +321,7 @@ export function createRenderer(
         heading: 0,
         facing: 0,
         still: Infinity,
-        swing: 0,
+        fired: false,
         motion: { clip: "idle", seconds: id * 0.37, from: null, fromSeconds: 0, blend: 1 },
       };
       views.set(id, view);
@@ -311,15 +362,14 @@ export function createRenderer(
     return material;
   }
 
+  function turnToward(view: EntityView, dt: number): void {
+    let turn = view.facing - view.heading;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    view.heading += turn * Math.min(1, dt * TURN_RATE);
+  }
+
   /** Turns, picks a clip, and advances it, from how the unit moved since the last frame. */
-  function animate(
-    view: EntityView,
-    model: BakedModel,
-    entity: Snapshot["entities"][number],
-    x: number,
-    y: number,
-    dt: number,
-  ): void {
+  function animate(view: EntityView, model: BakedModel, x: number, y: number, dt: number): void {
     const moved = Number.isNaN(view.x) ? 0 : Math.hypot(x - view.x, y - view.y);
     if (moved > 1e-4) {
       view.facing = Math.atan2(x - view.x, y - view.y);
@@ -327,28 +377,19 @@ export function createRenderer(
     } else {
       view.still += dt;
     }
-    let turn = view.facing - view.heading;
-    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
-    view.heading += turn * Math.min(1, dt * TURN_RATE);
+    turnToward(view, dt);
 
     const { clips, rate } = model;
     const motion = view.motion;
-    if (view.still < STOP_SECONDS && clips.move !== undefined) {
+    if (view.fired && clips.attack !== undefined) play(motion, "attack", 0, true);
+    view.fired = false;
+    if (motion.clip === "attack" && motion.seconds < clipSeconds(clips.attack!, rate)) {
+      motion.seconds += dt;
+    } else if (view.still < STOP_SECONDS && clips.move !== undefined) {
       play(motion, "move");
       const stride = (clips.move.stride ?? 1) * view.scale;
       motion.seconds += (moved / stride) * clipSeconds(clips.move, rate);
-    } else if (entity.order === "attack" && clips.attack !== undefined) {
-      // Until sim announces each shot, a unit swings once per weapon cooldown while it attacks.
-      view.swing -= dt;
-      if (view.swing <= 0) {
-        view.swing = definitions.get(view.definitionId)?.weapon?.cooldown ?? 1;
-        play(motion, "attack", 0, true);
-      } else if (motion.clip === "attack" && motion.seconds >= clipSeconds(clips.attack, rate)) {
-        play(motion, "idle");
-      }
-      motion.seconds += dt;
     } else {
-      view.swing = 0;
       play(motion, "idle");
       motion.seconds += dt;
     }
@@ -389,25 +430,108 @@ export function createRenderer(
     crowd.add(model, matrix, color, pose(model, motion));
   }
 
-  /** A creature that died keeps its view until its clip has played and it has sunk away. */
-  function startDying(events: Snapshot["events"]): void {
-    for (const event of events) {
-      if (event.type !== "died") continue;
-      const view = views.get(event.id);
-      if (view?.model?.kind !== "baked" || view.model.clips.die === undefined) continue;
-      const motion = { ...view.motion };
-      play(motion, "die");
-      dying.push({
-        model: view.model,
-        x: view.x,
-        y: view.y,
-        heading: view.heading,
-        scale: view.scale,
-        color: view.color,
-        motion,
-        age: 0,
-      });
+  /**
+   * A unit that fired plays its attack, turned toward its target or the way it
+   * shot, and its shot plays from what the viewer sees of either end.
+   */
+  function startFiring(tick: number, elapsed: number, { from, to, direction }: FiredEvent): void {
+    let dx = to === undefined || from === undefined ? (direction?.x ?? 0) : to.x - from.x;
+    let dy = to === undefined || from === undefined ? (direction?.y ?? 0) : to.y - from.y;
+    const length = Math.hypot(dx, dy);
+    if (length > 0) {
+      dx /= length;
+      dy /= length;
     }
+    const view = from === undefined ? undefined : views.get(from.id);
+    if (view !== undefined) {
+      view.fired = true;
+      if (length > 0) view.facing = Math.atan2(dx, dy);
+    }
+    const attacker = from === undefined ? undefined : definitions.get(from.definitionId);
+    const targetView = to === undefined ? undefined : views.get(to.id);
+    const target = targetView === undefined ? undefined : definitions.get(targetView.definitionId);
+    const range = attacker?.weapon?.range ?? 6;
+    const reach = (attacker?.radius ?? 0.5) * 0.9;
+    const inset = (target?.radius ?? 0.4) * 0.5;
+    const generic = range <= MELEE_RANGE ? "melee" : "bullet";
+    // A hidden attacker's shot names no kind or style, so its impact says nothing of it.
+    effects.play(
+      from === undefined
+        ? RECIPES[generic]
+        : recipeFor(attacker?.weapon?.shot ?? generic, generic, from.playerId),
+      {
+        origin:
+          from === undefined
+            ? null
+            : { x: from.x + dx * reach, y: heightOf(attacker) * 0.6, z: from.y + dy * reach },
+        target:
+          to === undefined
+            ? null
+            : { x: to.x - dx * inset, y: heightOf(target) * 0.5, z: to.y - dy * inset },
+        direction: to === undefined && length > 0 ? { x: dx, y: 0, z: dy } : null,
+        reach: range,
+        scale: Math.min(2, Math.max(0.6, (attacker?.radius ?? 0.5) / 0.5)),
+        seed: tick * 7919 + (from?.id ?? to?.id ?? 0),
+      },
+      elapsed,
+    );
+  }
+
+  /** The owner's style of a kind, else the generic recipe of that kind, else the fallback's. */
+  function recipeFor(kind: string, fallback: RecipeName, playerId: string | null): Recipe {
+    const style = options.effectStyle?.(playerId);
+    const styled = style === undefined ? undefined : options.recipes?.[`${style}/${kind}`];
+    return styled ?? (kind in RECIPES ? RECIPES[kind as RecipeName] : RECIPES[fallback]);
+  }
+
+  /** Something that died bursts by its size, unless it is a resource running out. */
+  function playDeath(
+    tick: number,
+    elapsed: number,
+    event: Extract<SimEvent, { type: "died" }>,
+  ): void {
+    const definition = definitions.get(event.definitionId);
+    if (definition?.resource !== undefined) return;
+    const radius = definition?.radius ?? 0.5;
+    const generic =
+      definition?.speed === undefined
+        ? "building-death"
+        : radius >= 0.8
+          ? "vehicle-death"
+          : "unit-death";
+    const recipe = recipeFor(generic, generic, event.playerId);
+    effects.play(
+      recipe,
+      {
+        origin: null,
+        target: { x: event.x, y: 0, z: event.y },
+        direction: null,
+        reach: 0,
+        scale: Math.min(3, Math.max(0.5, radius / (recipe.radius ?? 1))),
+        seed: tick * 7919 + event.id,
+      },
+      elapsed,
+    );
+  }
+
+  /** A creature that died keeps its view until its clip has played and it has sunk away. */
+  function startDying(event: Extract<SimEvent, { type: "died" }>): void {
+    const view = views.get(event.id);
+    if (view?.model?.kind !== "baked" || view.model.clips.die === undefined) return;
+    if (dying.some((corpse) => corpse.id === event.id)) return;
+    const motion = { ...view.motion };
+    play(motion, "die");
+    dying.push({
+      id: event.id,
+      model: view.model,
+      x: view.x,
+      y: view.y,
+      heading: view.heading,
+      scale: view.scale,
+      color: view.color,
+      motion,
+      age: 0,
+    });
   }
 
   function drawDying(dt: number): void {
@@ -602,17 +726,40 @@ export function createRenderer(
       rig.resize(width, height);
     },
 
+    receive(tick, events, elapsed = 0) {
+      if (tick <= receivedTick) return;
+      receivedTick = tick;
+      for (const event of events) {
+        if (event.type === "died") {
+          startDying(event);
+          playDeath(tick, elapsed, event);
+        } else if (event.type === "fired") {
+          startFiring(tick, elapsed, event);
+        }
+      }
+    },
+
+    setTimeScale(scale) {
+      timeScale = scale;
+    },
+
+    loading: () => library.loading,
+
+    stats() {
+      return {
+        drawCalls: gl.info.render.calls,
+        triangles: gl.info.render.triangles,
+        particles: effects.live,
+      };
+    },
+
     draw(previous, current, alpha, overlay) {
       frame += 1;
       drawn = [];
-      const now = performance.now();
-      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
-      lastTime = now;
+      const time = now();
+      const dt = Math.min(MAX_FRAME_SECONDS, Math.max(0, (time - lastTime) / 1000)) * timeScale;
+      lastTime = time;
       crowd.begin();
-      if (current.tick !== eventsTick) {
-        eventsTick = current.tick;
-        startDying(current.events);
-      }
       let p = 0;
       for (const entity of current.entities) {
         while (p < previous.entities.length && previous.entities[p].id < entity.id) p += 1;
@@ -628,11 +775,15 @@ export function createRenderer(
         view.ring.position.set(x, 0.02, y);
         attachModel(view);
         if (view.model?.kind === "baked") {
-          animate(view, view.model, entity, x, y, dt);
+          animate(view, view.model, x, y, dt);
           drawBaked(view.model, x, y, 0, view.heading, view.scale, view.color, view.motion);
         } else if (view.rigid !== undefined) {
-          if (!Number.isNaN(view.x) && Math.hypot(x - view.x, y - view.y) > 1e-4) {
-            view.heading = Math.atan2(x - view.x, y - view.y);
+          // A vehicle turns along its motion and toward what it fires at. A building never turns.
+          if (definitions.get(view.definitionId)?.speed !== undefined) {
+            if (!Number.isNaN(view.x) && Math.hypot(x - view.x, y - view.y) > 1e-4) {
+              view.facing = Math.atan2(x - view.x, y - view.y);
+            }
+            turnToward(view, dt);
           }
           view.rigid.position.set(x, 0, y);
           view.rigid.rotation.y = view.heading;
@@ -659,6 +810,7 @@ export function createRenderer(
       drawDying(dt);
       crowd.end();
       fogLayer.update(current.fog);
+      effects.update(dt);
       gl.render(scene, rig.camera);
       drawOverlay(overlay, current.fog);
     },
@@ -706,6 +858,7 @@ export function createRenderer(
       const owned = [groundMaterial, gridMaterial, ringMaterial, ...materials.values()];
       for (const material of [...owned, ...teamMaterials.values()]) material.dispose();
       crowd.dispose();
+      effects.dispose();
       library.dispose();
       environment.dispose();
       pmrem.dispose();

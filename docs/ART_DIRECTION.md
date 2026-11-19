@@ -25,6 +25,14 @@ These rules hold in every set. Each theme's look lives in `docs/themes/<theme>.m
 - **The owner reads first.** A unit carries its team color on a broad area of its top, so its owner reads at phone size. Its faction's accents and glow stay below it.
 - **Sizes come from the game.** A unit fits within its definition's radius.
 
+## Effects
+
+- **Effects show the fight.** Every shot, impact, and death reads at phone size. A shot's flash and its impact are brief and bright, under half a second.
+- **Effects never hide the battle.** Team colors and selection rings stay readable through any effect. Smoke is low, thin, and short-lived, and lingers only where a set calls for it.
+- **No real lights.** A flash lights the ground with a glowing decal, not a light source.
+- **Size follows the event.** An impact is small, a vehicle's death medium, and a building's large. Only a building's death fills more than its own footprint.
+- **The set chooses the look.** Each faction's file sets the colors, shapes, and smoke of its shots and explosions. Effects may be brighter than any glow on a model, and stay within the set's palette and its Avoid list.
+
 ## Factions
 
 - **A faction is complete on its own.** Its file sets its shape language, materials, surface finish, palette, glow, signage, and emblem, and its building and unit types, with no reference to any theme or other faction.
@@ -35,7 +43,7 @@ These rules hold in every set. Each theme's look lives in `docs/themes/<theme>.m
 
 Each theme file has these sections: Identity, Shape language, Materials, Palette, Glow, Lighting, Signage, Building types, References, and Avoid. Building types is a table with each type's signature silhouette feature, accent color, and required elements.
 
-Each faction file has the same sections, with Surfaces in place of Lighting: how matte, glossy, or metallic each material is, since a faction brings its own finish to every map. Building types is a table with each type's signature silhouette feature and required elements, plus accents if the faction uses them. A Unit types section after it is a table with each unit type's signature silhouette feature from above, moving parts, and required elements. Add it with the faction's first unit.
+Each faction file has the same sections, with Surfaces in place of Lighting and an Effects section after Glow: how matte, glossy, or metallic each material is, since a faction brings its own finish to every map. Building types is a table with each type's signature silhouette feature and required elements, plus accents if the faction uses them. A Unit types section after it is a table with each unit type's signature silhouette feature from above, moving parts, and required elements. Add it with the faction's first unit.
 
 Tool settings for each set, such as a theme's review lighting or a faction's surface finish, sit with its atlas in `art/blender/materials/city_atlas.py`.
 

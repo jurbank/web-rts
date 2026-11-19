@@ -17,6 +17,36 @@ test("real time turns into whole ticks plus a remainder", () => {
   expect(game.previous.tick).toBe(2);
 });
 
+test("a frame that steps several ticks keeps the events of each", () => {
+  const world = createWorld(loadScenario(skirmish), 1);
+  const game = createGameLoop(world, "red");
+  const unit = world.entities[1];
+  unit.health = 0;
+  game.advance(3 / TICK_RATE);
+  expect(game.current.events).toEqual([]);
+  expect(game.takeEvents()).toEqual([
+    { tick: 1, events: [expect.objectContaining({ type: "died", id: unit.id, playerId: "red" })] },
+  ]);
+  expect(game.takeEvents()).toEqual([]);
+});
+
+test("events left untaken for over a second keep only the last second", () => {
+  const world = createWorld(loadScenario(skirmish), 1);
+  const game = createGameLoop(world, "red");
+  const workers = world.entities.filter(
+    (entity) => entity.playerId === "red" && entity.definitionId === "worker",
+  );
+  // A death every other quarter second, with nothing taken for a second and a half.
+  for (let frame = 0; frame < 6; frame++) {
+    if (frame % 2 === 0) workers[frame / 2].health = 0;
+    game.advance(0.25);
+  }
+  const taken = game.takeEvents();
+  const newest = taken.at(-1)!.tick;
+  expect(taken).toHaveLength(2);
+  expect(taken.every(({ tick }) => tick > newest - TICK_RATE)).toBe(true);
+});
+
 test("a long stall is capped", () => {
   const game = loop();
   game.advance(60);

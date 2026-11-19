@@ -75,7 +75,14 @@ function OwnerSelect(props: {
   );
 }
 
-export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => void }) {
+export function Editor({
+  onPlaytest,
+  onEffects,
+}: {
+  onPlaytest: (scenario: Scenario) => void;
+  /** Opens the effects gallery. */
+  onEffects: () => void;
+}) {
   const { history, saved, opened } = useSession();
   const { selection, tool, owner, name, notice } = useEditor();
   const document = history.document;
@@ -295,7 +302,8 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
           <Button disabled={history.future.length === 0} onClick={() => session.redo()}>
             Redo
           </Button>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <Button onClick={onEffects}>Effects</Button>
             <Button onClick={playtest}>Playtest</Button>
           </div>
         </div>

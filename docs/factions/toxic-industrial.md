@@ -56,6 +56,14 @@ The atlas carries a roughness and metallic map.
 - **Toxic green:** `#a8c43c`, in sludge pools and tank sight glasses only.
 - **How much:** at most a tenth of the visible surface. No trims, lines, or signs that glow. Leave roofs, stacks, and banners unlit so their shape reads.
 
+## Effects
+
+- **Shots:** a heavy furnace orange `#e8873a` flash with a puff of soot at the muzzle. Tracers are dull orange.
+- **Flame:** the flame tank throws a broad orange jet that rolls into soot black `#2a2826` smoke.
+- **Impacts:** dirt and soot, with a splash of toxic green `#a8c43c` only from chemical weapons.
+- **Explosions:** dirty orange fireballs that roll into heavy black smoke, with rusted debris and scorch marks that stay a while.
+- **Stacks:** working stacks trail slow grey-black plumes. They are the one smoke that lingers.
+
 ## Signage
 
 - **Emblem:** an invented crest: a gear ring around three smokestacks of different heights, painted in faded ochre on soot on the roofs. It reads as a simple shape from the game camera.

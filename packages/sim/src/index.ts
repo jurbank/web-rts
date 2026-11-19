@@ -25,7 +25,7 @@ export {
   type Snapshot,
 } from "./snapshot.ts";
 export { step } from "./step.ts";
-export type { SimEvent } from "./systems.ts";
+export type { FiredEvent, SimEvent } from "./systems.ts";
 export {
   canPlace,
   createWorld,

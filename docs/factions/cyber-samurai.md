@@ -45,6 +45,13 @@ Bright bevels and pale service faces show the structure's mass in daylight. Rest
 - **Amber** `#f2b866` identifies the forge's heat or a sheltered lantern.
 - Keep emission to about a tenth of visible surfaces. Concentrate it in patterned recesses with enough dark steel around each strip to preserve the shape and team colors at night.
 
+## Effects
+
+- **Shots:** thin, precise ice blue `#8bc5de` beams with a white core. The laser tank fires from both rails of its fork, converging on the target.
+- **Blades:** a short ice blue arc traces each sword stroke.
+- **Impacts:** a tight burst of rose crimson `#d96973` sparks.
+- **Explosions:** a short ice blue and white burst with sharp armor shards and a brief smoke that clears.
+
 ## Signage
 
 The crest is an invented broken ring around an upright blade with a short guard. Use a white or brass ring and a crimson blade. Place it on gates, loading faces, or service paving. Service lanes, bay outlines, and indexing marks use off-white paint. Any incidental graphics use original geometric symbols.

@@ -30,6 +30,8 @@ test("a depleted node disappears and its gatherer moves to the next one", () => 
     id: ids.redOre,
     definitionId: "ore",
     playerId: null,
+    x: 8,
+    y: 14,
   });
   expect(resources(world, "red")).toBeGreaterThan(220);
   const [order] = entity(world, worker).orders;

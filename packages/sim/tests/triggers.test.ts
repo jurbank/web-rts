@@ -42,7 +42,7 @@ test("the fixture's victory trigger defeats a player who loses their last hq", (
   const world = skirmishWorld();
   kill(world, ids.blueHq);
   expect(step(world)).toEqual([
-    { type: "died", id: ids.blueHq, definitionId: "hq", playerId: "blue" },
+    expect.objectContaining({ type: "died", id: ids.blueHq, definitionId: "hq", playerId: "blue" }),
     { type: "defeated", playerId: "blue" },
     { type: "ended", winningTeam: "red" },
   ]);
@@ -168,7 +168,7 @@ test("a died event names the dead entity's owner", () => {
   });
   kill(world, 2);
   expect(step(world)).toEqual([
-    { type: "died", id: 2, definitionId: "runner", playerId: "foe" },
+    { type: "died", id: 2, definitionId: "runner", playerId: "foe", x: 5, y: 5 },
     { type: "defeated", playerId: "foe" },
     { type: "ended", winningTeam: "red" },
   ]);
