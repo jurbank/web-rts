@@ -17,6 +17,7 @@ What differs from the [rigid models pipeline](../../blender-rts-models/reference
 - Keep topology fixed while clips play. For a hard edge, split the geometry, or put an Edge Split modifier before the Armature modifier. The game bakes one normal per vertex, so custom split normals do not survive.
 - A socket is an empty parented to a bone, named in kebab-case: `muzzle` at a weapon's end, numbered `muzzle-2` and up, and others such as `hand-r` or `mouth` where effects attach.
 - Author at any scene frame rate. The export samples each action's frame range in seconds.
+- Record the definition's radius as the asset collection's custom property `radius`, as for rigid models. The export writes it into the GLB scene's extras.
 
 ## Clips
 

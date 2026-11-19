@@ -30,11 +30,11 @@ Raw board-formed concrete showing the grain of its planks and rows of form-tie h
 | Steel    | Corroded steel `#4d4740`, rust `#6b4a33`            |
 | Roofs    | Tarred corrugated `#3a3835`                         |
 | Stains   | Chemical yellow `#8c8a3e`                           |
-| Banners  | Soot black with faded ochre `#8c7a3a`               |
+| Banners  | Team color, matte cloth                             |
 | Hazard   | Faded ochre `#8c7a3a` with black stripes            |
 | Ground   | Mud `#5c5145`, slag `#3d3a36`, oily water `#2c2f2a` |
 
-Concrete is most of every building. The palette is dark and unsaturated, so only the glow, the banners, and the hazard stripes draw the eye, and none of them competes with team colors.
+Concrete is most of every building. The palette is dark and unsaturated, so only the glow, the banners, and the hazard stripes draw the eye. The banners carry the team color.
 
 ## Surfaces
 
@@ -58,7 +58,8 @@ The atlas carries a roughness and metallic map.
 
 ## Signage
 
-- **Emblem:** an invented crest: a gear ring around three smokestacks of different heights. Painted in faded ochre on soot, on roofs, and on tall banners that hang down the front of the HQ and the larger buildings. It reads as a simple shape from the game camera.
+- **Emblem:** an invented crest: a gear ring around three smokestacks of different heights, painted in faded ochre on soot on the roofs. It reads as a simple shape from the game camera.
+- **Team color:** tall banners of team-colored cloth hang flat down the front wall of each building's main block, one or two of them, at least 0.5 units wide. They hang clear of furnace mouths, blast doors, sight glasses, and bays, and end well above the apron.
 - **Markings:** stencilled block numbers and short English words in faded white, such as WORK or SECTOR 4, hazard stripes on blast doors and pads, and painted bay outlines. No neon, screens, or brands.
 
 ## Building types

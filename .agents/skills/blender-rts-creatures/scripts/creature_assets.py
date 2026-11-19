@@ -71,7 +71,7 @@ def open_source(root, place, identifier):
                 f"Parent the socket {socket.name!r} to a bone of {rig.name} and name it in kebab-case, such as muzzle"
             )
     scene = bpy.context.scene
-    return rig, mesh, sockets, scene.render.fps / scene.render.fps_base
+    return collection, rig, mesh, sockets, scene.render.fps / scene.render.fps_base
 
 
 def find_clips(blockout):
@@ -228,8 +228,8 @@ def read_frames(path):
     return frames, positions, normals, sockets
 
 
-def export_creature(root, place, identifier, output, blockout, hero=False, over=None):
-    rig, mesh, sockets, fps = open_source(root, place, identifier)
+def export_creature(root, place, identifier, output, destination, blockout, hero=False, over=None):
+    collection, rig, mesh, sockets, fps = open_source(root, place, identifier)
     clips = find_clips(blockout)
 
     baked = []
@@ -304,6 +304,7 @@ def export_creature(root, place, identifier, output, blockout, hero=False, over=
     blobs.update({name: numpy.array(track, "<f4").tobytes() for name, track in socket_tracks.items()})
     frames = {"attribute": GLTF_ATTRIBUTE, "rate": RATE, "vertices": len(first), "clips": clip_table}
     append_frames(output, frames, blobs)
+    note = shared.finish_export(root, place, output, destination, collection, Vector(minimum), Vector(maximum))
 
     memory = (len(blobs["positions"]) + len(blobs["normals"])) / 1e6
     clip_list = ", ".join(f"{name} {clip['frames']}" for name, clip in clip_table.items())
@@ -313,7 +314,7 @@ def export_creature(root, place, identifier, output, blockout, hero=False, over=
         f"{summary}, {share}, {size} Blender units (width × depth × height), {len(first):,} baked vertices, "
         f"clips: {clip_list} frames at {RATE} a second, {len(positions)} of {shared.FRAME_BUDGET} frames, "
         f"{memory:.2f} MB of frames on the GPU, "
-        f"sockets: {', '.join(socket_tracks) or 'none'}{stage}"
+        f"sockets: {', '.join(socket_tracks) or 'none'}{stage}{note}"
     )
 
 
@@ -439,7 +440,7 @@ def main():
     with TemporaryDirectory(dir=destination.parent) as temporary:
         output = Path(temporary) / destination.name
         summary = export_creature(
-            root, place, options.asset_id, output, options.blockout, options.hero, options.over_budget
+            root, place, options.asset_id, output, destination, options.blockout, options.hero, options.over_budget
         )
         if options.replace:
             output.replace(destination)

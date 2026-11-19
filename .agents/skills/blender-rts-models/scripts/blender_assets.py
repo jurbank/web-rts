@@ -1,5 +1,7 @@
-"""Build a linked review gallery, stage one rigid model GLB, or render a staged GLB for review."""
+"""Build a linked review gallery, stage one rigid model GLB, render a staged GLB for review, refresh a set's
+sources after its atlas is repainted, or audit a set's exports against its current atlas."""
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -50,6 +52,9 @@ TEAM_MATERIAL = "team"
 TEAM_SAMPLE = "#2f6fdf"
 # Units move in every direction, so their renders turn them to show the side as well as the front.
 UNIT_TURN = 35
+# A source collection records the gameplay radius it was built for under this property. Exports carry it in the
+# scene's extras, so the game can fit a model to a definition of another size.
+RADIUS = "radius"
 # Provisional triangle budgets, set by how many copies of each kind a phone shows at once, until a real phone
 # is measured. A hero is a model only a few of which take the field, such as a MOBA hero or a boss monster.
 BUDGETS = {"structures": 2500, "vehicles": 2000, "infantry": 1000, "creatures": 1000}
@@ -259,6 +264,101 @@ def set_settings(root, place):
     return json.loads(path.read_text())
 
 
+def set_images(root, place):
+    """Digests of the set's current atlas images on disk, which every export of the set should embed."""
+    settings = set_settings(root, place)
+    folder = root / MATERIALS / model_set(place)
+    names = ["atlas.jpg"] + [settings[key] for key in ("glow", "surface") if settings.get(key)]
+    return {hashlib.md5((folder / name).read_bytes()).hexdigest() for name in names}
+
+
+def glb_document(path):
+    data = path.read_bytes()
+    json_length = struct.unpack_from("<I", data, 12)[0]
+    return data, json_length, json.loads(data[20:20 + json_length])
+
+
+def embedded_images(path):
+    data, json_length, document = glb_document(path)
+    start = 28 + json_length
+    digests = []
+    for image in document.get("images", []):
+        view = document["bufferViews"][image["bufferView"]]
+        offset = start + view.get("byteOffset", 0)
+        digests.append(hashlib.md5(data[offset:offset + view["byteLength"]]).hexdigest())
+    return digests
+
+
+def stale_exports(root, place_set, skip=None):
+    """Exports of a set, in any kind, staged or approved, that embed images other than its current atlas."""
+    stale = []
+    for kind in KINDS:
+        current = None
+        for folder in (STAGING, RUNTIME):
+            for path in sorted((root / folder / kind / place_set).glob("*.glb")):
+                if path == skip:
+                    continue
+                current = current or set_images(root, Path(kind) / place_set)
+                if not set(embedded_images(path)) <= current:
+                    stale.append(path.relative_to(root))
+    return stale
+
+
+def write_scene_extras(path, values):
+    """Merge `values` into the GLB scene's extras, which three.js reads as the scene's userData."""
+    data, json_length, document = glb_document(path)
+    binary = data[20 + json_length:]
+    document["scenes"][document.get("scene", 0)].setdefault("extras", {}).update(values)
+    text = json.dumps(document, separators=(",", ":")).encode()
+    text += b" " * (-len(text) % 4)
+    path.write_bytes(
+        struct.pack("<4sII", b"glTF", 2, 12 + 8 + len(text) + len(binary))
+        + struct.pack("<I4s", len(text), b"JSON") + text + binary
+    )
+
+
+def footprint(collection, minimum, maximum):
+    """The radius the source says it was built for, or how far it reaches across the ground when it says nothing."""
+    if RADIUS in collection:
+        return float(collection[RADIUS]), "from the source"
+    return max(-minimum.x, maximum.x, -minimum.y, maximum.y), "measured"
+
+
+def finish_export(root, place, output, destination, collection, minimum, maximum):
+    """Record the footprint, and name exports of the set that still embed an older atlas."""
+    radius, origin = footprint(collection, minimum, maximum)
+    write_scene_extras(output, {RADIUS: round(radius, 4)})
+    stale = stale_exports(root, model_set(place), skip=destination)
+    note = f", radius {radius:.3g} {origin}"
+    if stale:
+        note += f". These exports of the set embed an older atlas, so export them again: {', '.join(map(str, stale))}"
+    return note
+
+
+def join_structure(collection, objects, identifier):
+    """Merge a structure's meshes, modifiers applied, into one object, so it exports one primitive per material."""
+    meshes = [obj for obj in objects if obj.type == "MESH"]
+    if len(meshes) < 2 or any(obj.parent is not None or obj.children for obj in objects):
+        return objects
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    parts = []
+    for obj in meshes:
+        data = bpy.data.meshes.new_from_object(
+            obj.evaluated_get(depsgraph), preserve_all_data_layers=True, depsgraph=depsgraph
+        )
+        data.transform(obj.matrix_world)
+        part = bpy.data.objects.new(obj.name, data)
+        collection.objects.link(part)
+        parts.append(part)
+    for obj in meshes:
+        bpy.data.objects.remove(obj)
+    with bpy.context.temp_override(active_object=parts[0], selected_editable_objects=parts):
+        bpy.ops.object.join()
+    parts[0].name = parts[0].data.name = identifier
+    bpy.context.view_layer.update()
+    return set(collection.all_objects)
+
+
 def vehicle_rig(objects):
     """Name a vehicle's moving parts and sockets, which the game finds by name."""
     for obj in objects:
@@ -269,12 +369,15 @@ def vehicle_rig(objects):
     return f"moving parts: {', '.join(parts) or 'none'}; sockets: {', '.join(sockets) or 'none'}"
 
 
-def export_model(root, place, identifier, output, blockout, hero=False, over=None):
+def export_model(root, place, identifier, output, destination, blockout, hero=False, over=None):
     source = root / LIBRARY / place / f"{identifier}.blend"
     collection = load_asset(source, link=False)
     objects = set(collection.all_objects)
     bpy.context.scene.collection.children.link(collection)
     bpy.context.view_layer.update()
+    structure = place.parts[0] == "structures"
+    if structure:
+        objects = join_structure(collection, objects, identifier)
 
     for obj in objects:
         if (
@@ -314,9 +417,11 @@ def export_model(root, place, identifier, output, blockout, hero=False, over=Non
         raise ValueError("Blender could not export the collection")
     summary, images, glowing, team, triangles = glb_summary(output)
     share = budget(place, triangles, hero=hero, over=over, blockout=blockout)
-    if vehicle and not team and not blockout:
+    faction = place.parts[1] == FACTIONS.name
+    if (vehicle or (structure and faction)) and not team and not blockout:
+        what = "A vehicle" if vehicle else "A faction's building"
         raise ValueError(
-            f"A vehicle shows its owner. Give the faces that take the player's color a material named {TEAM_MATERIAL!r}."
+            f"{what} shows its owner. Give the faces that take the player's color a material named {TEAM_MATERIAL!r}."
         )
     if not images and not blockout:
         raise ValueError(
@@ -331,7 +436,27 @@ def export_model(root, place, identifier, output, blockout, hero=False, over=Non
     size = " × ".join(f"{value:.3g}" for value in maximum - minimum)
     stage = ", untextured blockout" if blockout else ""
     rig = f", {rig}" if rig else ""
-    return f"{summary}, {share}, {size} Blender units (width × depth × height){rig}{stage}"
+    note = finish_export(root, place, output, destination, collection, minimum, maximum)
+    return f"{summary}, {share}, {size} Blender units (width × depth × height){rig}{stage}{note}"
+
+
+def refresh_set(root, place_set):
+    """Fit every card-mapped mesh in a set's sources, in every kind, to the set atlas's current card positions."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import atlas_cards
+
+    kind_set, name = place_set.parts
+    which = {"theme" if kind_set == THEMES.name else "faction": name}
+    refreshed = []
+    for kind in KINDS:
+        for source in sorted((root / LIBRARY / kind / place_set).glob("*.blend")):
+            bpy.ops.wm.open_mainfile(filepath=str(source))
+            for obj in bpy.data.objects:
+                if obj.type == "MESH" and atlas_cards.CARD_RECORD in obj.data:
+                    atlas_cards.refresh(obj, root=root, **which)
+            bpy.ops.wm.save_mainfile()
+            refreshed.append(f"{kind}/{source.stem}")
+    return refreshed
 
 
 def linear(color):
@@ -585,6 +710,12 @@ def main():
         "--blockout", action="store_true", help="Allow an untextured export for shape review"
     )
     add_budget_arguments(commands.choices["export"])
+    refresh = commands.add_parser("refresh", help="Refit every source of a set to its repainted atlas")
+    audit = commands.add_parser("audit", help="List a set's exports that embed an older atlas")
+    for command in (refresh, audit):
+        which = command.add_mutually_exclusive_group(required=True)
+        which.add_argument("--theme", type=asset_id, help="A theme, the look of a map")
+        which.add_argument("--faction", type=asset_id, help="A faction, the look of one side")
     render = commands.add_parser("render", help="Render a staged export from the game camera")
     render.add_argument("asset_id", type=asset_id)
     for command in (commands.choices["export"], render):
@@ -617,6 +748,15 @@ def main():
     if not (root / LIBRARY).is_dir():
         arguments.error(f"{root} has no {LIBRARY} folder. Run from the web-rts root or pass --root.")
     bpy.ops.wm.read_factory_settings(use_empty=True)
+    if options.command in ("refresh", "audit"):
+        place_set = THEMES / options.theme if options.theme else FACTIONS / options.faction
+        if options.command == "refresh":
+            print("\n".join(f"refreshed {item}" for item in refresh_set(root, place_set)))
+        stale = stale_exports(root, place_set)
+        print("\n".join(f"stale {path}" for path in stale) or f"Every export of {place_set} embeds its current atlas")
+        if options.command == "audit" and stale:
+            raise SystemExit(1)
+        return
     if options.command != "gallery":
         place = Path(options.kind) / (THEMES / options.theme if options.theme else FACTIONS / options.faction)
 
@@ -646,7 +786,8 @@ def main():
             summary = build_gallery(root, output, destination)
         else:
             summary = export_model(
-                root, place, options.asset_id, output, options.blockout, options.hero, options.over_budget
+                root, place, options.asset_id, output, destination, options.blockout, options.hero,
+                options.over_budget,
             )
         if options.replace:
             output.replace(destination)

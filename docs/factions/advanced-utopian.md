@@ -54,6 +54,7 @@ The finish is half the look, so the atlas carries a roughness and metallic map.
 
 - **Emblem:** a ring around a rising leaf, invented, with the ring painted white and the leaf glowing softly. It sits at the center of each roof or courtyard and above the main entrance, and reads as a simple shape from the game camera.
 - **Markings:** pale grey and white paint on paving, such as bay outlines and chevrons. No text larger than the emblem.
+- **Team color:** a flat band about 0.25 units wide laid on the roof around the emblem or the building's instrument. It is the only color the faction carries, so it reads first. It stays on the roof plane and leaves a clean notch, about 0.08 units clear, around anything that rises through the roof, such as a tower or a mast.
 
 ## Building types
 

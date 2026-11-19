@@ -15,7 +15,8 @@ These rules hold in every set. Each theme's look lives in `docs/themes/<theme>.m
 
 - **Each building type looks unique within its set.** Its silhouette and massing differ from every other type in its theme or faction, so a player can tell them apart by shape alone. Shapes repeat only across designated variants of one type, such as a small and a large hospital.
 - **Accents are the set's choice.** Each set decides whether its building types carry accent colors, and lists them in its file. Signs, trims, doors, and markings use them.
-- **Footprints come from the game.** A building keeps the gameplay footprint from its game definition in every set. Only its look changes.
+- **Footprints come from the game.** A building keeps the gameplay footprint from its game definition in every set. Only its look changes. Its source records that radius, and the game shrinks a model built for a larger footprint to fit a smaller definition.
+- **A faction's building shows its owner.** It carries one team-colored element large enough to read at phone size, facing the camera or lying on the roof, in the form its faction file sets. A theme's civic buildings belong to the map and carry none.
 
 ## Units
 

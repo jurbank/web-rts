@@ -49,6 +49,8 @@ Bright bevels and pale service faces show the structure's mass in daylight. Rest
 
 The crest is an invented broken ring around an upright blade with a short guard. Use a white or brass ring and a crimson blade. Place it on gates, loading faces, or service paving. Service lanes, bay outlines, and indexing marks use off-white paint. Any incidental graphics use original geometric symbols.
 
+**Team color:** every building flies two war banners at the front corners of its plinth, flanking the gate: a black lacquer pole at least 0.12 units across with a flat team-colored flag about 0.4 to 0.5 units wide on its upper 70%. Keep the poles out of drop-off bays and lanes, and hang the flags in front of overhangs, not under them.
+
 ## Building types
 
 All designs are provisional until approved. Vermilion gate accents are shared across the faction.
@@ -56,7 +58,7 @@ All designs are provisional until approved. Vermilion gate accents are shared ac
 | Type         | Signature silhouette                                                                     | Required elements                                                                                              |
 | ------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | HQ           | Broad stepped citadel with three inward-sloping armor tiers and one blade mast           | Recessed light bands between tiers, a crest on the front armor face, and a stair and gate on the battered base |
-| Barracks     | Long low armor hall and narrow hipped veranda facing a training court                    | Segment-lit sliding doors, two gate banners, and marked sparring rings                                         |
+| Barracks     | Long low armor hall and narrow hipped veranda facing a training court                    | Segment-lit sliding doors, a banner hung from a cross-beam over the court, and marked sparring rings           |
 | Supply depot | Two chamfered cargo pylons with stepped armored caps joined by a low loading bridge      | Blue charge rails, the crest on each cargo face, and two marked drop-off bays                                  |
 | Refinery     | Three staggered round separator drums with exposed concentric lids and a tall rear still | Segmented optical rings, brass transfer lines, a crested service gate, and a marked court                      |
 | War factory  | Two high armored shoulders framing a long recessed heat-exchanger spine                  | Visible amber channels, a wide vehicle shutter behind a two-post gate, and a lined rollout apron               |
