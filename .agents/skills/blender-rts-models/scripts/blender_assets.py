@@ -375,6 +375,18 @@ def export_model(root, place, identifier, output, destination, blockout, hero=Fa
     objects = set(collection.all_objects)
     bpy.context.scene.collection.children.link(collection)
     bpy.context.view_layer.update()
+    turret = next((obj for obj in objects if obj.name == "turret"), None)
+    if turret is not None:
+        if turret.parent not in objects:
+            raise ValueError("Parent the turret pivot to the hull or fixed base")
+        for obj in (turret.parent, turret):
+            axes = obj.matrix_world.to_3x3().normalized()
+            if any((axes.col[i] - Matrix.Identity(3).col[i]).length > 0.001 for i in range(3)):
+                raise ValueError(f"Align {obj.name}'s rest axes with the model: -Y forward and +Z up")
+        attachments = set(turret.children_recursive)
+        for obj in objects:
+            if re.fullmatch(r"(?:barrel|muzzle)(?:-\d+)?", obj.name) and obj not in attachments:
+                raise ValueError(f"Parent {obj.name} within the turret hierarchy so it follows aim")
     structure = place.parts[0] == "structures"
     if structure:
         objects = join_structure(collection, objects, identifier)

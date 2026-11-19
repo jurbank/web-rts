@@ -138,6 +138,9 @@ interface EntityView {
   modelUrl: string | undefined;
   model: Model | undefined;
   rigid: Object3D | undefined;
+  turret: Object3D | undefined;
+  /** World-space bearing of the last visible shot. */
+  shotBearing: number | undefined;
   scale: number;
   x: number;
   y: number;
@@ -315,6 +318,8 @@ export function createRenderer(
         modelUrl: options.models?.(definitionId, playerId),
         model: undefined,
         rigid: undefined,
+        turret: undefined,
+        shotBearing: undefined,
         scale: 1,
         x: Number.NaN,
         y: Number.NaN,
@@ -342,6 +347,7 @@ export function createRenderer(
     view.body.visible = false;
     if (model.kind === "rigid") {
       view.rigid = model.scene.clone();
+      view.turret = view.rigid.getObjectByName("turret");
       view.rigid.traverse((object) => {
         if (object instanceof Mesh && (object.material as Material).name === "team") {
           object.material = teamMaterial(object.material as Material, view.color);
@@ -445,7 +451,7 @@ export function createRenderer(
     const view = from === undefined ? undefined : views.get(from.id);
     if (view !== undefined) {
       view.fired = true;
-      if (length > 0) view.facing = Math.atan2(dx, dy);
+      if (length > 0) view.shotBearing = Math.atan2(dx, dy);
     }
     const attacker = from === undefined ? undefined : definitions.get(from.definitionId);
     const targetView = to === undefined ? undefined : views.get(to.id);
@@ -774,11 +780,19 @@ export function createRenderer(
         view.body.position.set(x, bodyHeight / 2, y);
         view.ring.position.set(x, 0.02, y);
         attachModel(view);
+        if (
+          view.model !== undefined &&
+          view.turret === undefined &&
+          view.shotBearing !== undefined
+        ) {
+          view.facing = view.shotBearing;
+          view.shotBearing = undefined;
+        }
         if (view.model?.kind === "baked") {
           animate(view, view.model, x, y, dt);
           drawBaked(view.model, x, y, 0, view.heading, view.scale, view.color, view.motion);
         } else if (view.rigid !== undefined) {
-          // A vehicle turns along its motion and toward what it fires at. A building never turns.
+          // Movement steers the hull. A turret aims independently, even on a fixed base.
           if (definitions.get(view.definitionId)?.speed !== undefined) {
             if (!Number.isNaN(view.x) && Math.hypot(x - view.x, y - view.y) > 1e-4) {
               view.facing = Math.atan2(x - view.x, y - view.y);
@@ -787,6 +801,9 @@ export function createRenderer(
           }
           view.rigid.position.set(x, 0, y);
           view.rigid.rotation.y = view.heading;
+          if (view.turret !== undefined && view.shotBearing !== undefined) {
+            view.turret.rotation.y = view.shotBearing - view.heading;
+          }
           view.rigid.scale.set(view.scale, view.scale * Math.max(0.15, entity.built), view.scale);
         }
         view.x = x;
