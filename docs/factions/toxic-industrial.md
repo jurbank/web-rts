@@ -74,6 +74,15 @@ All are provisional until the first one is approved. Types tell apart by shape a
 | War factory  | A long concrete assembly hall whose roof is a row of heavy sawtooth fins, with a top-heavy control block cantilevered over the vehicle door and one stack at the back        | A blast door with furnace glow behind it, a crest banner on the control block, a rutted roll-out apron                  |
 | Science lab  | A squat waisted cooling tower beside a windowless concrete cube cut by slit windows, over a sludge pond                                                                      | The pond glowing toxic green, a vent stack on the cube, a sensor mast                                                   |
 
+## Unit types
+
+Soot-dark steel, tar-black surfaces, and faded hazard markings carry the faction's industrial finish onto its units. Keep team color broad on the upper armor. The first vehicle and infantry models set their respective looks provisionally.
+
+| Type       | Signature silhouette from above                                                     | Moving parts      | Required elements                                                                                                 |
+| ---------- | ----------------------------------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Flame tank | Low, wide tracks and twin exposed rear reservoirs behind a blunt furnace projector  | Turret, barrel    | Broad team-colored turret armor, reservoir sight glass, recessed orange furnace mouth, muzzle and exhaust sockets |
+| Soldier    | Broad armored shoulders around a low respirator helmet, with a carbine held forward | Infantry skeleton | Team-colored shoulder plates, soot-dark protective suit, respirator, and compact filter pack                      |
+
 ## References
 
 `docs/screen_shots/inspiration/factions/toxic-industrial/structures/` holds two images of polluting industry over a ruined landscape and one sheet of blocky concrete building concepts.

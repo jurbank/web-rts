@@ -306,6 +306,69 @@
       "width": 42,
       "height": 34,
       "shows": "Amber warning lens set in a dark antenna housing"
+    },
+    "cyber_stackhouse_wall": {
+      "x": 12,
+      "y": 545,
+      "width": 220,
+      "height": 144,
+      "shows": "Patchwork sheet cladding, paired residential windows, and violet-lit rooms"
+    },
+    "cyber_courtyard_wall": {
+      "x": 1025,
+      "y": 624,
+      "width": 225,
+      "height": 140,
+      "shows": "Stained concrete access galleries with steel railings and amber-lit rooms"
+    },
+    "cyber_market_wall": {
+      "x": 12,
+      "y": 984,
+      "width": 252,
+      "height": 128,
+      "shows": "Weathered teal siding with projecting window frames and painted privacy shutters"
+    },
+    "cyber_stackhouse_sign": {
+      "x": 1876,
+      "y": 176,
+      "width": 132,
+      "height": 35,
+      "shows": "Weathered magenta apartment address reading STACK 27"
+    },
+    "cyber_courtyard_sign": {
+      "x": 1886,
+      "y": 235,
+      "width": 132,
+      "height": 35,
+      "shows": "Amber courtyard address reading COURT 06"
+    },
+    "cyber_market_sign": {
+      "x": 1678,
+      "y": 353,
+      "width": 152,
+      "height": 35,
+      "shows": "Cyan address above the shopfront reading MARKET ROW"
+    },
+    "cyber_apartment_door": {
+      "x": 1886,
+      "y": 294,
+      "width": 46,
+      "height": 82,
+      "shows": "Recessed residential door with dark glass, steel trim, and a kick plate"
+    },
+    "cyber_market_roof": {
+      "x": 1274,
+      "y": 624,
+      "width": 150,
+      "height": 188,
+      "shows": "Rusted standing-seam shed roof with a repaired eave and wet streaks"
+    },
+    "cyber_apartment_shutter": {
+      "x": 12,
+      "y": 713,
+      "width": 126,
+      "height": 75,
+      "shows": "Street shop with a weathered roller shutter and a rusted frame"
     }
   }
 }

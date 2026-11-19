@@ -97,6 +97,15 @@ CARDS = {
     'cyber_habitat_deck': ((110, 140), (63, 68, 64), 'Rain-stained concrete roof terrace with boxed planting beds'),
     'cyber_habitat_sign': ((84, 48), (57, 71, 66), 'Worn communal tank sign with green HAB lettering'),
     'cyber_relay_beacon': ((42, 34), (52, 48, 47), 'Amber warning lens set in a dark antenna housing'),
+    'cyber_stackhouse_wall': ((220, 144), (70, 73, 76), 'Patchwork sheet cladding, paired residential windows, and violet-lit rooms'),
+    'cyber_courtyard_wall': ((225, 140), (87, 85, 77), 'Stained concrete access galleries with steel railings and amber-lit rooms'),
+    'cyber_market_wall': ((252, 128), (69, 79, 78), 'Weathered teal siding with projecting window frames and painted privacy shutters'),
+    'cyber_stackhouse_sign': ((132, 35), (59, 51, 57), 'Weathered magenta apartment address reading STACK 27'),
+    'cyber_courtyard_sign': ((132, 35), (60, 55, 46), 'Amber courtyard address reading COURT 06'),
+    'cyber_market_sign': ((152, 35), (48, 63, 65), 'Cyan address above the shopfront reading MARKET ROW'),
+    'cyber_apartment_door': ((46, 82), (67, 69, 65), 'Recessed residential door with dark glass, steel trim, and a kick plate'),
+    'cyber_market_roof': ((150, 188), (82, 84, 79), 'Rusted standing-seam shed roof with a repaired eave and wet streaks'),
+    'cyber_apartment_shutter': ((126, 75), (82, 78, 68), 'Street shop with a weathered roller shutter and a rusted frame'),
     'advanced_utopian_glass': ((480, 110), (26, 33, 41), 'Advanced utopian storey glass: dark reflective panes behind fine white fins, floors lit softly from within, planting and furniture behind'),
     'advanced_utopian_tower_glass': ((224, 448), (26, 33, 41), 'Sail tower glass: many floors of dark reflective panes behind bold white fins, most lit softly from within'),
     'advanced_utopian_shell': ((512, 96), (221, 220, 215), 'Glossy white composite shell with faint panel lines'),
@@ -156,6 +165,11 @@ CARDS = {
     'toxic_industrial_concrete_plain': ((512, 192), (104, 100, 93), 'Board-formed raw concrete with no openings: plank grain, rusty form-tie holes, yellow drips, heavy soot from the top'),
     'toxic_industrial_slab': ((256, 256), (100, 96, 89), 'Plain flat concrete roof or berm top from above: board seams, a drain, soot and oil stains'),
     'toxic_industrial_wall_top': ((512, 32), (100, 96, 89), 'Compound wall coping from above: sooty concrete under coils of razor wire'),
+    'toxic_industrial_unit_armor': ((160, 128), (115, 109, 98), 'Worn gunmetal plate with a recessed seam, edge scuffs, and soot'),
+    'toxic_industrial_reservoir_crown': ((144, 192), (114, 103, 88), 'Twin weld bands across satin steel with oxide and yellow chemical drips'),
+    'toxic_industrial_projector': ((192, 192), (93, 86, 77), 'Soot-dark projector cowling with a short band of wide hazard stripes at its mouth'),
+    'toxic_industrial_protective_suit': ((96, 128), (88, 82, 71), 'Dark protective canvas with stitched reinforcements, creases, and dirt'),
+    'toxic_industrial_track': ((96, 192), (66, 62, 56), 'Soot-dark track crown with broad transverse cleats and worn edges'),
     'cyber_samurai_loading_court': ((560, 440), (126, 120, 108), 'Granite-bordered court with two painted drop-off bays and a central loading lane'),
     'cyber_samurai_forge_apron': ((480, 560), (88, 87, 82), 'Dark stone rollout apron with white guide lines and a painted clan crest'),
     'cyber_samurai_refinery_court': ((480, 480), (146, 140, 126), 'Raked gravel process yard with dark stone service path and white safety markings'),
@@ -191,7 +205,10 @@ THEMES = {
         'cyber_therapy_front', 'cyber_therapy_sign', 'cyber_container_wall', 'cyber_security_yard',
         'cyber_security_lamp', 'cyber_security_roof',
         'cyber_exchange', 'cyber_relay', 'cyber_habitat', 'cyber_tower_lobby',
-        'cyber_exchange_sign', 'cyber_habitat_deck', 'cyber_habitat_sign', 'cyber_relay_beacon']},
+        'cyber_exchange_sign', 'cyber_habitat_deck', 'cyber_habitat_sign', 'cyber_relay_beacon',
+        'cyber_stackhouse_wall', 'cyber_courtyard_wall', 'cyber_market_wall',
+        'cyber_stackhouse_sign', 'cyber_courtyard_sign', 'cyber_market_sign', 'cyber_apartment_door',
+        'cyber_market_roof', 'cyber_apartment_shutter']},
 }
 
 # The same settings for each faction, plus surface: whether the atlas carries a roughness and metallic map.
@@ -212,7 +229,9 @@ FACTIONS = {
         'toxic_industrial_emblem', 'toxic_industrial_stack_top', 'toxic_industrial_furnace', 'toxic_industrial_steel',
         'toxic_industrial_hazard', 'toxic_industrial_pad', 'toxic_industrial_apron',
         'toxic_industrial_slab_top', 'toxic_industrial_tank_top', 'toxic_industrial_blast_door',
-        'toxic_industrial_concrete_plain', 'toxic_industrial_slab', 'toxic_industrial_wall_top']},
+        'toxic_industrial_concrete_plain', 'toxic_industrial_slab', 'toxic_industrial_wall_top',
+        'toxic_industrial_reservoir_crown', 'toxic_industrial_projector', 'toxic_industrial_track',
+        'toxic_industrial_unit_armor', 'toxic_industrial_protective_suit']},
     'cyber-samurai': {'lighting': 'day', 'glow': True, 'surface': True, 'cards': [
         'cyber_samurai_gravel', 'cyber_samurai_roof_tiles', 'cyber_samurai_stone', 'cyber_samurai_wall_screens',
         'cyber_samurai_wall_armor', 'cyber_samurai_plaster', 'cyber_samurai_emblem', 'cyber_samurai_lantern',
@@ -322,6 +341,9 @@ SURFACES |= {
     'toxic_industrial_hazard': (.85,0), 'toxic_industrial_pad': (.9,0), 'toxic_industrial_apron': (.95,0),
     'toxic_industrial_slab_top': (.9,0), 'toxic_industrial_tank_top': (.45,1), 'toxic_industrial_blast_door': (.55,1),
     'toxic_industrial_concrete_plain': (.9,0), 'toxic_industrial_slab': (.9,0), 'toxic_industrial_wall_top': (.8,1),
+    'toxic_industrial_unit_armor': (.7,.35), 'toxic_industrial_reservoir_crown': (.48,.55),
+    'toxic_industrial_projector': (.72,.25), 'toxic_industrial_protective_suit': (.95,0),
+    'toxic_industrial_track': (.84,.25),
 }
 
 def soot(im, reach=1.0, strength=200):
@@ -1224,6 +1246,86 @@ for card, (size, base, _) in CARDS.items():
         d.rectangle((9,8,w-10,h-9),fill=(195,128,67))
         gd.rectangle((10,9,w-11,h-10),fill=(240,166,64))
 
+    if card == 'cyber_stackhouse_wall':
+        d.rectangle((13,0,53,h-1),fill=(80,68,63),outline=(45,49,52),width=2)
+        channels(d,h,(10,55,111,165,211))
+        for row,y in enumerate((12,57,102)):
+            d.line((0,y+28,w,y+28),fill=(100,101,98),width=3)
+            for col,x in enumerate((65,119,173)):
+                d.rectangle((x,y,x+30,y+22),fill=(31,36,43),outline=(113,111,105),width=2)
+                if (row,col) in ((0,0),(1,2),(2,1)):
+                    d.rectangle((x+3,y+4,x+15,y+18),fill=(141,106,130))
+                    gd.rectangle((x+4,y+5,x+14,y+17),fill=(160,64,139))
+                d.line((x+16,y+2,x+16,y+20),fill=(66,68,71),width=2)
+        patches(im,7,(12,2,58,h-2))
+        rust(im,20,3)
+        grime(im,[(0,h-12,w,h,53)],17)
+
+    if card == 'cyber_courtyard_wall':
+        for row,y in enumerate((8,54,100)):
+            d.rectangle((4,y,w-5,y+30),fill=(39,43,44),outline=(114,110,96),width=2)
+            for col,x in enumerate((14,65,116,167)):
+                d.rectangle((x,y+5,x+32,y+26),fill=(30,36,40),outline=(76,77,70),width=2)
+                if (row,col) in ((0,1),(1,3),(2,0)):
+                    d.rectangle((x+5,y+7,x+18,y+17),fill=(163,132,86))
+                    gd.rectangle((x+6,y+8,x+17,y+16),fill=(196,127,55))
+            d.rectangle((6,y+22,w-7,y+31),fill=(70,74,68))
+            for x in range(9,w-5,10):
+                d.line((x,y+23,x,y+29),fill=(42,50,49),width=2)
+            d.line((0,y+32,w,y+32),fill=(121,117,102),width=3)
+        rust(im,22,4)
+        grime(im,[(0,h-10,w,h,46)],17)
+
+    if card == 'cyber_market_wall':
+        d.rectangle((0,6,w-1,h-9),fill=(59,77,77),outline=(40,51,53),width=2)
+        for y in range(8,h-8,7):
+            d.line((0,y,w,y),fill=(47,65,67))
+        for row,y in enumerate((13,70)):
+            for col,x in enumerate((15,77,139,201)):
+                d.rectangle((x,y,x+33,y+35),fill=(30,40,45),outline=(106,109,102),width=2)
+                if (row,col) in ((0,2),(1,0)):
+                    d.rectangle((x+4,y+6,x+18,y+23),fill=(105,155,156))
+                    gd.rectangle((x+5,y+7,x+17,y+22),fill=(58,158,166))
+                d.line((x+20,y+2,x+20,y+31),fill=(67,78,78),width=2)
+                shutter(d,x+26,y+3,x+33,y+29)
+            d.line((0,y+37,w,y+37),fill=(115,107,94),width=3)
+        rust(im,23,5)
+        grime(im,[(0,h-12,w,h,55)],18)
+
+    if card in ('cyber_stackhouse_sign', 'cyber_courtyard_sign', 'cyber_market_sign'):
+        label, paint, emission = {
+            'cyber_stackhouse_sign': ('STACK 27', (197,139,174), (199,75,168)),
+            'cyber_courtyard_sign': ('COURT 06', (207,171,116), (223,150,64)),
+            'cyber_market_sign': ('MARKET ROW', (143,183,187), (65,178,187)),
+        }[card]
+        d.rectangle((3,3,w-4,h-4),outline=(115,104,91),width=2)
+        rust(im,8,1)
+        text(d,(w//2,h//2),label,23,paint,True)
+        text(gd,(w//2,h//2),label,23,emission,True)
+
+    if card == 'cyber_apartment_door':
+        d.rectangle((2,2,w-3,h-2),fill=(47,53,54),outline=(117,114,101),width=3)
+        d.rectangle((9,12,w-10,35),fill=(33,43,48),outline=(75,83,80),width=2)
+        d.line((w-13,51,w-8,51),fill=(157,149,125),width=3)
+        d.rectangle((8,h-16,w-9,h-6),fill=(95,95,85))
+        rust(im,9,1)
+
+    if card == 'cyber_market_roof':
+        for x in range(8,w-5,17):
+            d.rectangle((x-1,0,x+2,h-1),fill=(51,57,57))
+            d.line((x+3,0,x+3,h-1),fill=(114,116,107),width=2)
+        d.rectangle((0,h-13,w-1,h-1),fill=(113,89,70))
+        d.line((0,h-13,w-1,h-13),fill=(141,120,101),width=3)
+        d.line((0,18,w-1,18),fill=(69,67,63),width=3)
+        patches(im,7,(4,20,w-4,h-20),sheen=True)
+        rust(im,18,10)
+
+    if card == 'cyber_apartment_shutter':
+        d.rectangle((4,4,w-5,h-5),outline=(126,114,93),width=3)
+        shutter(d,9,16,w-10,h-8)
+        d.line((9,16,w-10,16),fill=(112,114,106),width=2)
+        rust(im,15,3)
+
     if card in ('advanced_utopian_glass', 'advanced_utopian_tower_glass'):
         tower = card == 'advanced_utopian_tower_glass'
         floor = 22 if tower else h
@@ -1825,6 +1927,48 @@ for card, (size, base, _) in CARDS.items():
         hazard(im,0,0,w-1,h-1,24)
         soot(im,1,90)
         grime(im,[],14)
+
+    if card == 'toxic_industrial_unit_armor':
+        d.rounded_rectangle((5, 5, w-6, h-6), radius=12, outline=(63, 59, 53), width=3)
+        d.line((17, 9, w-18, 9), fill=(144, 134, 119), width=2)
+        for x in (14, w-15):
+            d.ellipse((x-2, h-19, x+2, h-15), fill=(52, 49, 45))
+            rust(im, x, h-15)
+        soot(im, .56, 80)
+
+    if card == 'toxic_industrial_reservoir_crown':
+        for y in (41, h-46):
+            d.rectangle((0, y-4, w-1, y+4), fill=(74, 67, 59))
+            d.line((0, y-3, w-1, y-3), fill=(147, 133, 113), width=2)
+            for x in (22, w-25):
+                rust(im, x, y)
+        for x in (37, 91):
+            d.line((x, 59, x+3, 110), fill=(129, 117, 73), width=2)
+        soot(im, .36, 76)
+
+    if card == 'toxic_industrial_projector':
+        for x in (17, w-18):
+            d.line((x, 12, x, h-44), fill=(65, 59, 51), width=3)
+        soot(im, .8, 110)
+        hazard(im, 0, h-49, w-1, h-1, 42)
+        grime(im, [], 18)
+
+    if card == 'toxic_industrial_protective_suit':
+        for x in (13, w-14):
+            d.line((x, 0, x-2, h-1), fill=(58, 54, 47), width=2)
+            for y in range(2, h-2, 6):
+                d.line((x+2, y, x+2, y+2), fill=(111, 103, 87))
+        for y in (30, 66, 94):
+            d.arc((-12, y-13, w+8, y+15), 18, 169, fill=(70, 65, 55), width=3)
+        grime(im, [], 20)
+
+    if card == 'toxic_industrial_track':
+        for y in range(8, h, 17):
+            d.rectangle((0, y, w-1, y+5), fill=(40, 38, 35))
+            d.line((4, y-1, w-5, y-1), fill=(95, 88, 77), width=2)
+        for x in (9, w-10):
+            d.line((x, 0, x, h-1), fill=(55, 51, 45), width=3)
+        grime(im, [], 18)
 
     if card in ('toxic_industrial_pad', 'toxic_industrial_slab_top', 'toxic_industrial_slab'):
         joints(d,w,h,64,(78,75,70),(124,120,112),range(64,h,64))

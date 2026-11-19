@@ -159,6 +159,41 @@
       "width": 512,
       "height": 32,
       "shows": "Compound wall coping from above: sooty concrete under coils of razor wire"
+    },
+    "toxic_industrial_reservoir_crown": {
+      "x": 1644,
+      "y": 1172,
+      "width": 144,
+      "height": 192,
+      "shows": "Twin weld bands across satin steel with oxide and yellow chemical drips"
+    },
+    "toxic_industrial_projector": {
+      "x": 1812,
+      "y": 1172,
+      "width": 192,
+      "height": 192,
+      "shows": "Soot-dark projector cowling with a short band of wide hazard stripes at its mouth"
+    },
+    "toxic_industrial_track": {
+      "x": 12,
+      "y": 1452,
+      "width": 96,
+      "height": 192,
+      "shows": "Soot-dark track crown with broad transverse cleats and worn edges"
+    },
+    "toxic_industrial_unit_armor": {
+      "x": 132,
+      "y": 1452,
+      "width": 160,
+      "height": 128,
+      "shows": "Worn gunmetal plate with a recessed seam, edge scuffs, and soot"
+    },
+    "toxic_industrial_protective_suit": {
+      "x": 316,
+      "y": 1452,
+      "width": 96,
+      "height": 128,
+      "shows": "Dark protective canvas with stitched reinforcements, creases, and dirt"
     }
   }
 }
