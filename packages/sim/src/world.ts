@@ -9,6 +9,7 @@ import type {
   Trigger,
   Upgrade,
 } from "data";
+import { RANDOM_CHOICE } from "data";
 import { createFog, restoreSight, seesBuildSite, updateFog, type FogState } from "./fog.ts";
 import { hashState } from "./hash.ts";
 import { nextRandomState, randomUnit, seedRandom } from "./rng.ts";
@@ -150,6 +151,8 @@ export interface World {
   /** In scenario order, which is the order they run in. */
   triggers: Trigger[];
   commandRules: CommandRule[];
+  /** Setup choices: one per `match` option, and one per player for a `player` option. */
+  choices: Record<string, string | Record<string, string>>;
   /**
    * Level-ups that trigger actions caused, in the order they happened. They
    * fire `leveled` triggers on the next tick, so no chain of actions can keep
@@ -165,7 +168,19 @@ export interface World {
  */
 export type Seats = Readonly<Record<string, Player["controller"]>>;
 
-export function createWorld(scenario: Scenario, seed: number, seats: Seats = {}): World {
+/**
+ * Choices made at match setup, by option id: a choice id for a `match` option,
+ * or choice ids by player id for a `player` option. A missing or unknown
+ * choice takes the option's default, and `random` is drawn from the seed.
+ */
+export type Choices = Readonly<Record<string, string | Readonly<Record<string, string>>>>;
+
+export function createWorld(
+  scenario: Scenario,
+  seed: number,
+  seats: Seats = {},
+  choices: Choices = {},
+): World {
   const definitions: Record<string, Definition> = {};
   for (const definition of scenario.definitions) {
     definitions[definition.id] = copy(definition);
@@ -204,15 +219,21 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
     paths: {},
     triggers: copy(scenario.triggers),
     commandRules: copy(scenario.commandRules),
+    choices: {},
     levelUps: [],
   };
+  resolveChoices(world, scenario, choices, seed);
   for (const variable of scenario.variables) world.variables[variable.id] = variable.value;
   for (const waypoint of scenario.waypoints) {
     world.waypoints[waypoint.id] = { x: waypoint.x, y: waypoint.y };
   }
   for (const path of scenario.paths) world.paths[path.id] = [...path.waypoints];
   for (const placement of scenario.placements) {
-    spawn(world, placement.definitionId, placement.playerId, placement.x, placement.y);
+    const chosen =
+      placement.definitionFrom === undefined
+        ? undefined
+        : choiceOf(world, placement.definitionFrom, placement.playerId);
+    spawn(world, chosen ?? placement.definitionId, placement.playerId, placement.x, placement.y);
   }
   // What starts inside a region never entered it.
   for (const region of world.regions) region.inside = entitiesInside(world, region);
@@ -221,6 +242,55 @@ export function createWorld(scenario: Scenario, seed: number, seats: Seats = {})
     updateFog(world);
   }
   return world;
+}
+
+/** Mixed into the seed so setup draws come from a stream of their own. */
+const SETUP_STREAM = 0x5e70_c4a1;
+
+/**
+ * Options in scenario order, and a `player` option's players in scenario order,
+ * so draws repeat. Random choices draw from their own stream, so a seat's
+ * `random` doesn't shift the match's later rolls, such as shop offers.
+ */
+function resolveChoices(world: World, scenario: Scenario, given: Choices, seed: number): void {
+  let stream = seedRandom(seed ^ SETUP_STREAM);
+  const draw = (count: number) => {
+    stream = nextRandomState(stream);
+    return Math.floor(randomUnit(stream) * count);
+  };
+  for (const option of scenario.options) {
+    const pick = (choice: string | undefined): string => {
+      const wanted =
+        choice !== undefined && option.choices.some(({ id }) => id === choice)
+          ? choice
+          : choice === RANDOM_CHOICE
+            ? RANDOM_CHOICE
+            : (option.default ?? option.choices[0].id);
+      return wanted === RANDOM_CHOICE ? option.choices[draw(option.choices.length)].id : wanted;
+    };
+    const value = given[option.id];
+    if (option.scope === "match") {
+      world.choices[option.id] = pick(typeof value === "string" ? value : undefined);
+    } else {
+      world.choices[option.id] = Object.fromEntries(
+        scenario.players.map((player) => [
+          player.id,
+          pick(typeof value === "object" ? value[player.id] : undefined),
+        ]),
+      );
+    }
+  }
+}
+
+/** A player's choice of an option, or the match's for a `match` option. */
+export function choiceOf(
+  world: World,
+  optionId: string,
+  playerId: string | null,
+): string | undefined {
+  const value = world.choices?.[optionId];
+  if (value === undefined || typeof value === "string") return value;
+  return playerId === null ? undefined : value[playerId];
 }
 
 export function entitiesInside(world: World, region: Region): number[] {

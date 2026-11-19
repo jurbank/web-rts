@@ -14,7 +14,7 @@ import {
   type Trigger,
 } from "./triggers.ts";
 
-export const FORMAT_VERSION = 9;
+export const FORMAT_VERSION = 11;
 const colorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
 const positive = z.number().positive();
 
@@ -105,6 +105,11 @@ export const definitionSchema = z.object({
   radius: positive,
   /** Overrides the owner's color. Neutral entities need one. */
   color: colorSchema.optional(),
+  /**
+   * A kind of look, such as `soldier` or `tower`, that the owner's faction draws
+   * its own way. It names no model, so a scenario works with any faction.
+   */
+  look: idSchema.optional(),
   /** Absent means it cannot be damaged. */
   maxHealth: positive.optional(),
   /** Ground units of team vision when fog of war is enabled. */
@@ -189,6 +194,8 @@ export const playerSchema = z
     /** Players on the same team do not fight. Defaults to a team of their own. */
     team: idSchema.optional(),
     resources: z.number().nonnegative().default(0),
+    /** The seat can't pick a faction, and takes its team's default, as a MOBA side does. */
+    lockFaction: z.boolean().default(false),
     /** Where this player's view begins. Defaults to something they own. */
     start: z.object({ x: z.number(), y: z.number() }).optional(),
     ai: z
@@ -205,8 +212,29 @@ export const playerSchema = z
     path: ["ai"],
   });
 
+/** The choice that is drawn from the world's seeded generator. */
+export const RANDOM_CHOICE = "random";
+
+/**
+ * A choice made at match setup, such as a hero or a game mode. `player` asks
+ * every seat and `match` asks once. Triggers and placements read the choices.
+ */
+export const optionSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1),
+  scope: z.enum(["player", "match"]),
+  choices: z.array(z.object({ id: idSchema, name: z.string().min(1) })).min(1),
+  /** A choice id, or `random`. Defaults to the first choice. */
+  default: idSchema.optional(),
+});
+
 export const placementSchema = z.object({
   definitionId: idSchema,
+  /**
+   * An option whose choices are definition ids. The owner's choice, or the
+   * match's, is what it starts as, and `definitionId` stands in until then.
+   */
+  definitionFrom: idSchema.optional(),
   /** Null for neutral entities such as obstacles and resources. */
   playerId: idSchema.nullable().default(null),
   x: z.number(),
@@ -231,9 +259,32 @@ export const scenarioSchema = z
     /** Limits on when players may give commands. */
     commandRules: z.array(commandRuleSchema).default([]),
     upgrades: z.array(upgradeSchema).default([]),
+    /** Choices made at match setup. */
+    options: z.array(optionSchema).default([]),
   })
   .superRefine((scenario, ctx) => {
     const playerIds = uniqueIds(scenario.players, ["players"], ctx);
+    uniqueIds(scenario.options, ["options"], ctx);
+    const options = new Map(scenario.options.map((option) => [option.id, option]));
+    scenario.options.forEach((option, index) => {
+      const choices = uniqueIds(option.choices, ["options", index, "choices"], ctx);
+      if (choices.has(RANDOM_CHOICE)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `"${RANDOM_CHOICE}" means a random choice, so no choice may use it`,
+          path: ["options", index, "choices"],
+        });
+      }
+      if (option.default !== undefined && option.default !== RANDOM_CHOICE) {
+        if (!choices.has(option.default)) {
+          ctx.addIssue({
+            code: "custom",
+            message: `Unknown choice "${option.default}"`,
+            path: ["options", index, "default"],
+          });
+        }
+      }
+    });
     const definitionIds = uniqueIds(scenario.definitions, ["definitions"], ctx);
     const upgrades = new Map(scenario.upgrades.map((upgrade) => [upgrade.id, upgrade]));
     uniqueIds(scenario.upgrades, ["upgrades"], ctx);
@@ -321,19 +372,6 @@ export const scenarioSchema = z
         });
       }
     });
-    scenario.placements.forEach((placement, index) => {
-      const path = ["placements", index];
-      if (placement.playerId !== null && !playerIds.has(placement.playerId)) {
-        ctx.addIssue({
-          code: "custom",
-          message: `Unknown player "${placement.playerId}"`,
-          path: [...path, "playerId"],
-        });
-      }
-      requireDefinition(placement.definitionId, [...path, "definitionId"]);
-      requireInside(placement, "Placement", path);
-    });
-
     const requireIn = (ids: Set<string>, what: string) => (id: string, path: PropertyKey[]) => {
       if (!ids.has(id)) ctx.addIssue({ code: "custom", message: `Unknown ${what} "${id}"`, path });
     };
@@ -345,7 +383,45 @@ export const scenarioSchema = z
       region: requireIn(uniqueIds(scenario.regions, ["regions"], ctx), "region"),
       waypoint: requireIn(uniqueIds(scenario.waypoints, ["waypoints"], ctx), "waypoint"),
       path: requireIn(uniqueIds(scenario.paths, ["paths"], ctx), "path"),
+      option: (id, path) => {
+        const option = options.get(id);
+        if (option === undefined) {
+          ctx.addIssue({ code: "custom", message: `Unknown option "${id}"`, path });
+        }
+        return option;
+      },
+      definitionOption: (id, playerId, path) => {
+        const option = refs.option(id, path);
+        if (option === undefined) return;
+        option.choices.forEach((choice) => requireDefinition(choice.id, path));
+        if (option.scope === "player" && playerId === null) {
+          ctx.addIssue({
+            code: "custom",
+            message: `"${id}" is chosen by each player, so something neutral can't use it`,
+            path,
+          });
+        }
+      },
     };
+    scenario.placements.forEach((placement, index) => {
+      const path = ["placements", index];
+      if (placement.playerId !== null && !playerIds.has(placement.playerId)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Unknown player "${placement.playerId}"`,
+          path: [...path, "playerId"],
+        });
+      }
+      requireDefinition(placement.definitionId, [...path, "definitionId"]);
+      requireInside(placement, "Placement", path);
+      if (placement.definitionFrom !== undefined) {
+        refs.definitionOption(placement.definitionFrom, placement.playerId, [
+          ...path,
+          "definitionFrom",
+        ]);
+      }
+    });
+
     uniqueIds(scenario.triggers, ["triggers"], ctx);
 
     scenario.regions.forEach((region, index) => {
@@ -373,6 +449,9 @@ type Check = (id: string, path: PropertyKey[]) => void;
 
 interface References {
   definition: Check;
+  option: (id: string, path: PropertyKey[]) => Option | undefined;
+  /** An option whose choices must be definitions, used for an owner that may be neutral. */
+  definitionOption: (id: string, playerId: string | null, path: PropertyKey[]) => void;
   player: Check;
   variable: Check;
   timer: Check;
@@ -436,6 +515,12 @@ function checkTrigger(
       case "spawn":
         refs.definition(action.definitionId, [...path, "definitionId"]);
         player(action.playerId, [...path, "playerId"]);
+        if (action.definitionFrom !== undefined) {
+          refs.definitionOption(action.definitionFrom, action.playerId, [
+            ...path,
+            "definitionFrom",
+          ]);
+        }
         refs.waypoint(action.at, [...path, "at"]);
         if (action.path !== undefined) refs.path(action.path, [...path, "path"]);
         break;
@@ -474,6 +559,24 @@ function checkCondition(
   hasTriggering: boolean,
 ): void {
   if (condition.type === "variable") refs.variable(condition.variable, [...path, "variable"]);
+  if (condition.type === "option") {
+    const option = refs.option(condition.option, [...path, "option"]);
+    playerCheck(refs, ctx, hasTriggering)(condition.playerId, [...path, "playerId"]);
+    if (option !== undefined && !option.choices.some((choice) => choice.id === condition.choice)) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Unknown choice "${condition.choice}"`,
+        path: [...path, "choice"],
+      });
+    }
+    if (option?.scope === "player" && condition.playerId === undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: `"${option.id}" is chosen by each player, so name whose choice`,
+        path: [...path, "playerId"],
+      });
+    }
+  }
   if (condition.type === "visible") {
     const check = playerCheck(refs, ctx, hasTriggering);
     check(condition.viewer, [...path, "viewer"]);
@@ -512,4 +615,5 @@ export type Ability = z.infer<typeof abilitySchema>;
 export type Definition = z.infer<typeof definitionSchema>;
 export type Player = z.infer<typeof playerSchema>;
 export type Placement = z.infer<typeof placementSchema>;
+export type Option = z.infer<typeof optionSchema>;
 export type Scenario = z.infer<typeof scenarioSchema>;

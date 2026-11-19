@@ -2,6 +2,7 @@ import type { Definition, Modifier, Scenario } from "data";
 import { addItem, freshId, removeItem, setItem } from "editor";
 import { Button } from "./Hud.tsx";
 import { FIELD, NumberField, Panel, TextField, type Edit } from "./editorFields.tsx";
+import { LOOKS } from "./factions.ts";
 import { SELECT, useEditor } from "./store.ts";
 
 /** What a definition gets when its weapon is switched on. */
@@ -107,6 +108,24 @@ export function DefinitionPanel(props: { document: Scenario; index: number; edit
         placeholder="owner's"
         onCommit={(color) => set({ color: color === "" ? undefined : color })}
       />
+      <label className="flex items-center justify-between gap-2">
+        Look
+        <select
+          aria-label="Look"
+          className={`${FIELD} w-32`}
+          value={definition.look ?? ""}
+          onChange={(event) =>
+            set({ look: event.target.value === "" ? undefined : event.target.value })
+          }
+        >
+          <option value="">Box</option>
+          {[...new Set([...LOOKS, ...(definition.look ? [definition.look] : [])])].map((look) => (
+            <option key={look} value={look}>
+              {look}
+            </option>
+          ))}
+        </select>
+      </label>
       <NumberField
         label="Radius"
         value={definition.radius}

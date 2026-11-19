@@ -104,6 +104,13 @@ export const conditionSchema = z.discriminatedUnion("type", [
     op: compareSchema,
     value: z.number(),
   }),
+  /** The player's choice of a setup option, or the match's for a `match` option. */
+  z.object({
+    type: z.literal("option"),
+    option: idSchema,
+    playerId: playerRefSchema.optional(),
+    choice: idSchema,
+  }),
   /** Entities matching every field given. */
   z.object({
     type: z.literal("count"),
@@ -130,6 +137,8 @@ export const actionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("spawn"),
     definitionId: idSchema,
+    /** An option whose choices are definition ids. The player's choice replaces `definitionId`. */
+    definitionFrom: idSchema.optional(),
     /** Null for neutral entities. */
     playerId: playerRefSchema.nullable(),
     /** A waypoint. */

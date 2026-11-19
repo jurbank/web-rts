@@ -8,6 +8,8 @@ import skirmishV7 from "./fixtures/skirmish-v7.json" with { type: "json" };
 import skirmishV1 from "./fixtures/skirmish-v1.json" with { type: "json" };
 import skirmishV2 from "./fixtures/skirmish-v2.json" with { type: "json" };
 import skirmishV8 from "./fixtures/skirmish-v8.json" with { type: "json" };
+import skirmishV9 from "./fixtures/skirmish-v9.json" with { type: "json" };
+import skirmishV10 from "./fixtures/skirmish-v10.json" with { type: "json" };
 import skirmish from "./fixtures/skirmish.json" with { type: "json" };
 
 function fixture(): Record<string, any> {
@@ -22,6 +24,78 @@ function issues(scenario: unknown): string[] {
 test("format 8 migrates with fog off", () => {
   expect(loadScenario(skirmishV8)).toEqual(loadScenario(fixture()));
   expect(loadScenario(skirmishV8).fogOfWar).toBe(false);
+});
+
+test("format 9 migrates with no looks", () => {
+  const scenario = loadScenario(skirmishV9);
+  expect(scenario).toEqual(loadScenario(fixture()));
+  expect(scenario.definitions.every((definition) => definition.look === undefined)).toBe(true);
+});
+
+test("format 10 migrates with no options and every faction open", () => {
+  const scenario = loadScenario(skirmishV10);
+  expect(scenario).toEqual(loadScenario(fixture()));
+  expect(scenario.options).toEqual([]);
+  expect(scenario.players.every((player) => !player.lockFaction)).toBe(true);
+});
+
+test("options are checked against their choices and the definitions they start", () => {
+  const scenario = fixture();
+  scenario.options = [
+    {
+      id: "starter",
+      name: "Starting unit",
+      scope: "player",
+      choices: [
+        { id: "worker", name: "Worker" },
+        { id: "soldier", name: "Soldier" },
+      ],
+      default: "random",
+    },
+  ];
+  scenario.placements[0].definitionFrom = "starter";
+  expect(issues(scenario)).toEqual([]);
+
+  scenario.options[0].default = "tank";
+  scenario.options[0].choices.push({ id: "tank", name: "Tank" });
+  expect(issues(scenario)).toContain('Unknown definition "tank"');
+
+  const neutral = fixture();
+  neutral.options = [{ ...scenario.options[0], choices: scenario.options[0].choices.slice(0, 2) }];
+  neutral.options[0].default = undefined;
+  const index = neutral.placements.findIndex((placement: any) => placement.playerId == null);
+  neutral.placements[index].definitionFrom = "starter";
+  expect(issues(neutral).some((issue) => issue.includes("chosen by each player"))).toBe(true);
+});
+
+test("an option condition names a known choice, and whose for a player option", () => {
+  const scenario = fixture();
+  scenario.options = [
+    { id: "mode", name: "Mode", scope: "match", choices: [{ id: "normal", name: "Normal" }] },
+    { id: "hero", name: "Hero", scope: "player", choices: [{ id: "soldier", name: "Soldier" }] },
+  ];
+  scenario.triggers = [
+    {
+      id: "check",
+      event: { type: "start" },
+      conditions: [
+        { type: "option", option: "mode", choice: "hard" },
+        { type: "option", option: "hero", choice: "soldier" },
+      ],
+      actions: [],
+    },
+  ];
+  const found = issues(scenario);
+  expect(found).toContain('Unknown choice "hard"');
+  expect(found.some((issue) => issue.includes("name whose choice"))).toBe(true);
+});
+
+test("a definition may name a look", () => {
+  const scenario = fixture();
+  scenario.definitions[0].look = "soldier";
+  expect(loadScenario(scenario).definitions[0].look).toBe("soldier");
+  scenario.definitions[0].look = "Not a look";
+  expect(issues(scenario)).not.toEqual([]);
 });
 
 test("round trip yields equal data", () => {

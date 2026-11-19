@@ -65,6 +65,10 @@ const migrations: Record<number, Migration> = {
   }),
   /** Fog and definition sight are opt-in. */
   8: (document) => ({ ...document, formatVersion: 9 }),
+  /** A definition's look is optional, and one without it draws as a box. */
+  9: (document) => ({ ...document, formatVersion: 10 }),
+  /** Setup options, placements and spawns that take a chosen definition, and faction locks are opt-in. */
+  10: (document) => ({ ...document, formatVersion: 11 }),
 };
 
 /**

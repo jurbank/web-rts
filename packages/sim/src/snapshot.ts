@@ -79,6 +79,8 @@ export interface Snapshot {
   readonly timers: Readonly<Record<string, number | null>>;
   /** Command types a command rule refuses now. */
   readonly refusedCommands: readonly CommandType[];
+  /** Setup choices, which every seat may know, as a hero is seen once it spawns. */
+  readonly choices: Readonly<Record<string, string | Readonly<Record<string, string>>>>;
 }
 
 /** A copy, so it stays valid after later steps (S8). */
@@ -164,6 +166,7 @@ export function takeSnapshot(
       ]),
     ),
     refusedCommands: refusedCommands(world),
+    choices: JSON.parse(JSON.stringify(world.choices ?? {})),
   };
 }
 

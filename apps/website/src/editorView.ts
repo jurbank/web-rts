@@ -13,6 +13,7 @@ import { createWorld, takeSnapshot, type Point, type Snapshot } from "sim";
 import type { GameElements } from "./game.ts";
 import { guideAt, scenarioGuides } from "./guides.ts";
 import { attachInput, showBox } from "./input.ts";
+import { assignFactions, modelFor } from "./factions.ts";
 import { session } from "./session.ts";
 import { SELECT, useEditor } from "./store.ts";
 
@@ -30,7 +31,10 @@ const snap = (value: number) => Math.round(value / SNAP) * SNAP;
  */
 export function createEditorView(elements: GameElements): () => void {
   const current = () => session.state.history.document;
-  const renderer = createRenderer(elements.scene, elements.overlay, current());
+  const renderer = createRenderer(elements.scene, elements.overlay, current(), {
+    models: (definitionId, playerId) =>
+      modelFor(current(), assignFactions(current()), definitionId, playerId),
+  });
 
   /** A move in progress. Its operation joins the history when the drag ends. */
   let drag: {

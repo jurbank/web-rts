@@ -1,5 +1,5 @@
 {
-  "formatVersion": 9,
+  "formatVersion": 10,
   "fogOfWar": true,
   "map": {
     "width": 64,
@@ -26,6 +26,7 @@
   "definitions": [
     {
       "id": "worker",
+      "look": "worker",
       "name": "Worker",
       "sight": 10,
       "radius": 0.5,
@@ -43,6 +44,7 @@
     },
     {
       "id": "soldier",
+      "look": "soldier",
       "name": "Soldier",
       "sight": 12,
       "radius": 0.6,
@@ -75,6 +77,7 @@
     },
     {
       "id": "hq",
+      "look": "hq",
       "name": "Headquarters",
       "sight": 16,
       "radius": 2.5,
@@ -85,6 +88,7 @@
     },
     {
       "id": "barracks",
+      "look": "barracks",
       "name": "Barracks",
       "sight": 10,
       "radius": 2,

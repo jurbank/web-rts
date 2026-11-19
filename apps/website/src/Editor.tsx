@@ -1,4 +1,4 @@
-import { definitionSchema, type Player, type Scenario } from "data";
+import { definitionSchema, type Placement, type Player, type Scenario } from "data";
 import {
   addItem,
   assignPlacements,
@@ -19,6 +19,7 @@ import { FIELD, Panel, TextField, type Edit } from "./editorFields.tsx";
 import { createEditorView } from "./editorView.ts";
 import { examples } from "./examples.ts";
 import { GuidesPanel } from "./GuidesPanel.tsx";
+import { OptionsPanel } from "./OptionsPanel.tsx";
 import { Button } from "./Hud.tsx";
 import { session, useSession } from "./session.ts";
 import { createLocalStorage } from "./storage.ts";
@@ -180,6 +181,7 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
     const taken = new Set(document.players.map((player) => player.color.toLowerCase()));
     const player: Player = {
       id: freshId(document.players, "player"),
+      lockFaction: false,
       color: PLAYER_COLORS.find((color) => !taken.has(color)) ?? PLAYER_COLORS[0],
       controller: "ai",
       resources: 0,
@@ -191,6 +193,19 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
   /** Refused while anything still names the player, such as a placement or a trigger. */
   function removePlayer(index: number): void {
     if (edit(removeItem("players", index))) useEditor.setState({ tool: SELECT });
+  }
+
+  /** An option id makes the selection start as its owner's choice, or the match's. Empty clears it. */
+  function setStartsAs(optionId: string): void {
+    edit({
+      type: "batch",
+      operations: selection.map((index) => {
+        const { definitionFrom: _, ...placement } = document.placements[index];
+        const next: Placement =
+          optionId === "" ? placement : { ...placement, definitionFrom: optionId };
+        return setItem("placements", index, next);
+      }),
+    });
   }
 
   function chooseVictory(victory: Victory | null): void {
@@ -213,6 +228,12 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
 
   const selected = selection.map((index) => document.placements[index]);
   const owners = new Set(selected.map((placement) => placement.playerId));
+  const startsAs = new Set(selected.map((placement) => placement.definitionFrom ?? ""));
+  const definitionIds = new Set(document.definitions.map(({ id }) => id));
+  /** Options that can decide what a placement starts as. */
+  const unitOptions = document.options.filter((option) =>
+    option.choices.every((choice) => definitionIds.has(choice.id)),
+  );
   const definitionName = (id: string) =>
     document.definitions.find((definition) => definition.id === id)?.name ?? id;
   const destructible = document.definitions.filter(
@@ -343,6 +364,26 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                   value={owners.size === 1 ? selected[0].playerId : MIXED}
                   onChange={(playerId) => edit(assignPlacements(document, selection, playerId))}
                 />
+                {unitOptions.length > 0 && (
+                  <label className="flex flex-col gap-1">
+                    Starts as
+                    <select
+                      aria-label="What the selection starts as"
+                      className={FIELD}
+                      value={startsAs.size === 1 ? [...startsAs][0] : MIXED}
+                      onChange={(event) => setStartsAs(event.target.value)}
+                    >
+                      {startsAs.size > 1 && <option value={MIXED}>Mixed</option>}
+                      <option value="">Its unit type</option>
+                      {unitOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.scope === "player" ? "Owner's" : "Match's"}{" "}
+                          {option.name.toLowerCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <Button onClick={() => session.deleteSelection()}>Delete</Button>
               </Panel>
             )}
@@ -415,10 +456,23 @@ export function Editor({ onPlaytest }: { onPlaytest: (scenario: Scenario) => voi
                       AI plays if nobody takes it
                     </label>
                   )}
+                  {player.controller !== "none" && (
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={player.lockFaction}
+                        onChange={(event) =>
+                          setPlayer(index, { ...player, lockFaction: event.target.checked })
+                        }
+                      />
+                      Lock faction to the team's
+                    </label>
+                  )}
                 </div>
               ))}
               <Button onClick={addPlayer}>Add player</Button>
             </Panel>
+            <OptionsPanel document={document} edit={edit} />
             <Panel title="Victory">
               <select
                 aria-label="Victory condition"

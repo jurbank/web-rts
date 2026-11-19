@@ -1,21 +1,47 @@
 {
-  "formatVersion": 8,
+  "formatVersion": 11,
   "map": { "width": 64, "height": 24 },
+  "options": [
+    {
+      "id": "hero",
+      "name": "Hero",
+      "scope": "player",
+      "choices": [
+        { "id": "hero", "name": "Hero" },
+        { "id": "ranger", "name": "Ranger" },
+        { "id": "brute", "name": "Brute" }
+      ]
+    }
+  ],
   "players": [
-    { "id": "red", "color": "#e5484d", "controller": "human", "team": "west" },
+    { "id": "red", "color": "#e5484d", "controller": "human", "team": "west", "lockFaction": true },
     {
       "id": "blue",
       "color": "#3e63dd",
       "controller": "ai",
       "team": "east",
+      "lockFaction": true,
       "ai": { "workers": 0, "attackSize": 1 }
     },
-    { "id": "redBase", "color": "#b03a3e", "controller": "none", "team": "west" },
-    { "id": "blueBase", "color": "#2f4bb0", "controller": "none", "team": "east" }
+    {
+      "id": "redBase",
+      "color": "#b03a3e",
+      "controller": "none",
+      "team": "west",
+      "lockFaction": true
+    },
+    {
+      "id": "blueBase",
+      "color": "#2f4bb0",
+      "controller": "none",
+      "team": "east",
+      "lockFaction": true
+    }
   ],
   "definitions": [
     {
       "id": "hero",
+      "look": "hero",
       "name": "Hero",
       "radius": 0.6,
       "maxHealth": 300,
@@ -70,7 +96,207 @@
       ]
     },
     {
+      "id": "ranger",
+      "look": "hero",
+      "name": "Ranger",
+      "radius": 0.6,
+      "maxHealth": 240,
+      "speed": 5.5,
+      "weapon": {
+        "damage": 16,
+        "range": 6,
+        "cooldown": 0.8,
+        "acquireRange": 8
+      },
+      "experience": 60,
+      "bounty": 100,
+      "levels": {
+        "thresholds": [60, 100, 140, 180],
+        "range": 10,
+        "perLevel": [
+          {
+            "stat": "maxHealth",
+            "add": 45
+          },
+          {
+            "stat": "damage",
+            "add": 5
+          }
+        ]
+      },
+      "respawn": {
+        "seconds": 10
+      },
+      "abilities": [
+        {
+          "id": "bolt",
+          "name": "Bolt",
+          "cooldown": 6,
+          "target": "enemy",
+          "range": 6,
+          "effects": [
+            {
+              "type": "damage",
+              "amount": 70
+            }
+          ]
+        },
+        {
+          "id": "sprint",
+          "name": "Sprint",
+          "cooldown": 12,
+          "target": "self",
+          "level": 2,
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "speed",
+              "add": 3,
+              "seconds": 4
+            }
+          ]
+        },
+        {
+          "id": "blade",
+          "name": "Blade",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 150,
+          "near": {
+            "definitionIds": ["shop"],
+            "range": 4
+          },
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "damage",
+              "add": 8
+            }
+          ]
+        },
+        {
+          "id": "boots",
+          "name": "Boots",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 100,
+          "near": {
+            "definitionIds": ["shop"],
+            "range": 4
+          },
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "speed",
+              "add": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "brute",
+      "look": "hero",
+      "name": "Brute",
+      "radius": 0.7,
+      "maxHealth": 420,
+      "speed": 4.5,
+      "weapon": {
+        "damage": 26,
+        "range": 1.5,
+        "cooldown": 1.2,
+        "acquireRange": 6
+      },
+      "experience": 60,
+      "bounty": 100,
+      "levels": {
+        "thresholds": [60, 100, 140, 180],
+        "range": 10,
+        "perLevel": [
+          {
+            "stat": "maxHealth",
+            "add": 90
+          },
+          {
+            "stat": "damage",
+            "add": 7
+          }
+        ]
+      },
+      "respawn": {
+        "seconds": 10
+      },
+      "abilities": [
+        {
+          "id": "bolt",
+          "name": "Bolt",
+          "cooldown": 6,
+          "target": "enemy",
+          "range": 6,
+          "effects": [
+            {
+              "type": "damage",
+              "amount": 70
+            }
+          ]
+        },
+        {
+          "id": "sprint",
+          "name": "Sprint",
+          "cooldown": 12,
+          "target": "self",
+          "level": 2,
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "speed",
+              "add": 3,
+              "seconds": 4
+            }
+          ]
+        },
+        {
+          "id": "blade",
+          "name": "Blade",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 150,
+          "near": {
+            "definitionIds": ["shop"],
+            "range": 4
+          },
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "damage",
+              "add": 8
+            }
+          ]
+        },
+        {
+          "id": "boots",
+          "name": "Boots",
+          "cooldown": 1,
+          "target": "self",
+          "cost": 100,
+          "near": {
+            "definitionIds": ["shop"],
+            "range": 4
+          },
+          "effects": [
+            {
+              "type": "modify",
+              "stat": "speed",
+              "add": 1
+            }
+          ]
+        }
+      ],
+      "armor": 2
+    },
+    {
       "id": "creep",
+      "look": "creep",
       "name": "Creep",
       "radius": 0.4,
       "maxHealth": 60,
@@ -81,6 +307,7 @@
     },
     {
       "id": "tower",
+      "look": "tower",
       "name": "Tower",
       "radius": 1,
       "maxHealth": 500,
@@ -88,12 +315,12 @@
       "experience": 50,
       "bounty": 100
     },
-    { "id": "ancient", "name": "Ancient", "radius": 2, "maxHealth": 800 },
-    { "id": "shop", "name": "Shop", "radius": 1 }
+    { "id": "ancient", "look": "ancient", "name": "Ancient", "radius": 2, "maxHealth": 800 },
+    { "id": "shop", "look": "shop", "name": "Shop", "radius": 1 }
   ],
   "placements": [
-    { "definitionId": "hero", "playerId": "red", "x": 8, "y": 12 },
-    { "definitionId": "hero", "playerId": "blue", "x": 56, "y": 12 },
+    { "definitionId": "hero", "definitionFrom": "hero", "playerId": "red", "x": 8, "y": 12 },
+    { "definitionId": "hero", "definitionFrom": "hero", "playerId": "blue", "x": 56, "y": 12 },
     { "definitionId": "ancient", "playerId": "redBase", "x": 4, "y": 12 },
     { "definitionId": "ancient", "playerId": "blueBase", "x": 60, "y": 12 },
     { "definitionId": "tower", "playerId": "redBase", "x": 18, "y": 9 },

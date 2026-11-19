@@ -33,6 +33,7 @@ export {
   loadWorld,
   saveWorld,
   TICK_RATE,
+  type Choices,
   type Seats,
   TICK_SECONDS,
   type Entity,

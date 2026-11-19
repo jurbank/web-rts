@@ -19,6 +19,7 @@ import {
   type SimEvent,
 } from "./systems.ts";
 import {
+  choiceOf,
   definitionOf,
   teamOf,
   toTicks,
@@ -172,6 +173,11 @@ function holds(world: World, condition: Condition, entity: Triggering | null): b
   switch (condition.type) {
     case "variable":
       return compare(world.variables[condition.variable], condition.op, condition.value);
+    case "option": {
+      const playerId =
+        condition.playerId === undefined ? null : resolvePlayer(condition.playerId, entity);
+      return choiceOf(world, condition.option, playerId) === condition.choice;
+    }
     case "visible": {
       const viewer = resolvePlayer(condition.viewer, entity);
       if (viewer === null) return false;
@@ -287,8 +293,12 @@ function runAction(
     case "spawn": {
       const playerId = action.playerId === null ? null : resolvePlayer(action.playerId, entity);
       const at = world.waypoints[action.at];
+      const definitionId =
+        (action.definitionFrom === undefined
+          ? undefined
+          : choiceOf(world, action.definitionFrom, playerId)) ?? action.definitionId;
       for (let i = 0; i < action.count; i++) {
-        const spawned = spawn(world, action.definitionId, playerId, at.x, at.y);
+        const spawned = spawn(world, definitionId, playerId, at.x, at.y);
         if (action.path !== undefined && definitionOf(world, spawned).speed !== undefined) {
           spawned.orders = [{ type: "path", pathId: action.path, next: 0 }];
         }

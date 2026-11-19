@@ -3,7 +3,14 @@ import { scenarioSchema, type Scenario } from "data";
 /** The lists of a scenario that operations edit. */
 type Lists = Pick<
   Scenario,
-  "placements" | "players" | "definitions" | "waypoints" | "paths" | "regions" | "triggers"
+  | "placements"
+  | "players"
+  | "definitions"
+  | "waypoints"
+  | "paths"
+  | "regions"
+  | "triggers"
+  | "options"
 >;
 export type ListName = keyof Lists;
 type Item<K extends ListName> = Lists[K][number];

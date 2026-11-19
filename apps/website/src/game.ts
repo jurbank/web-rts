@@ -4,6 +4,7 @@ import { createWorld, type Command, type EntitySnapshot } from "sim";
 import { scenarioGuides } from "./guides.ts";
 import { buildHudView, type HudView, type OrderMode } from "./hud.ts";
 import { attachInput, showBox, type Shortcut } from "./input.ts";
+import { modelFor } from "./factions.ts";
 import { createGameLoop } from "./loop.ts";
 import type { Seating } from "./seating.ts";
 
@@ -47,14 +48,16 @@ export function createGame(
   scenario: Scenario,
   elements: GameElements,
   onView: (view: HudView) => void,
-  { localPlayerId, seats, seed }: Seating & { seed: number },
+  { localPlayerId, seats, factions, choices, seed }: Seating & { seed: number },
 ): Game {
   const localPlayer = scenario.players.find((player) => player.id === localPlayerId)!;
   const definitions = new Map(
     scenario.definitions.map((definition) => [definition.id, definition]),
   );
-  const loop = createGameLoop(createWorld(scenario, seed, seats), localPlayerId);
-  const renderer = createRenderer(elements.scene, elements.overlay, scenario);
+  const loop = createGameLoop(createWorld(scenario, seed, seats, choices), localPlayerId);
+  const renderer = createRenderer(elements.scene, elements.overlay, scenario, {
+    models: (definitionId, playerId) => modelFor(scenario, factions, definitionId, playerId),
+  });
   const guides = scenarioGuides(scenario);
 
   const home =

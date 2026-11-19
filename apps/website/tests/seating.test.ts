@@ -16,7 +16,7 @@ test("one person takes the first open seat and the ai fills open seats that have
       ...moba.players.filter((player) => player.controller === "none"),
     ],
   });
-  expect(seatOnePerson(scenario)).toEqual({
+  expect(seatOnePerson(scenario)).toMatchObject({
     localPlayerId: "red",
     seats: { red: "human", green: "ai" },
   });
@@ -31,5 +31,19 @@ test("with no open seat, the person takes the first seat anyone commands", () =>
       ai,
     })),
   });
-  expect(seatOnePerson(scenario)).toEqual({ localPlayerId: "red", seats: { red: "human" } });
+  expect(seatOnePerson(scenario)).toMatchObject({ localPlayerId: "red", seats: { red: "human" } });
+});
+
+test("the person's setup choices apply to their seat, and to match options as host", () => {
+  const scenario = loadScenario({
+    ...moba,
+    options: [
+      ...moba.options,
+      { id: "mode", name: "Mode", scope: "match", choices: [{ id: "calm", name: "Calm" }] },
+    ],
+  });
+  expect(seatOnePerson(scenario, { options: { hero: "brute", mode: "calm" } }).choices).toEqual({
+    hero: { red: "brute" },
+    mode: "calm",
+  });
 });

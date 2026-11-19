@@ -9,17 +9,26 @@ import {
   HemisphereLight,
   LineBasicMaterial,
   LineSegments,
+  Matrix4,
+  type Material,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
   PlaneGeometry,
+  PMREMGenerator,
+  Quaternion,
   RingGeometry,
   Scene,
+  Vector3,
   WebGLRenderer,
   type Object3D,
 } from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { clipSeconds, sampleClip } from "./clips.ts";
+import { createCrowd, type BakedPose } from "./crowd.ts";
 import { createFogLayer } from "./fog.ts";
 import { createCameraRig, type ScreenPoint } from "./camera.ts";
+import { createModelLibrary, type BakedModel, type Model } from "./models.ts";
 
 /** A labelled spot on the ground, such as a start point. */
 export interface Marker extends Readonly<Point> {
@@ -52,6 +61,11 @@ export interface Overlay {
   zones?: readonly Zone[];
 }
 
+export interface RendererOptions {
+  /** The URL of the GLB that draws an entity, by its definition and owner. Entities without one draw as boxes. */
+  models?: (definitionId: string, playerId: string | null) => string | undefined;
+}
+
 export interface Renderer {
   /** Takes definitions and players that changed since creation, as the editor's do. */
   setContent(content: Pick<Scenario, "definitions" | "players">): void;
@@ -82,10 +96,45 @@ interface DrawnEntity extends Point {
 interface EntityView {
   definitionId: string;
   playerId: string | null;
+  /** The box drawn until a model loads. It stays as the target for picking. */
   body: Mesh;
   ring: Mesh;
   height: number;
   frame: number;
+  color: Color;
+  modelUrl: string | undefined;
+  model: Model | undefined;
+  rigid: Object3D | undefined;
+  scale: number;
+  x: number;
+  y: number;
+  heading: number;
+  facing: number;
+  /** Seconds since it last moved. */
+  still: number;
+  /** Seconds until an attacking unit swings again. */
+  swing: number;
+  motion: Motion;
+}
+
+/** Which clip a baked model plays, and the one it is blending away from. */
+interface Motion {
+  clip: string;
+  seconds: number;
+  from: string | null;
+  fromSeconds: number;
+  blend: number;
+}
+
+interface Dying {
+  model: BakedModel;
+  x: number;
+  y: number;
+  heading: number;
+  scale: number;
+  color: Color;
+  motion: Motion;
+  age: number;
 }
 
 const GRID_SPACING = 4;
@@ -94,11 +143,19 @@ const STRUCTURE_HEIGHT = 1.6;
 const NEUTRAL_COLOR = "#8a8f98";
 const BAR_WIDTH = 30;
 const GUIDE_COLOR = "rgba(255, 255, 255, 0.55)";
+const BLEND_SECONDS = 0.15;
+/** How long a unit stands still before it stops walking, so it does not flicker between ticks. */
+const STOP_SECONDS = 0.1;
+const TURN_RATE = 12;
+/** A dead creature lies still this long after its clip, then sinks into the ground. */
+const CORPSE_SECONDS = 1.5;
+const SINK_SECONDS = 1.5;
 
 export function createRenderer(
   canvas: HTMLCanvasElement,
   overlayCanvas: HTMLCanvasElement,
   scenario: Scenario,
+  options: RendererOptions = {},
 ): Renderer {
   const { map } = scenario;
   const gl = new WebGLRenderer({ canvas, antialias: true });
@@ -109,6 +166,11 @@ export function createRenderer(
   const sun = new DirectionalLight("#ffffff", 1.5);
   sun.position.set(-0.4, 1, 0.6);
   scene.add(sun);
+  // Models are physically based, and glossy or metal faces need something to reflect.
+  const pmrem = new PMREMGenerator(gl);
+  const environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environment = environment;
+  scene.environmentIntensity = 0.5;
 
   const groundGeometry = new PlaneGeometry(map.width, map.height);
   const groundMaterial = new MeshLambertMaterial({ color: "#3b4a3f" });
@@ -131,6 +193,28 @@ export function createRenderer(
   let definitions = new Map(scenario.definitions.map((definition) => [definition.id, definition]));
   let playerColors = new Map(scenario.players.map((player) => [player.id, player.color]));
   const materials = new Map<string, MeshLambertMaterial>();
+  const library = createModelLibrary();
+  const crowd = createCrowd(scene);
+
+  /** Loads every model the scenario can show now, so no device waits for one when it first comes into view. */
+  function preload(content: Pick<Scenario, "definitions" | "players">): void {
+    for (const definition of content.definitions) {
+      for (const playerId of [null, ...content.players.map((player) => player.id)]) {
+        const url = options.models?.(definition.id, playerId);
+        if (url !== undefined) library.get(url);
+      }
+    }
+  }
+  preload(scenario);
+  const teamMaterials = new Map<string, Material>();
+  let dying: Dying[] = [];
+  let eventsTick = -1;
+  let lastTime = performance.now();
+  const matrix = new Matrix4();
+  const rotation = new Quaternion();
+  const up = new Vector3(0, 1, 0);
+  const at = new Vector3();
+  const size = new Vector3();
 
   function materialFor(color: string): MeshLambertMaterial {
     let material = materials.get(color);
@@ -176,6 +260,18 @@ export function createRenderer(
         ring,
         height: definition?.speed === undefined ? STRUCTURE_HEIGHT : UNIT_HEIGHT,
         frame,
+        color: new Color(color),
+        modelUrl: options.models?.(definitionId, playerId),
+        model: undefined,
+        rigid: undefined,
+        scale: 1,
+        x: Number.NaN,
+        y: Number.NaN,
+        heading: 0,
+        facing: 0,
+        still: Infinity,
+        swing: 0,
+        motion: { clip: "idle", seconds: id * 0.37, from: null, fromSeconds: 0, blend: 1 },
       };
       views.set(id, view);
       idsByBody.set(body, id);
@@ -183,7 +279,162 @@ export function createRenderer(
     return view;
   }
 
+  /** Swaps the box for the entity's model once it has loaded. */
+  function attachModel(view: EntityView): void {
+    if (view.model !== undefined || view.modelUrl === undefined) return;
+    const model = library.get(view.modelUrl);
+    if (model === undefined) return;
+    const radius = definitions.get(view.definitionId)?.radius ?? 0.5;
+    view.model = model;
+    // A model built for a larger footprint than this definition's shrinks to fit it.
+    view.scale = Math.min(1, radius / model.radius);
+    view.body.visible = false;
+    if (model.kind === "rigid") {
+      view.rigid = model.scene.clone();
+      view.rigid.traverse((object) => {
+        if (object instanceof Mesh && (object.material as Material).name === "team") {
+          object.material = teamMaterial(object.material as Material, view.color);
+        }
+      });
+      scene.add(view.rigid);
+    }
+  }
+
+  function teamMaterial(source: Material, color: Color): Material {
+    const key = `${source.uuid}:${color.getHexString()}`;
+    let material = teamMaterials.get(key);
+    if (material === undefined) {
+      material = source.clone();
+      (material as Material & { color: Color }).color.multiply(color);
+      teamMaterials.set(key, material);
+    }
+    return material;
+  }
+
+  /** Turns, picks a clip, and advances it, from how the unit moved since the last frame. */
+  function animate(
+    view: EntityView,
+    model: BakedModel,
+    entity: Snapshot["entities"][number],
+    x: number,
+    y: number,
+    dt: number,
+  ): void {
+    const moved = Number.isNaN(view.x) ? 0 : Math.hypot(x - view.x, y - view.y);
+    if (moved > 1e-4) {
+      view.facing = Math.atan2(x - view.x, y - view.y);
+      view.still = 0;
+    } else {
+      view.still += dt;
+    }
+    let turn = view.facing - view.heading;
+    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    view.heading += turn * Math.min(1, dt * TURN_RATE);
+
+    const { clips, rate } = model;
+    const motion = view.motion;
+    if (view.still < STOP_SECONDS && clips.move !== undefined) {
+      play(motion, "move");
+      const stride = (clips.move.stride ?? 1) * view.scale;
+      motion.seconds += (moved / stride) * clipSeconds(clips.move, rate);
+    } else if (entity.order === "attack" && clips.attack !== undefined) {
+      // Until sim announces each shot, a unit swings once per weapon cooldown while it attacks.
+      view.swing -= dt;
+      if (view.swing <= 0) {
+        view.swing = definitions.get(view.definitionId)?.weapon?.cooldown ?? 1;
+        play(motion, "attack", 0, true);
+      } else if (motion.clip === "attack" && motion.seconds >= clipSeconds(clips.attack, rate)) {
+        play(motion, "idle");
+      }
+      motion.seconds += dt;
+    } else {
+      view.swing = 0;
+      play(motion, "idle");
+      motion.seconds += dt;
+    }
+    motion.blend += dt;
+  }
+
+  function play(motion: Motion, clip: string, seconds = 0, restart = false): void {
+    if (motion.clip === clip && !restart) return;
+    motion.from = motion.clip;
+    motion.fromSeconds = motion.seconds;
+    motion.clip = clip;
+    motion.seconds = seconds;
+    motion.blend = 0;
+  }
+
+  function pose(model: BakedModel, motion: Motion): BakedPose {
+    const clip = model.clips[motion.clip] ?? model.clips.idle;
+    const [a, b, t] = sampleClip(clip, model.rate, motion.seconds);
+    const from = motion.from === null ? undefined : model.clips[motion.from];
+    const weight = from === undefined ? 1 : Math.min(1, motion.blend / BLEND_SECONDS);
+    const leaving =
+      from === undefined ? ([a, b, t] as const) : sampleClip(from, model.rate, motion.fromSeconds);
+    return [[a, b, t, weight], leaving];
+  }
+
+  function drawBaked(
+    model: BakedModel,
+    x: number,
+    y: number,
+    lift: number,
+    heading: number,
+    scale: number,
+    color: Color,
+    motion: Motion,
+  ): void {
+    rotation.setFromAxisAngle(up, heading);
+    matrix.compose(at.set(x, lift, y), rotation, size.setScalar(scale));
+    crowd.add(model, matrix, color, pose(model, motion));
+  }
+
+  /** A creature that died keeps its view until its clip has played and it has sunk away. */
+  function startDying(events: Snapshot["events"]): void {
+    for (const event of events) {
+      if (event.type !== "died") continue;
+      const view = views.get(event.id);
+      if (view?.model?.kind !== "baked" || view.model.clips.die === undefined) continue;
+      const motion = { ...view.motion };
+      play(motion, "die");
+      dying.push({
+        model: view.model,
+        x: view.x,
+        y: view.y,
+        heading: view.heading,
+        scale: view.scale,
+        color: view.color,
+        motion,
+        age: 0,
+      });
+    }
+  }
+
+  function drawDying(dt: number): void {
+    dying = dying.filter((corpse) => {
+      corpse.age += dt;
+      corpse.motion.seconds += dt;
+      corpse.motion.blend += dt;
+      const sinking =
+        corpse.age - clipSeconds(corpse.model.clips.die, corpse.model.rate) - CORPSE_SECONDS;
+      if (sinking > SINK_SECONDS) return false;
+      const lift = -Math.max(0, sinking / SINK_SECONDS) * corpse.scale * 1.2;
+      drawBaked(
+        corpse.model,
+        corpse.x,
+        corpse.y,
+        lift,
+        corpse.heading,
+        corpse.scale,
+        corpse.color,
+        corpse.motion,
+      );
+      return true;
+    });
+  }
+
   function removeView(id: number, view: EntityView): void {
+    if (view.rigid !== undefined) scene.remove(view.rigid);
     scene.remove(view.body, view.ring);
     idsByBody.delete(view.body);
     views.delete(id);
@@ -335,7 +586,9 @@ export function createRenderer(
     setContent(content) {
       definitions = new Map(content.definitions.map((definition) => [definition.id, definition]));
       playerColors = new Map(content.players.map((player) => [player.id, player.color]));
+      preload(content);
       for (const [id, view] of views) removeView(id, view);
+      dying = [];
     },
 
     resize(newWidth, newHeight, newPixelRatio) {
@@ -352,6 +605,14 @@ export function createRenderer(
     draw(previous, current, alpha, overlay) {
       frame += 1;
       drawn = [];
+      const now = performance.now();
+      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+      lastTime = now;
+      crowd.begin();
+      if (current.tick !== eventsTick) {
+        eventsTick = current.tick;
+        startDying(current.events);
+      }
       let p = 0;
       for (const entity of current.entities) {
         while (p < previous.entities.length && previous.entities[p].id < entity.id) p += 1;
@@ -365,6 +626,20 @@ export function createRenderer(
         view.body.scale.y = bodyHeight;
         view.body.position.set(x, bodyHeight / 2, y);
         view.ring.position.set(x, 0.02, y);
+        attachModel(view);
+        if (view.model?.kind === "baked") {
+          animate(view, view.model, entity, x, y, dt);
+          drawBaked(view.model, x, y, 0, view.heading, view.scale, view.color, view.motion);
+        } else if (view.rigid !== undefined) {
+          if (!Number.isNaN(view.x) && Math.hypot(x - view.x, y - view.y) > 1e-4) {
+            view.heading = Math.atan2(x - view.x, y - view.y);
+          }
+          view.rigid.position.set(x, 0, y);
+          view.rigid.rotation.y = view.heading;
+          view.rigid.scale.set(view.scale, view.scale * Math.max(0.15, entity.built), view.scale);
+        }
+        view.x = x;
+        view.y = y;
         view.ring.visible = selected;
         drawn.push({
           id: entity.id,
@@ -381,6 +656,8 @@ export function createRenderer(
         });
       }
       removeStaleViews();
+      drawDying(dt);
+      crowd.end();
       fogLayer.update(current.fog);
       gl.render(scene, rig.camera);
       drawOverlay(overlay, current.fog);
@@ -426,9 +703,12 @@ export function createRenderer(
       for (const geometry of [groundGeometry, gridGeometry, boxGeometry, ringGeometry]) {
         geometry.dispose();
       }
-      for (const material of [groundMaterial, gridMaterial, ringMaterial, ...materials.values()]) {
-        material.dispose();
-      }
+      const owned = [groundMaterial, gridMaterial, ringMaterial, ...materials.values()];
+      for (const material of [...owned, ...teamMaterials.values()]) material.dispose();
+      crowd.dispose();
+      library.dispose();
+      environment.dispose();
+      pmrem.dispose();
       fogLayer.dispose();
       gl.dispose();
     },

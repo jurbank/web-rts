@@ -74,6 +74,13 @@ const operations: Record<string, (document: Scenario) => Operation> = {
     setVictory(document, { type: "destroyDefinitions", definitionIds: ["hq"] }),
   removeVictory: (document) => setVictory(document, null),
   addTrigger: (document) => addItem("triggers", 0, { ...document.triggers[1], id: "again" }),
+  addOption: () =>
+    addItem("options", 0, {
+      id: "mode",
+      name: "Mode",
+      scope: "match",
+      choices: [{ id: "calm", name: "Calm" }],
+    }),
   removePlacements: () => removePlacements([0, 2]),
   movePlacements: (document) => movePlacements(document, [0, 1], 1.5, -2),
   assignPlacements: (document) => assignPlacements(document, [1, 2], "red"),
