@@ -30,7 +30,14 @@ import { createFogLayer } from "./fog.ts";
 import { createCameraRig, type ScreenPoint } from "./camera.ts";
 import { createModelLibrary, type BakedModel, type Model } from "./models.ts";
 import { createEffects } from "./effects/effects.ts";
-import { RECIPES, type Recipe, type RecipeName } from "./effects/recipes.ts";
+import {
+  DEATH_KINDS,
+  pickRecipe,
+  RECIPES,
+  SHOT_KINDS,
+  type Recipe,
+  type RecipeName,
+} from "./effects/recipes.ts";
 import { GROUND_ORDER } from "./effects/blocks.ts";
 
 /** A labelled spot on the ground, such as a start point. */
@@ -85,6 +92,8 @@ export interface RenderStats {
   readonly triangles: number;
   /** Live effect parts. */
   readonly particles: number;
+  /** Batch instances effects drew, which an arc's bends count in. */
+  readonly slots: number;
 }
 
 export interface Renderer {
@@ -458,13 +467,14 @@ export function createRenderer(
     const target = targetView === undefined ? undefined : definitions.get(targetView.definitionId);
     const range = attacker?.weapon?.range ?? 6;
     const reach = (attacker?.radius ?? 0.5) * 0.9;
-    const inset = (target?.radius ?? 0.4) * 0.5;
+    // On the target's near face, so a hit on a big building is not buried inside it.
+    const inset = (target?.radius ?? 0.4) * 0.9;
     const generic = range <= MELEE_RANGE ? "melee" : "bullet";
     // A hidden attacker's shot names no kind or style, so its impact says nothing of it.
     effects.play(
       from === undefined
         ? RECIPES[generic]
-        : recipeFor(attacker?.weapon?.shot ?? generic, generic, from.playerId),
+        : recipeFor(attacker?.weapon?.shot ?? generic, SHOT_KINDS, generic, from.playerId),
       {
         origin:
           from === undefined
@@ -484,10 +494,18 @@ export function createRenderer(
   }
 
   /** The owner's style of a kind, else the generic recipe of that kind, else the fallback's. */
-  function recipeFor(kind: string, fallback: RecipeName, playerId: string | null): Recipe {
-    const style = options.effectStyle?.(playerId);
-    const styled = style === undefined ? undefined : options.recipes?.[`${style}/${kind}`];
-    return styled ?? (kind in RECIPES ? RECIPES[kind as RecipeName] : RECIPES[fallback]);
+  /**
+   * The owner's style of a kind, else the generic recipe of the kind. A kind
+   * outside `kinds`, which scenario data may name, plays the fallback, so a
+   * shot can never name a death or a property every object has.
+   */
+  function recipeFor(
+    kind: string,
+    kinds: readonly RecipeName[],
+    fallback: RecipeName,
+    playerId: string | null,
+  ): Recipe {
+    return pickRecipe(kind, kinds, fallback, options.effectStyle?.(playerId), options.recipes);
   }
 
   /** Something that died bursts by its size, unless it is a resource running out. */
@@ -505,7 +523,7 @@ export function createRenderer(
         : radius >= 0.8
           ? "vehicle-death"
           : "unit-death";
-    const recipe = recipeFor(generic, generic, event.playerId);
+    const recipe = recipeFor(generic, DEATH_KINDS, generic, event.playerId);
     effects.play(
       recipe,
       {
@@ -756,6 +774,7 @@ export function createRenderer(
         drawCalls: gl.info.render.calls,
         triangles: gl.info.render.triangles,
         particles: effects.live,
+        slots: effects.slots,
       };
     },
 

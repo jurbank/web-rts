@@ -180,12 +180,13 @@ void main() {
   float facing = clamp(abs(normalize(vNormal).z), 0.0, 1.0);
   float heat = clamp((n - threshold) * 3.5 + (1.0 - progress) * 0.45 - 0.55 + facing * 0.4, 0.0, 1.0);
   // Cool, then a darker hot, then hot, then a touch of white at the very hottest.
-  vec3 ember = vHot * 0.45;
+  // Between cool and hot, so a white burst shades to ice, not grey.
+  vec3 ember = mix(vCool, vHot, 0.55);
   vec3 color = heat < 0.5 ? mix(vCool, ember, heat * 2.0) : mix(ember, vHot, heat * 2.0 - 1.0);
   // Where it burns away the edge glows, as paper does, instead of outlining the hole in soot.
   color = mix(mix(ember, vHot, 0.5), color, smoothstep(0.0, 0.05, n - threshold));
   color = mix(color, vec3(1.0, 0.95, 0.82), pow(heat, 12.0) * 0.3 * (1.0 - progress));
-  color *= mix(0.45, 1.0, pow(facing, 0.6));
+  color = mix(mix(vCool, ember, 0.5), color, mix(0.35, 1.0, pow(facing, 0.6)));
   gl_FragColor = vec4(color, 1.0);
   #include <colorspace_fragment>
 }

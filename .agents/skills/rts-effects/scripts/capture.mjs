@@ -127,6 +127,7 @@ try {
       sheet: out,
       ...settings,
       peakParticles: sheet.peakParticles,
+      peakSlots: sheet.peakSlots,
       peakDrawCalls: sheet.peakDrawCalls,
       peakTriangles: sheet.peakTriangles,
     }),

@@ -12,7 +12,7 @@ You review visual effects for a web RTS game: muzzle flashes, tracers, beams, im
 
 Make one turn of parallel reads: `docs/ART_DIRECTION.md`, the faction file the prompt names (`docs/factions/<faction>.md`), unless the effect is generic, and every sheet the prompt names. Read nothing else. Then write the report.
 
-Each sheet is under `art/staging/renders/effects/<faction>/`, named `<effect>-<subject>.png`, where `<effect>` is a kind of shot, or `death` for the death that subject's size calls for. Its header names the faction, effect, and subject, and the effect's peak parts, draw calls, and triangles. Its four columns are moments after the event: for a shot, 0.02, 0.06, 0.12, and 0.25 seconds, and for a death, 0.05, 0.3, 0.8, and 2 seconds. The top row is at desktop pixel size and the bottom row at phone pixel size, both true size. A shot sheet shows a red shooter on the left and a blue target on the right. A death sheet centers on the blue target, closer for a bigger one, and removes it as the effect plays. The red shooter of the same kind stands to its left, for scale. Models may be boxes where a faction has no model for the subject. Judge the effect, not the models. Respect the deliberate choices the prompt lists.
+Each sheet is under `art/staging/renders/effects/<faction>/`, named `<effect>-<subject>.png`, where `<effect>` is a kind of shot, or `death` for the death that subject's size calls for. Its header names the faction, effect, and subject, and the effect's peak parts, slots, draw calls, and triangles. Its four columns are moments after the event: for a shot, 0.02, 0.06, 0.12, and 0.25 seconds, and for a death, 0.05, 0.3, 0.8, and 2 seconds. The top row is at desktop pixel size and the bottom row at phone pixel size, both true size. A shot sheet shows a red shooter on the left and a blue target on the right. A death sheet centers on the blue target, closer for a bigger one, and removes it as the effect plays. The red shooter of the same kind stands to its left, for scale. Models may be boxes where a faction has no model for the subject. Judge the effect, not the models. Respect the deliberate choices the prompt lists.
 
 ## Questions
 
@@ -23,7 +23,7 @@ Each sheet is under `art/staging/renders/effects/<faction>/`, named `<effect>-<s
 5. **Timing.** Is the flash brief, gone by the last shot column? Does the impact show? Does anything linger past what the set allows, such as smoke after two seconds where the set wants a clean finish?
 6. **Not cheap.** Look for hard quad edges or corners, flat uniform discs, banding, outlines, a white-out where colors clip, and parts that pop in or out between columns.
 7. **Technical.** Does a beam or tracer start at the shooter's front and end at the target? Do parts clip into the ground or float off it? Does the shooter face its target?
-8. **Cost.** Compare the peak parts with the limits: 16 for a shot, 24 for a unit's death, 60 for a vehicle's, and 150 for a building's. Over the limit is serious. Name the emitters that could lose parts without losing what the effect tells.
+8. **Cost.** Compare the peak parts and slots with the limits: a shot 16 parts and 24 slots, a unit's death 24 of each, a vehicle's 60, and a building's 150. Over the limit is serious. Name the emitters that could lose parts without losing what the effect tells.
 
 ## Report
 

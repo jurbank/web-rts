@@ -211,6 +211,7 @@ export interface EffectSheet {
   /** The sheet as a PNG data URL. */
   readonly png: string;
   readonly peakParticles: number;
+  readonly peakSlots: number;
   readonly peakDrawCalls: number;
   readonly peakTriangles: number;
 }
@@ -248,6 +249,7 @@ export async function renderEffectSheet(settings: GallerySettings): Promise<Effe
   context.font = "14px ui-monospace, monospace";
 
   let peakParticles = 0;
+  let peakSlots = 0;
   let peakDrawCalls = 0;
   let peakTriangles = 0;
   const gone = settings.kind === "death";
@@ -260,6 +262,7 @@ export async function renderEffectSheet(settings: GallerySettings): Promise<Effe
       stage.draw(gone);
       const stats = renderer.stats();
       peakParticles = Math.max(peakParticles, stats.particles);
+      peakSlots = Math.max(peakSlots, stats.slots);
       peakDrawCalls = Math.max(peakDrawCalls, stats.drawCalls);
       peakTriangles = Math.max(peakTriangles, stats.triangles);
     }
@@ -273,11 +276,17 @@ export async function renderEffectSheet(settings: GallerySettings): Promise<Effe
     renderer.resize(DESKTOP.width, DESKTOP.height, 1);
   }
   context.fillText(
-    `${settings.faction} · ${settings.kind === "shot" ? settings.effect : "death"} · ${settings.subject}    peak ${peakParticles} parts · ${peakDrawCalls} draws · ${peakTriangles} tris`,
+    `${settings.faction} · ${settings.kind === "shot" ? settings.effect : "death"} · ${settings.subject}    peak ${peakParticles} parts · ${peakSlots} slots · ${peakDrawCalls} draws · ${peakTriangles} tris`,
     GAP,
     19,
   );
   context.fillText("top: desktop pixels    bottom: phone pixels", GAP, sheet.height - GAP - 2);
   renderer.dispose();
-  return { png: sheet.toDataURL("image/png"), peakParticles, peakDrawCalls, peakTriangles };
+  return {
+    png: sheet.toDataURL("image/png"),
+    peakParticles,
+    peakSlots,
+    peakDrawCalls,
+    peakTriangles,
+  };
 }

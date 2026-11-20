@@ -57,27 +57,30 @@ A recipe is a list of emitters and an optional `radius`, the footprint it is siz
 | `lift`    | Height above the anchor.                                                                                                                           |
 | `side`    | Distance to the right of the shot's line, negative for the left. A beam or tracer moves only its start, so twin barrels' beams meet at the target. |
 | `arrive`  | Flies to the target over its life, whatever the range, as a flame jet does. Overrides `speed`.                                                     |
+| `along`   | Seconds a shot takes to fly. Each part starts at a random point along the shot and waits until the shot passes it, so smoke lays a trail.          |
+| `jitter`  | How far an arc's bends stray from the straight line.                                                                                               |
 | `spin`    | Turns a second, for smoke, scorch, and debris.                                                                                                     |
 
 ## Blocks
 
-| Block      | Draws                                           | Batch     | Blend    | Part of    |
-| ---------- | ----------------------------------------------- | --------- | -------- | ---------- |
-| `glow`     | A soft camera-facing dot of light               | light     | additive | core       |
-| `flare`    | A star of light, for muzzle flashes and blasts  | light     | additive | core       |
-| `beam`     | A ribbon from origin to target, for lasers      | beams     | additive | core       |
-| `tracer`   | A short ribbon that flies from origin to target | beams     | additive | core       |
-| `fireball` | A lumpy sphere of 320 triangles that burns away | fireballs | solid    | core       |
-| `spark`    | A short ribbon stretched along its flight       | beams     | additive | decoration |
-| `light`    | A glow lying on the ground, in place of a light | light     | additive | decoration |
-| `ring`     | A ring on the ground, for shockwaves            | light     | additive | decoration |
-| `smoke`    | A noisy camera-facing puff                      | shade     | alpha    | decoration |
-| `scorch`   | A dark noisy mark on the ground                 | shade     | alpha    | decoration |
-| `debris`   | A lit chunk that falls, bounces, and sinks      | debris    | lit      | decoration |
+| Block      | Draws                                                                     | Batch     | Blend    | Part of    |
+| ---------- | ------------------------------------------------------------------------- | --------- | -------- | ---------- |
+| `glow`     | A soft camera-facing dot of light                                         | light     | additive | core       |
+| `flare`    | A star of light, for muzzle flashes and blasts                            | light     | additive | core       |
+| `beam`     | A ribbon from origin to target, for lasers                                | beams     | additive | core       |
+| `tracer`   | A short ribbon that flies from origin to target                           | beams     | additive | core       |
+| `arc`      | A jagged bolt from origin to target that flickers, drawn as beam segments | beams     | additive | core       |
+| `fireball` | A lumpy sphere of 320 triangles that burns away                           | fireballs | solid    | core       |
+| `spark`    | A short ribbon stretched along its flight                                 | beams     | additive | decoration |
+| `light`    | A glow lying on the ground, in place of a light                           | light     | additive | decoration |
+| `ring`     | A ring on the ground, for shockwaves                                      | light     | additive | decoration |
+| `smoke`    | A noisy camera-facing puff                                                | shade     | alpha    | decoration |
+| `scorch`   | A dark noisy mark on the ground                                           | shade     | alpha    | decoration |
+| `debris`   | A lit chunk that falls, bounces, and sinks                                | debris    | lit      | decoration |
 
 Each batch is one draw call for every effect on screen. The shade batch draws right after the ground and before every model, so smoke never hides a unit.
 
-To add a block, such as an arc or a trail: add its name to `Block` in `recipes.ts`, draw it in a batch in `blocks.ts` (an existing one if the shader fits, or a new `createBatch` with its own budget), give it a case in `draw` in `effects.ts`, and add it to `DECORATION` unless it tells the event. Keep one draw call for the whole block, a fixed budget, and no allocation per frame.
+To add a block: add its name to `Block` in `recipes.ts`, draw it in a batch in `blocks.ts` (an existing one if the shader fits, or a new `createBatch` with its own budget), give it a case in `draw` in `effects.ts`, and add it to `DECORATION` unless it tells the event. Keep one draw call for the whole block, a fixed budget, and no allocation per frame.
 
 ## Budgets
 
@@ -92,14 +95,16 @@ The same on every device. Past a batch's budget the newest parts are skipped, an
 | debris    | 256           |
 | all parts | 4096          |
 
-A 6v6 fight can play hundreds of shots a second, so one effect stays small. Keep a sheet's peak parts within these:
+A 6v6 fight can play hundreds of shots a second, so one effect stays small. Keep a sheet's peaks within these. Parts are live particles. Slots are the batch instances they draw, where an arc takes one a bend, so a shot that is cheap in parts can still crowd the beam batch.
 
-| Effect             | Peak parts |
-| ------------------ | ---------- |
-| A shot             | 16         |
-| A unit's death     | 24         |
-| A vehicle's death  | 60         |
-| A building's death | 150        |
+| Effect             | Peak parts | Peak slots |
+| ------------------ | ---------- | ---------- |
+| A shot             | 16         | 24         |
+| A unit's death     | 24         | 24         |
+| A vehicle's death  | 60         | 60         |
+| A building's death | 150        | 150        |
+
+Within a batch, one-slot core parts draw first, then arcs, then decoration, so a full batch drops bends and dressing before any shot.
 
 ## Capture
 

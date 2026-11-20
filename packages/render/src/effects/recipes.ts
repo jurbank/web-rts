@@ -11,6 +11,7 @@ export type Range = number | readonly [number, number];
  * - `scorch`: a dark mark on the ground.
  * - `beam`: a ribbon from the origin to the target, such as a laser.
  * - `tracer`: a short ribbon that flies from the origin to the target.
+ * - `arc`: a jagged bolt from the origin to the target that flickers, such as lightning.
  * - `spark`: a short ribbon stretched along its own flight.
  * - `fireball`: a lumpy sphere that burns away.
  * - `debris`: a lit chunk that falls and bounces.
@@ -24,6 +25,7 @@ export type Block =
   | "scorch"
   | "beam"
   | "tracer"
+  | "arc"
   | "spark"
   | "fireball"
   | "debris";
@@ -68,6 +70,13 @@ export interface Emitter {
   readonly side?: Range;
   /** Flies to the target over its life, whatever the distance, as a flame jet does. Overrides `speed`. */
   readonly arrive?: boolean;
+  /**
+   * Seconds a shot takes to fly. Each part starts at a random point along the
+   * shot's line and waits until the shot passes it, so smoke lays a trail.
+   */
+  readonly along?: number;
+  /** How far an arc's bends stray from the straight line. */
+  readonly jitter?: Range;
   /** A chunk's length over its width, so debris can be shards. Defaults to 1. */
   readonly stretch?: number;
   /** Turns a second. */
@@ -199,6 +208,105 @@ export const RECIPES = {
         aim: "up",
         spread: 0.5,
         spin: [-1, 1],
+      },
+    ],
+  },
+  /**
+   * A fast flight, since the hit lands the tick the weapon fires. Real travel
+   * time waits for `sim` to hold hits in flight, as the effects ADR says.
+   */
+  missile: {
+    emitters: [
+      { block: "flare", at: "origin", life: 0.06, size: [0.5, 0.3], color: [FLASH, FIRE] },
+      // The body, and its thrust riding just behind it.
+      {
+        block: "tracer",
+        at: "origin",
+        life: 0.24,
+        size: [0.45, 0.45],
+        color: ["#f2efe8", "#d8d2c8"],
+      },
+      {
+        block: "glow",
+        at: "origin",
+        life: 0.2,
+        size: [0.55, 0.45],
+        color: ["#ffd88a", FIRE],
+        arrive: true,
+        aim: "forward",
+      },
+      {
+        block: "smoke",
+        count: 3,
+        along: 0.2,
+        life: [0.45, 0.7],
+        size: [0.2, 0.55],
+        color: ["#bdb8b0", "#8a8580"],
+        opacity: [0.55, 0],
+        rise: 0.4,
+        spin: [-1, 1],
+      },
+      { block: "flare", delay: 0.2, life: 0.1, size: [1, 0.5], color: [FLASH, FIRE] },
+      {
+        block: "fireball",
+        delay: 0.2,
+        life: [0.35, 0.45],
+        size: [0.15, 0.3],
+        color: [FIRE, SOOT],
+        lift: 0.1,
+      },
+      {
+        block: "spark",
+        delay: 0.2,
+        count: [3, 4],
+        life: [0.15, 0.3],
+        size: [0.35, 0.06],
+        color: [FLASH, EMBER],
+        speed: [3, 6],
+        aim: "out",
+        rise: -9,
+      },
+      {
+        block: "light",
+        delay: 0.2,
+        life: 0.35,
+        size: [1.8, 1],
+        color: [FIRE, EMBER],
+        opacity: [0.7, 0],
+      },
+    ],
+  },
+  /** A bolt that strikes one target. Jumping on to others would be a `sim` mechanism. */
+  lightning: {
+    emitters: [
+      {
+        block: "arc",
+        at: "origin",
+        count: 2,
+        life: [0.16, 0.22],
+        // Wide enough that its soft edge holds the bolt's shape at phone size.
+        size: [0.2, 0.1],
+        color: ["#ffffff", "#9fc8ff"],
+        jitter: [0.35, 0.5],
+      },
+      { block: "glow", at: "origin", life: 0.2, size: [0.8, 0.4], color: ["#e8f2ff", "#6f9fff"] },
+      { block: "glow", life: 0.22, size: [1, 0.4], color: ["#ffffff", "#6f9fff"] },
+      {
+        block: "light",
+        life: 0.3,
+        size: [1.6, 0.8],
+        color: ["#9fc8ff", "#3a5fb0"],
+        opacity: [0.6, 0],
+      },
+      {
+        block: "spark",
+        count: [3, 5],
+        life: [0.1, 0.22],
+        size: [0.3, 0.05],
+        color: ["#ffffff", "#9fc8ff"],
+        speed: [3, 7],
+        aim: "out",
+        rise: -6,
       },
     ],
   },
@@ -392,6 +500,8 @@ export const SHOT_KINDS = [
   "bullet",
   "laser",
   "flame",
+  "missile",
+  "lightning",
   "melee",
 ] as const satisfies readonly RecipeName[];
 export const DEATH_KINDS = [
@@ -399,3 +509,19 @@ export const DEATH_KINDS = [
   "vehicle-death",
   "building-death",
 ] as const satisfies readonly RecipeName[];
+
+/**
+ * The style's version of a kind, else the generic recipe of the kind. A kind
+ * outside `kinds`, which scenario data may name, plays the fallback, so a shot
+ * can never name a death or a property every object has.
+ */
+export function pickRecipe(
+  kind: string,
+  kinds: readonly RecipeName[],
+  fallback: RecipeName,
+  style: string | undefined,
+  styled: Readonly<Record<string, Recipe>> = {},
+): Recipe {
+  const known = kinds.find((candidate) => candidate === kind) ?? fallback;
+  return (style === undefined ? undefined : styled[`${style}/${known}`]) ?? RECIPES[known];
+}

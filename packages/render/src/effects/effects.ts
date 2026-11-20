@@ -56,6 +56,9 @@ const DECORATION: ReadonlySet<Block> = new Set([
   "ring",
 ]);
 const GROUND_LIFT = 0.03;
+/** An arc's straight pieces, and how often a second its bends move. */
+const ARC_SEGMENTS = 6;
+const ARC_FLICKER = 20;
 const UP = new Vector3(0, 1, 0);
 
 interface Particle {
@@ -74,6 +77,8 @@ interface Particle {
   seed: number;
   /** A chunk's length over its width. */
   stretch: number;
+  /** How far an arc's bends stray. */
+  jitter: number;
   /** Whether a frame has drawn it, so a part shorter than a frame still shows once. */
   drawn: boolean;
   /** A beam's or tracer's path. */
@@ -105,6 +110,7 @@ export function createEffects(scene: Scene) {
   const scratch = new Color();
   const tail = new Vector3();
   const head = new Vector3();
+  const arcSide = new Vector3();
   const matrix = new Matrix4();
   const rotation = new Quaternion();
   const euler = new Euler();
@@ -127,7 +133,8 @@ export function createEffects(scene: Scene) {
           ? range
           : range[0] + (range[1] - range[0]) * random();
     const { origin, scale } = anchors;
-    const travels = emitter.block === "beam" || emitter.block === "tracer";
+    const travels =
+      emitter.block === "beam" || emitter.block === "tracer" || emitter.block === "arc";
     const end =
       anchors.target ??
       (origin !== null && anchors.direction !== null
@@ -153,10 +160,20 @@ export function createEffects(scene: Scene) {
       const scatter = pick(emitter.scatter) * scale * Math.sqrt(random());
       const around = random() * Math.PI * 2;
       const side = pick(emitter.side) * scale;
+      // A trail's part starts where the shot will be, and waits for it to get there.
+      const passing = emitter.along !== undefined && origin !== null && end !== null;
+      const along = passing ? random() : 0;
+      const start = passing
+        ? {
+            x: origin.x + (end.x - origin.x) * along,
+            y: origin.y + (end.y - origin.y) * along,
+            z: origin.z + (end.z - origin.z) * along,
+          }
+        : anchor;
       const position = new Vector3(
-        anchor.x + Math.cos(around) * scatter + right.x * side,
-        anchor.y + pick(emitter.lift) * scale,
-        anchor.z + Math.sin(around) * scatter + right.z * side,
+        start.x + Math.cos(around) * scatter + right.x * side,
+        start.y + pick(emitter.lift) * scale,
+        start.z + Math.sin(around) * scatter + right.z * side,
       );
       const velocity = direction(emitter.aim ?? "out", emitter.spread ?? 0, forward, random);
       const life = Math.max(0.01, pick(emitter.life));
@@ -168,7 +185,7 @@ export function createEffects(scene: Scene) {
       const [birth, death] = emitter.size;
       particles.push({
         block: emitter.block,
-        age: elapsed - pick(emitter.delay),
+        age: elapsed - pick(emitter.delay) - along * (emitter.along ?? 0),
         life,
         position,
         velocity,
@@ -182,6 +199,7 @@ export function createEffects(scene: Scene) {
         seed: random() * 100,
         drawn: false,
         stretch: emitter.stretch ?? 1,
+        jitter: pick(emitter.jitter) * scale,
         start: new Vector3(
           (origin?.x ?? 0) + right.x * side,
           origin?.y ?? 0,
@@ -281,6 +299,10 @@ export function createEffects(scene: Scene) {
         beams.write("iColor", index, color.r, color.g, color.b, opacity);
         return;
       }
+      case "arc": {
+        drawArc(particle, width, color, opacity);
+        return;
+      }
       case "fireball": {
         const index = fireballs.add();
         if (index < 0) return;
@@ -305,6 +327,40 @@ export function createEffects(scene: Scene) {
         debris.add(matrix, color);
         return;
       }
+    }
+  }
+
+  /**
+   * A bolt of straight segments between bends that stray from the line. The
+   * bends move 20 times a second, seeded by the part, so every device flickers
+   * the same. Each segment is a beam, so arcs cost no draw call of their own.
+   */
+  function drawArc(particle: Particle, width: number, color: Color, opacity: number): void {
+    const { start, end, jitter, seed } = particle;
+    const flicker = Math.floor(particle.age * ARC_FLICKER);
+    const way = tail.copy(end).sub(start);
+    const across = arcSide.set(-way.z, 0, way.x).normalize();
+    let fromX = start.x;
+    let fromY = start.y;
+    let fromZ = start.z;
+    for (let bend = 1; bend <= ARC_SEGMENTS; bend++) {
+      const along = bend / ARC_SEGMENTS;
+      // Ends stay put, and the middle strays most.
+      const reach = bend === ARC_SEGMENTS ? 0 : jitter * Math.sin(Math.PI * along);
+      const sideways = (noise(seed, flicker, bend) * 2 - 1) * reach;
+      const upward = (noise(seed + 17, flicker, bend) * 2 - 1) * reach * 0.6;
+      const toX = start.x + way.x * along + across.x * sideways;
+      const toY = start.y + way.y * along + upward;
+      const toZ = start.z + way.z * along + across.z * sideways;
+      const index = beams.add();
+      if (index < 0) return;
+      beams.write("iStart", index, fromX, fromY, fromZ);
+      beams.write("iEnd", index, toX, toY, toZ);
+      beams.write("iWidth", index, width);
+      beams.write("iColor", index, color.r, color.g, color.b, opacity);
+      fromX = toX;
+      fromY = toY;
+      fromZ = toZ;
     }
   }
 
@@ -334,9 +390,13 @@ export function createEffects(scene: Scene) {
       });
       evictDecoration();
       // What tells the event draws first, so a full batch drops decoration.
-      for (const decoration of [false, true]) {
+      // One-slot core parts draw first, then arcs, which take a slot a bend, then
+      // decoration, so a full batch drops bends and dressing before any shot.
+      const pass = (particle: Particle) =>
+        DECORATION.has(particle.block) ? 2 : particle.block === "arc" ? 1 : 0;
+      for (const order of [0, 1, 2]) {
         for (const particle of particles) {
-          if (particle.age < 0 || DECORATION.has(particle.block) !== decoration) continue;
+          if (particle.age < 0 || pass(particle) !== order) continue;
           particle.drawn = true;
           draw(particle, particle.age / particle.life);
         }
@@ -346,6 +406,11 @@ export function createEffects(scene: Scene) {
 
     get live(): number {
       return particles.length;
+    },
+
+    /** Instances the last update drew across every batch. An arc takes one a bend. */
+    get slots(): number {
+      return light.count + shade.count + beams.count + fireballs.count + debris.count;
     },
 
     clear(): void {
@@ -381,4 +446,10 @@ function direction(aim: Aim, spread: number, forward: Vector3, random: () => num
     .multiplyScalar(cosine)
     .addScaledVector(u, Math.cos(around) * sine)
     .addScaledVector(v, Math.sin(around) * sine);
+}
+
+/** A repeatable number in [0, 1) for a part, a moment, and a bend. */
+function noise(seed: number, flicker: number, bend: number): number {
+  const x = Math.sin(seed * 12.9898 + flicker * 78.233 + bend * 37.719) * 43758.5453;
+  return x - Math.floor(x);
 }
